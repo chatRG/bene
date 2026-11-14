@@ -73,9 +73,9 @@ export function generateCoachReply(data: AppStateData, text: string, now = new D
 
   if (/whoop|oura|apple|garmin|data|source/.test(q)) {
     return {
-      text: `Bevel reads whatever writes to Apple Health — Apple Watch, Oura, Garmin, Amazfit and Google Health. Right now your primary source is Apple Watch, with Oura used on a few nights.\n\nOvernight HRV and RHR power Recovery; daytime HR and HRV power Stress. If a metric looks empty, check that the source has permission to write it to Apple Health.`,
-      followUps: ['Open Data Sources', 'Why is my HRV missing?', 'Which source is most accurate?'],
-      credits: 5,
+      text: `This build has no live health source connected. The dashboard is running on a synthetic demo dataset, and anything you log manually is stored on this device.\n\nIn a production build, the adapter layer would read Apple Health on iOS and Health Connect on Android, with Oura, Garmin and Strava arriving through those stores. See docs/HEALTH_SOURCES.md for the planned adapters.`,
+      followUps: ['Open Data Sources', 'What is real in this build?', 'Why is my HRV missing?'],
+      credits: 3,
     };
   }
 
