@@ -60,9 +60,9 @@ export function NutritionScreen() {
   const goals = { calories: state.settings.calorieGoal, protein: state.settings.proteinGoalG, carbs: 240, fat: 70 };
   const left = goals.calories - n.totals.calories;
   const remaining = {
-    protein: Math.max(0, goals.protein - n.totals.proteinG),
-    carbs: Math.max(0, goals.carbs - n.totals.carbsG),
-    fat: Math.max(0, goals.fat - n.totals.fatG),
+    protein: goals.protein - n.totals.proteinG,
+    carbs: goals.carbs - n.totals.carbsG,
+    fat: goals.fat - n.totals.fatG,
   };
 
   const addFood = (food: FoodTemplate, multiplier = 1) => {
@@ -121,7 +121,7 @@ export function NutritionScreen() {
           <div className="caption">Calories</div>
           <div className="calorie-hero__value">{n.totals.calories.toLocaleString()}</div>
           <div className="calorie-hero__sub" style={{ color: left >= 0 ? 'var(--green-deep)' : 'var(--red)' }}>
-            {left >= 0 ? `${left} kcal left` : `${Math.abs(left)} kcal over`}
+            {left >= 0 ? `${left} kcal under goal` : `${Math.abs(left)} kcal over goal`}
           </div>
         </div>
         <Ring value={(n.totals.calories / goals.calories) * 100} size={84} stroke={8} color="var(--pink)">
@@ -133,23 +133,26 @@ export function NutritionScreen() {
       </div>
 
       <div className="macro-cards mt-12">
-        {[
+        {([
           ['Fat', n.totals.fatG, remaining.fat, n.macroPercents.fat, 'var(--fat)'],
           ['Carbs', n.totals.carbsG, remaining.carbs, n.macroPercents.carbs, 'var(--carbs)'],
           ['Protein', n.totals.proteinG, remaining.protein, n.macroPercents.protein, 'var(--protein)'],
-        ].map(([label, value, leftG, pct, color]) => (
+        ] as [string, number, number, number, string][]).map(([label, value, leftG, pct, color]) => (
           <button key={String(label)} className="macro-card" onClick={() => setDetailOpen(true)} style={{ textAlign: 'left' }}>
             <div className="row-between">
               <span className="macro-card__label">{label}</span>
-              <Ring value={Number(pct) * 2.4} size={30} stroke={4} color={String(color)}>
+              <Ring value={Number(pct)} size={30} stroke={4} color={String(color)}>
                 <span style={{ fontSize: 7.5, fontWeight: 700 }}>{pct}%</span>
               </Ring>
             </div>
             <div className="macro-card__value">{value}<span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 550 }}> g</span></div>
-            <div className="macro-card__left">{leftG} g left</div>
+            <div className="macro-card__left">{leftG >= 0 ? `${leftG} g left` : `${Math.abs(leftG)} g over`}</div>
           </button>
         ))}
       </div>
+      <p className="caption" style={{ margin: '6px 4px 0', lineHeight: 1.45 }}>
+        Rings show each macro's share of today's calories. Grams left/over compare against your macro goals.
+      </p>
 
       <div className="card net-card mt-12">
         <div className="row-between">
@@ -160,8 +163,8 @@ export function NutritionScreen() {
           <button className="icon-btn icon-btn--soft" onClick={() => showToast('Net energy = intake − burn')} aria-label="Info"><Info size={16} /></button>
         </div>
         <div className="net-energy-row">
-          <span style={{ color: 'var(--orange)' }}><Flame size={14} /> {d.record.metrics.totalCalories.toLocaleString()}</span>
-          <span style={{ color: 'var(--blue)' }}><Apple size={14} /> {n.totals.calories.toLocaleString()}</span>
+          <span style={{ color: 'var(--orange)' }}><Flame size={14} /> Burn {d.record.metrics.totalCalories.toLocaleString()}</span>
+          <span style={{ color: 'var(--blue)' }}><Apple size={14} /> Intake {n.totals.calories.toLocaleString()}</span>
         </div>
         <div className="mt-12">
           <RangeBar value={n.netEnergy ?? 0} min={-500} max={500} markerLabel={`${n.netEnergy ?? 0} kcal`} />

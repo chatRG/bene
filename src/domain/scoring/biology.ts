@@ -86,8 +86,8 @@ export function lifestyleYears(days: DayRecord[], chronologicalAge: number, vo2m
   const fitnessYears = clamp(((medianVo2 - (vo2max ?? medianVo2)) / 4) * 2 + ((OPTIMAL.strengthMinPerWeek - weeklyStrength) / 30) * 0.3, -3.5, 3);
 
   const contributorDetails = {
-    sleep: `${Math.round(avgSleep)} avg sleep score · ${Math.round(weeklyZone2)} Z2–3 min/wk`,
-    activity: `${Math.round(avgSteps).toLocaleString()} steps/day`,
+    sleep: `${Math.round(avgSleep)} avg sleep score`,
+    activity: `${Math.round(avgSteps).toLocaleString()} steps/day · ${Math.round(weeklyZone2)} Z2–3 min/wk`,
     fitness: vo2max ? `VO₂ max ${Math.round(vo2max)}` : 'VO₂ max not measured',
     bloodwork: '9 PhenoAge markers',
   };

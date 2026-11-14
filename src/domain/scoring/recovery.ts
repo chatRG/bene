@@ -188,7 +188,15 @@ export function recoveryNarrative(input: {
   if (score >= 45) {
     return `You're reasonably recovered, but not fully primed. ${sleepScore ? `Sleep scored ${sleepScore}%` : 'Sleep was solid'} and your overnight signals are close to baseline. Keep today's intensity moderate and see how you feel after the warm-up.`;
   }
-  return `Your recovery is looking low today, and it's not just a one-off. HRV is ${hrv?.toFixed(1) ?? '—'} ms against a usual ${hrvBaseline.toFixed(1)} ms, resting HR is ${rhr?.toFixed(1) ?? '—'} bpm, and sleep scored ${sleepScore ?? '—'}%. Today might be a good day to scale back and prioritize rest.`;
+  const hrvText =
+    hrv == null
+      ? 'HRV is missing'
+      : hrv < hrvBaseline * 0.9
+        ? `HRV is ${hrv.toFixed(1)} ms, below your usual ${hrvBaseline.toFixed(1)} ms`
+        : hrv > hrvBaseline * 1.05
+          ? `HRV is ${hrv.toFixed(1)} ms, above your usual ${hrvBaseline.toFixed(1)} ms`
+          : `HRV is ${hrv.toFixed(1)} ms, close to your usual ${hrvBaseline.toFixed(1)} ms`;
+  return `Your recovery is low today. ${hrvText}; resting HR is ${rhr?.toFixed(1) ?? '—'} bpm and sleep scored ${sleepScore ?? '—'}%. Today is a good day to scale back and prioritize rest.`;
 }
 
 /** Short sleep needed estimate used by the sleep screen. */

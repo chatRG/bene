@@ -60,17 +60,14 @@ export function SettingsScreen() {
     return (
       <div className="screen screen--detail">
         <DetailHeader title="Settings" />
-        <div className="settings-hero">
-          <div className="settings-title">Settings</div>
-          <p className="caption mt-6">Everything stays in this browser or on your device.</p>
-        </div>
+        <p className="caption" style={{ margin: '2px 4px 14px' }}>Everything stays in this app or on your device.</p>
         <div className="list-card">
           <ListRow icon={<User size={16} />} title="Account" subtitle="Profile, subscription" onClick={() => navigate('/settings/account')} />
-          <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="Apple Health, Oura, Garmin, CGM" onClick={() => navigate('/settings/data')} />
+          <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="Apple Health import, Oura, Garmin, CGM" onClick={() => navigate('/settings/data')} />
           <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, units, calculations" onClick={() => navigate('/settings/general')} />
           <ListRow icon={<Target size={16} />} title="Goals" subtitle={`Sleep ${Math.floor(s.sleepGoalMin / 60)}h ${s.sleepGoalMin % 60}m · ${s.calorieGoal} kcal`} onClick={() => navigate('/settings/goals')} />
           <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal" onClick={() => navigate('/settings/notifications')} />
-          <ListRow icon={<Heart size={16} />} title="Activity Status" subtitle={s.activityStatus} onClick={() => navigate('/settings/activity')} />
+          <ListRow icon={<Heart size={16} />} title="Activity Status" subtitle={s.activityStatus === 'active' ? 'Active' : s.activityStatus === 'break' ? 'On a break' : s.activityStatus[0].toUpperCase() + s.activityStatus.slice(1)} onClick={() => navigate('/settings/activity')} />
           <ListRow icon={<Sparkles size={16} />} title="Bene Intelligence" subtitle="Model, persona, credits" onClick={() => navigate('/settings/coach')} />
           <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
           <ListRow icon={<Shield size={16} />} title="Privacy & data" subtitle="Export, delete, permissions" onClick={() => navigate('/settings/privacy')} />

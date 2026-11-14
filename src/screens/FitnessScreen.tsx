@@ -98,7 +98,7 @@ export function FitnessScreen() {
           <div className="load-card">
             <div className="load-card__label">Muscular Load</div>
             <div className="load-card__value">{strength.status}</div>
-            <div className="load-card__sub">{strength.trainingDays}/10 days · {strength.weeklySets} sets this week</div>
+            <div className="load-card__sub">{strength.trainingDays} days logged · {strength.weeklySets} sets this week</div>
             <div className="bar mt-10"><div className="bar__fill" style={{ width: `${Math.min(100, (strength.weeklySets / 12) * 100)}%`, background: 'var(--indigo)' }} /></div>
           </div>
         </div>
