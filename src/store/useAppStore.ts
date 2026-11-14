@@ -63,6 +63,7 @@ interface AppActions {
   importBackupJson: (json: string) => { ok: boolean; error?: string };
   exportBackupJson: () => string;
   resetDemo: () => void;
+  importAppleHealth: (days: DayRecord[], dayOrder: string[]) => void;
 }
 
 export type AppStore = AppStateData & AppActions;
@@ -376,6 +377,23 @@ export const useAppStore = create<AppStore>()(
         fresh.settings.onboarded = get().settings.onboarded;
         set({ ...fresh });
       },
+
+      importAppleHealth: (days, dayOrder) =>
+        set((s) => {
+          if (!dayOrder.length) return s;
+          const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+          const today = dateOf(new Date());
+          if (!byDate[today]) {
+            byDate[today] = emptyDay(today);
+            dayOrder = [...dayOrder, today].sort();
+          }
+          return {
+            days: byDate,
+            dayOrder,
+            settings: { ...s.settings, onboarded: true, demoMode: false },
+            seededAt: new Date().toISOString(),
+          };
+        }),
     }),
     {
       name: STORE_KEY,

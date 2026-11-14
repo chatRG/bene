@@ -1,6 +1,6 @@
 # Health data sources (roadmap)
 
-This first iteration is deliberately **fully offline**: it ships a deterministic demo dataset and manual logging. It does not read Apple Health or Health Connect yet. This document describes how to add those adapters without changing the scoring layer.
+This first iteration is deliberately **fully offline**: it ships a deterministic demo dataset, manual logging and a local **Apple Health export importer**. It does not read Apple Health or Health Connect directly yet. This document describes how to add those native adapters without changing the scoring layer.
 
 ## Decision: Open Wearables (evaluated November 2026)
 
@@ -27,7 +27,20 @@ Everything the app needs is in `src/domain/types.ts`:
 
 An importer’s only job is to produce these objects. Scores recompute automatically.
 
-## Recommended adapters
+## Apple Health XML import (available now)
+
+Settings → Data Sources → **Import Apple Health export** accepts `export.zip` (the file the Health app shares) or a plain `export.xml`.
+
+- Parses the last **365 days** (older records are skipped to keep the local store bounded).
+- Assembles sleep nights from Apple's flat `HKCategoryTypeIdentifierSleepAnalysis` records, including Awake/REM/Core/Deep.
+- Uses sleep-window samples for overnight HRV, resting HR, respiratory rate, SpO₂, wrist temperature and minimum HR.
+- Imports workouts with duration, distance, energy, average/max HR and derived zone minutes; daily steps, active/basal energy, exercise minutes, daylight, water, caffeine and HR samples.
+- Apple does not export meal context, so nutrition records become one imported meal per day and do **not** produce a Nutrition Score.
+- Everything stays on-device; the parser is pure TypeScript and tested with a synthetic export.
+
+The importer intentionally **replaces the dashboard days**, not the profile, settings, journal tags, chats or backups. Native HealthKit/Health Connect will feed the same `DayRecord` shape and reuse the same scoring layer.
+
+## Native adapters (next milestone)
 
 ### Apple Health (iOS)
 

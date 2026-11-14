@@ -32,6 +32,7 @@ import { DetailHeader, ListRow, Sheet, Segmented } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { snapshotInfo } from '../domain/backup';
+import { importAppleHealthFile, type AppleHealthImport } from '../domain/import/appleHealth';
 import type { ActivityStatus, ThemeMode, UnitSystem } from '../domain/types';
 
 const SECTION_TITLES: Record<string, string> = {
@@ -240,14 +241,55 @@ const SOURCES = [
 
 function DataSourceScreen() {
   const [selected, setSelected] = useState<(typeof SOURCES)[number] | null>(null);
+  const [pending, setPending] = useState<AppleHealthImport | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importHealth = useAppStore((s) => s.importAppleHealth);
+  const navigate = useNavigate();
+
+  const readFile = async (file: File | undefined) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const result = await importAppleHealthFile(file);
+      setPending(result);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not read that export.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <>
       <div className="insight-unlock mt-8">
         <Info size={17} />
         <span>
-          <strong>No live health integration is active in this build.</strong> The dashboard uses a synthetic 60-day dataset. The rows below are UI
-          placeholders for the HealthKit / Health Connect milestone; manual logs and backups are real.
+          <strong>No live sensor connection is active yet.</strong> You can import an Apple Health export locally right now; HealthKit and Health
+          Connect adapters are the next milestone. Manual logs and backups are real.
         </span>
+      </div>
+      <GroupLabel>Import</GroupLabel>
+      <div className="list-card">
+        <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => fileRef.current?.click()} disabled={importing}>
+          <div className="list-icon"><Upload size={16} /></div>
+          <div className="grow">
+            <div className="list-title">{importing ? 'Reading export…' : 'Import Apple Health export'}</div>
+            <div className="list-sub">Choose export.zip or export.xml · stays on this device</div>
+          </div>
+          <span className="pill pill--sm pill--flat">Local</span>
+          <ChevronRight size={16} className="chevron" />
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".zip,.xml,application/zip,text/xml"
+          hidden
+          onChange={(e) => {
+            void readFile(e.target.files?.[0]);
+            e.currentTarget.value = '';
+          }}
+        />
       </div>
       <GroupLabel>Sources</GroupLabel>
       <div className="list-card">
@@ -282,6 +324,33 @@ function DataSourceScreen() {
           >
             Adapter not included in this build
           </button>
+        </Sheet>
+      ) : null}
+      {pending ? (
+        <Sheet title="Apple Health import" subtitle="Review before replacing local data" onClose={() => setPending(null)}>
+          <div className="list-card" style={{ boxShadow: 'none' }}>
+            <div className="list-row"><div className="grow"><div className="list-title">Days</div></div><strong>{pending.summary.days}</strong></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Sleep sessions</div></div><strong>{pending.summary.sleepSessions}</strong></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Workouts</div></div><strong>{pending.summary.workouts}</strong></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Nutrition days</div></div><strong>{pending.summary.meals}</strong></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Date range</div></div><span className="list-value">{pending.summary.firstDate} → {pending.summary.lastDate}</span></div>
+          </div>
+          <p className="caption mt-12" style={{ lineHeight: 1.5 }}>
+            This replaces the current dashboard days with your Apple Health data. Profile, settings, journal tags, chats and backups are kept. Imported
+            meals do not produce a Nutrition Score because Apple does not include meal context.
+          </p>
+          <button
+            className="btn btn--block mt-16"
+            onClick={() => {
+              importHealth(pending.days, pending.dayOrder);
+              setPending(null);
+              showToast(`Imported ${pending.summary.days} days from Apple Health`);
+              navigate('/');
+            }}
+          >
+            Replace dashboard data
+          </button>
+          <button className="btn btn--soft btn--block mt-8" onClick={() => setPending(null)}>Cancel</button>
         </Sheet>
       ) : null}
     </>
