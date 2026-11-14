@@ -80,8 +80,8 @@ export function StrainScreen() {
 
       <div className="pill-row" style={{ marginTop: 10 }}>
         {([
-          ['strain', 'Strain score'],
-          ['exercise', 'Exercise Duration'],
+          ['strain', 'Strain'],
+          ['exercise', 'Duration'],
           ['hr', 'Daytime HR'],
           ['energy', 'Energy'],
         ] as [Tab, string][]).map(([value, label]) => (

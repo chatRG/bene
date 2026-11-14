@@ -47,7 +47,7 @@ Actions mutate data atomically and never compute scores. This keeps scoring dete
 
 ### `src/components/`
 
-- `ui.tsx` — rings, headers, tab bar, bottom sheets, list rows, avatar, orb.
+- `ui.tsx` — rings, headers, tab bar, bottom sheets, list rows, avatar.
 - `charts.tsx` — hand-built SVG: line chart with gradient/area/band/average/pill, hypnogram, semi gauge, dot matrix, range bar, energy bar, sparkline.
 - `glyphs.tsx` — maps semantic emoji names from seeded data to Lucide icons so the UI never depends on a system emoji font.
 - `toast.tsx` — tiny imperative toast host.
@@ -94,9 +94,12 @@ This is why backup files contain raw data only: restoring a backup from last mon
 ## Testing
 
 - `vitest` runs pure-domain tests: published invariants, gates, calibration, contributor points, backup validation.
-- `scripts/screenshots.mjs` drives Playwright at 430×932, captures every screen, and asserts there is no horizontal overflow or console error.
+- `scripts/screenshots.mjs` drives Playwright at 430×932, captures the main screens into `docs/screenshots/`, and reports horizontal overflow or console errors.
 - `scripts/e2e.mjs` exercises navigation, scoring display, meal logging, journal sheets, coach replies, workout start/finish, theme switching and Home edit mode.
+- `scripts/e2e-empty.mjs` covers onboarding without demo data and the empty dashboard.
+- `scripts/e2e-import.mjs` covers the Apple Health export importer.
 - `scripts/e2e-backup.mjs` exercises snapshot creation, download, restore, file import, invalid-file rejection and tab visibility.
+- `scripts/e2e-pwa.mjs` checks the service worker and an offline reload of the production build.
 
 The screenshot suite is intentionally part of the repository so UI changes can be reviewed visually in CI artifacts (or locally) without a native simulator.
 

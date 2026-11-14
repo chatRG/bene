@@ -14,21 +14,23 @@ First public iteration: offline-first, local-only, demo-data complete.
 - Strain detail with cumulative chart, target range, daytime HR, total energy and activity-status effects.
 - Fitness tab with weekly summary, cardio/muscular load, muscle freshness, routines, structured workout view, live timer and workout saving.
 - Journal with yes/no, yes/neutral/no and numeric tags, pinned tags, custom tags and correlation insights after 5+5 entries.
-- Biology with Biological Age, confidence, contributor equation, semi gauge, biomarkers, health records (local) and age projection.
+- Biology with a ± year age estimate, contributor equation, semi gauge, biomarkers, local health records and age projection.
 - Nutrition with calories, macros, net energy, 11 food-quality contributors, search/custom food logging and g/percent detail sheet.
-- Offline coach UI with scripted, metric-grounded replies, chat history, ghost mode, credits and settings.
+- Offline coach UI with scripted, metric-grounded replies, chat history and ghost mode.
 - Settings: appearance, units, tab visibility, goals, calculations (HRV/RHR/temperature/HR zones), data sources, notifications, activity status, language, privacy and about.
 - Backup & restore: manual download, daily on-device snapshot, validated file import, rejection of foreign/newer/incomplete backups.
 - iOS and Android Capacitor shells with generated app icons and splash screens.
 - PWA manifest, installable icon set and offline service-worker shell.
-- Deterministic 60-day demo dataset that reproduces the reference screenshots (recovery 41%, sleep 74%, 2,304 kcal, −257 net, biological age 26.0).
-- 19 domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap, backup validation and deterministic coach replies.
-- Playwright screenshot, E2E, backup and offline-PWA checks.
+- Deterministic 60-day demo dataset that reproduces the reference screenshots (recovery 41%, sleep 74%, 2,304 kcal, −257 net, biological age 26).
+- 23 domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap, backup validation and deterministic coach replies.
+- Apple Health `export.zip` / `export.xml` import for sleep stages, overnight HRV/RHR, workouts and daily metrics.
+- Playwright screenshot, E2E, empty-state, import, backup and offline-PWA checks.
+- Unslop design pass: warm paper/ink system, one oxide accent, semantic recovery colour, a real product preview in onboarding, and no fake Pro or credits UI.
 - Documentation: architecture, scoring model, backup format, health-source roadmap, contributing, security, notice, code of conduct.
 
 ### Known limitations
 
-- HealthKit and Health Connect are not implemented; the app runs on demo data and manual logs.
+- HealthKit and Health Connect are not implemented; Apple Health XML import, demo data and manual logs are available.
 - Backups are unencrypted JSON.
 - The coach is deterministic and offline; no language model is called.
 - Native binaries must be built with Xcode/Android Studio; the repository includes the projects, not pre-built packages.

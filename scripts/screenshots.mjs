@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs';
 
 const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
-const out = '/opt/data/cache/scratch/bevel/shots-app';
+const out = 'docs/screenshots';
 fs.mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -37,13 +37,6 @@ const routes = [
   ['biology', '/biology'],
   ['nutrition', '/nutrition'],
   ['intelligence', '/intelligence'],
-  ['chat', '/chat/chat-recovery'],
-  ['timeline', '/timeline'],
-  ['profile', '/profile'],
-  ['settings', '/settings'],
-  ['workout', '/workout/routine-tempo'],
-  ['records', '/records'],
-  ['backup', '/settings/backup'],
 ];
 
 for (const [name, route] of routes) {
