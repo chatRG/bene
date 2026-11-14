@@ -25,10 +25,16 @@ This is the first iteration. It is intentionally complete enough to use every da
 | **Training** | ✅ Cardio/muscular load, muscle freshness, structured routines, live workout timer, workout logging. |
 | **Nutrition** | ✅ Calories, macros, net energy, 11 food-quality contributors, food search/custom foods. |
 | **Journal** | ✅ Yes/No, Yes/Neutral/No and numeric tags, pinned tags, correlation insights after 5+5 entries. |
-| **Biology** | ✅ Biological Age, confidence, contributor breakdown, biomarkers, health-record uploads (local). |
+| **Biology** | ✅ Biological Age with a ± year estimate, contributor breakdown, biomarkers, health-record uploads (local). |
 | **Coach** | ✅ Offline, scripted coach grounded in your metrics — no model calls. The UI is ready for a local or user-supplied model later. |
 | **Native shells** | ✅ Capacitor iOS and Android projects included. |
 | **Apple Health import** | ✅ Import `export.zip` / `export.xml` locally — sleep stages, overnight HRV/RHR, workouts, daily metrics and nutrition totals. Native HealthKit / Health Connect is the next milestone. |
+
+## What's next
+
+- **Native health adapters.** HealthKit and Health Connect behind one Capacitor plugin, feeding the same `DayRecord` contract as the Apple Health XML importer. See [docs/HEALTH_SOURCES.md](docs/HEALTH_SOURCES.md).
+- **Optional on-device coach.** A local model can phrase the numbers later, with the rule-based coach as the always-available fallback. No cloud model is in scope.
+- **Store builds.** The Capacitor projects are included; signing and packaging still happen in Xcode and Android Studio.
 
 ## Screens
 
@@ -53,7 +59,7 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-First run opens a 3-step onboarding. Choose **Explore with demo data** to see the full 60-day dataset immediately, or enter your own name and start with an empty-ish profile.
+First run opens a 3-step onboarding. Choose **See a sample day** to see the full 60-day dataset immediately, or enter your own name and start with an empty profile.
 
 ```bash
 npm test             # scoring, backup, import and offline-coach invariants (23 tests)
@@ -70,11 +76,13 @@ These use Playwright against a running dev server (install Chromium once with `n
 npm run dev            # terminal 1
 npm run shots          # capture every screen at 430×932, assert no overflow
 npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
+npm run test:empty     # onboarding with no demo data
+npm run test:import    # Apple Health export import
 npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
 npm run test:pwa       # service worker + fully offline reload of the production build
 ```
 
-`test:pwa` runs against `npm run preview` (port 4173) after `npm run build`; the others use the dev server on port 5173. The scripts live in `scripts/` and double as acceptance tests for the behaviours in `docs/`. Screenshots are written to `shots-app/` (gitignored).
+`test:pwa` runs against `npm run preview` (port 4173) after `npm run build`; the others use the dev server on port 5173. The scripts live in `scripts/` and double as acceptance tests for the behaviours in `docs/`. Screenshots are written to `docs/screenshots/`; `npm run shots` is the visual review pass.
 
 ## iOS and Android
 

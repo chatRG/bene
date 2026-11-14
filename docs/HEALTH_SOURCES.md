@@ -11,7 +11,7 @@ We evaluated [Open Wearables](https://github.com/the-momentum/open-wearables) as
 - It requires 5+ containers (FastAPI, PostgreSQL, Redis, Celery worker + beat), accounts and OAuth app credentials.
 - It computes sleep sessions server-side, typically 15–20 minutes after upload — too late for a morning readiness score.
 
-Useful artefacts we can reuse: its sleep-sessionisation logic, `SeriesType` vocabulary, and documented HealthKit/Health Connect edge cases. The full report is in [OPEN_WEARABLES_RESEARCH.md](OPEN_WEARABLES_RESEARCH.md).
+Useful artefacts we can reuse: its sleep-sessionisation logic, `SeriesType` vocabulary, and documented HealthKit/Health Connect edge cases.
 
 **Chosen direction:** native HealthKit and Health Connect adapters behind a custom Capacitor plugin (`BeneHealth`), local-only by default. An optional read-only connector to a user's own self-hosted Open Wearables instance can come later; it must be off by default and clearly disclose the destination host.
 
@@ -97,5 +97,5 @@ Health data should remain local by default. If you add cloud sync:
 ## What not to do
 
 - Don’t fabricate Apple Health data when permission is denied. Show the feature-degraded state and manual logging instead.
-- Don’t reuse the demo seed in production once a real source is connected. Gate it behind onboarding’s “Explore demo” path or a developer flag.
+- Don’t reuse the demo seed in production once a real source is connected. Gate it behind onboarding’s “See a sample day” path or a developer flag.
 - Don’t compute scores in the native layer. Keep one implementation in TypeScript so iOS, Android and web agree.

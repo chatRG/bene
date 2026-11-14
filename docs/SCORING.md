@@ -71,7 +71,9 @@ Seven-day, recency-weighted sum of `(asleep − goal)` with weights `0.35, 0.25,
 | Temperature deviation | 0.05 | `−|deviation °C|` |
 | Respiratory rate z-score | 0.05 | lower/steady is better |
 
-`compositeZ = Σ(z × weight) / Σweight`, then `score = 100 / (1 + e^(−1.6 × (compositeZ + 0.20)))`, clamped 0–100. `compositeZ = 0` maps to 58%, the population-average anchor. Daytime HRV is deliberately **not** used here; it feeds Stress instead.
+`compositeZ = Σ(z × weight) / Σweight`, then `score = 100 / (1 + e^(−1.6 × (compositeZ + 0.20)))`, clamped 0–100. `compositeZ = 0` maps to 58, the population-average anchor. Daytime HRV is deliberately **not** used here; it feeds Stress instead.
+
+Display bands: `Primed ≥ 85`, `Ready ≥ 67`, `Steady ≥ 50`, `Low ≥ 34`, otherwise `Rest up`. The band uses a semantic colour; the score itself is an index out of 100, not a percentage.
 
 ## Strain (0–100+, never clamped)
 
@@ -157,7 +159,7 @@ The contributors are designed to sum to the headline delta; the UI shows the equ
 
 ## Intentional differences from the vendor
 
-- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see `docs/ON_DEVICE_AI.md` and the source comments.
+- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see the source comments.
 - Max HR is explicit rather than implicit; strain uses Tanaka `208 − 0.7 × age` and %HRR zone weights.
 - Muscle-freshness’s 75% overlap is resolved to Recovered.
 - “Normal range” for strain is target ± 16 rather than an undisclosed distribution.
