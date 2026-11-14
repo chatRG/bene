@@ -39,6 +39,7 @@ export function ProfileScreen() {
         <div className="profile-email">{state.profile.email}</div>
         <div className="row gap-6 mt-8">
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
+          {state.settings.demoMode ? <span className="pill pill--sm pill--flat">Demo dataset</span> : null}
           <span className="pill pill--sm pill--dark">Pro</span>
         </div>
       </div>
@@ -61,7 +62,7 @@ export function ProfileScreen() {
 
       <div className="settings-group-label">Data & app</div>
       <div className="list-card">
-        <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="Apple Health, Oura, Garmin, CGM" onClick={() => navigate('/settings/data')} />
+        <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="No live adapters · synthetic demo data" onClick={() => navigate('/settings/data')} />
         <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Goals, units, calculations, tabs" onClick={() => navigate('/settings/general')} />
         <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal and coach" onClick={() => navigate('/settings/notifications')} />
         <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />

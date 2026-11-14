@@ -228,14 +228,14 @@ function Account() {
 }
 
 const SOURCES = [
-  { id: 'apple', name: 'Apple Health', icon: <Watch size={16} />, status: 'Connected', detail: 'Primary source · sleep, HR, HRV, workouts, nutrition', note: 'Apple Watch writes all metrics.' },
-  { id: 'oura', name: 'Oura', icon: <Moon size={16} />, status: 'Connected', detail: 'Sleep and readiness · 1 month history', note: 'Oura must write to Apple Health. Daytime HRV may be missing.' },
-  { id: 'garmin', name: 'Garmin', icon: <Watch size={16} />, status: 'Not connected', detail: 'Workouts and VO₂ max', note: 'Requires Garmin Connect → Apple Health.' },
-  { id: 'strava', name: 'Strava', icon: <Zap size={16} />, status: 'Not connected', detail: 'Imported activities (read-only)', note: 'Imported workouts cannot have details edited.' },
-  { id: 'google', name: 'Google Health', icon: <Heart size={16} />, status: 'Not connected', detail: 'Android Health Connect bridge', note: 'Available in the Android build.' },
-  { id: 'amazfit', name: 'Amazfit', icon: <Watch size={16} />, status: 'Not connected', detail: 'Sleep and activity', note: 'Some body-weight load is excluded.' },
-  { id: 'cgm', name: 'CGM · Dexcom / Lingo / Stelo', icon: <Zap size={16} />, status: 'Not connected', detail: 'Glucose impact and Net Energy', note: 'Connect through Manage CGM.' },
-  { id: 'polar', name: 'Bluetooth HR sensor', icon: <Heart size={16} />, status: 'Not connected', detail: 'Live HR in Strength Builder', note: 'Requires Health write permission.' },
+  { id: 'apple', name: 'Apple Health', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Synthetic dataset · no HealthKit adapter in this build', note: 'This build does not link HealthKit. The dashboard uses a synthetic 60-day dataset; manual logs are real. See docs/HEALTH_SOURCES.md for the adapter plan.' },
+  { id: 'oura', name: 'Oura', icon: <Moon size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Oura API connection', note: 'Oura data would arrive through Apple Health or a native bridge. Neither is included yet.' },
+  { id: 'garmin', name: 'Garmin', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Garmin connection', note: 'Requires Garmin Connect → Apple Health or a native adapter.' },
+  { id: 'strava', name: 'Strava', icon: <Zap size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Strava OAuth', note: 'Imported workouts are read-only by design; the integration is not built.' },
+  { id: 'google', name: 'Google Health', icon: <Heart size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Health Connect adapter', note: 'Health Connect is the Android path; it is not included in this iteration.' },
+  { id: 'amazfit', name: 'Amazfit', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Amazfit connection', note: 'Some body-weight load is excluded when data arrives.' },
+  { id: 'cgm', name: 'CGM · Dexcom / Lingo / Stelo', icon: <Zap size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no CGM SDK', note: 'Glucose impact and Net Energy glucose inputs are not wired.' },
+  { id: 'polar', name: 'Bluetooth HR sensor', icon: <Heart size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no BLE bridge', note: 'Live HR requires a native Bluetooth adapter and Health write permission.' },
 ];
 
 function DataSourceScreen() {
@@ -243,8 +243,11 @@ function DataSourceScreen() {
   return (
     <>
       <div className="insight-unlock mt-8">
-        <Shield size={17} />
-        <span>A device appears here only if it already writes to Apple Health or Health Connect. Your health data never leaves the device in this build.</span>
+        <Info size={17} />
+        <span>
+          <strong>No live health integration is active in this build.</strong> The dashboard uses a synthetic 60-day dataset. The rows below are UI
+          placeholders for the HealthKit / Health Connect milestone; manual logs and backups are real.
+        </span>
       </div>
       <GroupLabel>Sources</GroupLabel>
       <div className="list-card">
@@ -252,26 +255,32 @@ function DataSourceScreen() {
           <button key={src.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => setSelected(src)}>
             <div className="list-icon">{src.icon}</div>
             <div className="grow"><div className="list-title">{src.name}</div><div className="list-sub">{src.detail}</div></div>
-            <span className={`pill pill--sm ${src.status === 'Connected' ? 'pill--green' : 'pill--flat'}`}>{src.status}</span>
+            <span className="pill pill--sm pill--flat">{src.status}</span>
             <ChevronRight size={16} className="chevron" />
           </button>
         ))}
       </div>
       <GroupLabel>Duplicates</GroupLabel>
       <div className="list-card">
-        <SwitchRow title="Hide duplicate sources" subtitle="Show one workout when several devices record it" on onChange={() => showToast('Duplicate hiding updated')} />
-        <ListRow title="Apple Health permissions" subtitle="Read + write (Live HR)" value="Open" onClick={() => showToast('Opens Health settings on iOS')} />
+        <SwitchRow title="Hide duplicate sources" subtitle="Show one workout when several devices record it" on={false} onChange={() => showToast('Available once a live source is connected')} />
+        <ListRow title="Apple Health permissions" subtitle="No permission is requested in this build" value="Not active" onClick={() => showToast('HealthKit is not included in this iteration')} />
       </div>
       {selected ? (
         <Sheet title={selected.name} subtitle={selected.status} onClose={() => setSelected(null)}>
           <p className="body" style={{ lineHeight: 1.6 }}>{selected.note}</p>
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
-            <div className="list-row"><div className="grow"><div className="list-title">Data provided</div><div className="list-sub">{selected.detail}</div></div></div>
-            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">{selected.id === 'oura' ? 'Limited to 1 month' : 'Up to 2 years'}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Data it would provide</div><div className="list-sub">{selected.detail}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">{selected.id === 'oura' ? 'Limited to 1 month in Bevel' : 'Up to 2 years'}</div></div></div>
           </div>
-          <button className="btn btn--block mt-20" onClick={() => { setSelected(null); showToast(selected.status === 'Connected' ? 'Source disconnected (demo)' : 'Connection started (demo)'); }}>
-            {selected.status === 'Connected' ? 'Disconnect' : 'Connect'}
+          <button
+            className="btn btn--soft btn--block mt-20"
+            onClick={() => {
+              setSelected(null);
+              showToast('Adapter not included — see docs/HEALTH_SOURCES.md');
+            }}
+          >
+            Adapter not included in this build
           </button>
         </Sheet>
       ) : null}

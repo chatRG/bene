@@ -56,7 +56,7 @@ npm run dev          # http://localhost:5173
 First run opens a 3-step onboarding. Choose **Explore with demo data** to see the full 60-day dataset immediately, or enter your own name and start with an empty-ish profile.
 
 ```bash
-npm test             # scoring + backup invariants (13 tests)
+npm test             # scoring, backup and offline-coach invariants (19 tests)
 npm run lint         # TypeScript project check
 npm run build        # production web build in dist/
 npm run preview      # serve the production build
