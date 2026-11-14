@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Bene — an open-source, local-first health & recovery coach for iOS and Android.",
-  "license": "MIT",
+  "description": "Bene — a source-available, local-first health & recovery coach for iOS and Android.",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",

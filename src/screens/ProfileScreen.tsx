@@ -89,7 +89,7 @@ export function ProfileScreen() {
       </div>
       <div className="row gap-6" style={{ justifyContent: 'center' }}>
         <span className="pill pill--sm pill--flat"><Shield size={11} /> On-device</span>
-        <span className="pill pill--sm pill--flat">MIT licensed</span>
+        <span className="pill pill--sm pill--flat">Source-available</span>
       </div>
     </div>
   );

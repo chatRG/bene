@@ -1,10 +1,12 @@
 # Bene
 
-**An offline-first, open-source health coach for iOS, Android and the web.**
+**An offline-first, source-available health coach for iOS, Android and the web.**
 
 Recovery, sleep, strain, training load, nutrition, journaling and biological age — built from a wearable-agnostic data model, with every score explained and every byte stored on your device.
 
 > **Unofficial project.** Bene is an independent, clean-room community build inspired by publicly documented behaviour and public App Store screenshots of *Bevel: AI Health Coach*. It is **not affiliated with, endorsed by, or connected to Finerpoint, Inc.** “Bevel” is a trademark of its owner. See [NOTICE.md](NOTICE.md).
+
+> **Licence.** Free for personal, research and other noncommercial use. Commercial use needs a separate paid licence — see [COMMERCIAL.md](COMMERCIAL.md).
 
 ![Home, Recovery, Sleep and Biology](docs/screenshots/hero.png)
 
@@ -153,4 +155,4 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 
 ## License
 
-Code is released under the [MIT License](LICENSE). “Bevel” and any third-party marks remain the property of their owners; see [NOTICE.md](NOTICE.md).
+Source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, hobby, research and other noncommercial use is free. **Commercial use requires a separate paid licence** — see [COMMERCIAL.md](COMMERCIAL.md). “Bevel” and any third-party marks remain the property of their owners; see [NOTICE.md](NOTICE.md).

@@ -34,6 +34,13 @@ No private API, binary, or proprietary algorithm is used. The NOOP project is MI
 
 See each package's license for full text. The Inter font is distributed under the SIL Open Font License.
 
+## Licence
+
+Bene is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Noncommercial use is free; commercial use requires a separate paid licence — see
+[COMMERCIAL.md](COMMERCIAL.md). This notice covers attribution for third-party work;
+it does not grant rights beyond the licence.
+
 ## Health disclaimer
 
 This application produces wellness estimates. It is not a medical device, does not diagnose or treat any condition, and must not be used to make medication or treatment decisions. If you feel unwell, contact a qualified clinician.
