@@ -1,0 +1,294 @@
+import { useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import { AlarmClock, BedDouble, ChevronRight, Clock, Moon, Share2, Sparkles, Watch, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '../store/useAppStore';
+import { dateKey } from '../domain/seed';
+import { deriveDay, sleepNeedFor } from '../domain/derive';
+import { stageTotals } from '../domain/math';
+import { Hypnogram, LineChart } from '../components/charts';
+import { EmptyState, Ring, Sheet } from '../components/ui';
+import { showToast } from '../components/toast';
+import type { AlarmType } from '../domain/types';
+
+const STAGE_INFO = [
+  { key: 'awake', label: 'Awake', color: '#f6a265' },
+  { key: 'rem', label: 'REM', color: '#9ac8ff' },
+  { key: 'core', label: 'Core', color: '#5f9df8' },
+  { key: 'deep', label: 'Deep', color: '#b0a0ff' },
+] as const;
+
+export function SleepScreen() {
+  const navigate = useNavigate();
+  const state = useAppStore();
+  const today = dateKey(new Date());
+  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const [alarmOpen, setAlarmOpen] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
+
+  if (!d.sleep || !d.sleepScore || d.sleepScore.status !== 'scored') {
+    return (
+      <div data-night>
+        <div className="screen screen--detail sleep-page">
+          <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+            <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
+            <div><div className="detail-head__title">Sleep</div></div>
+            <div />
+          </div>
+          <div className="card mt-20">
+            <EmptyState
+              icon={<Moon size={24} />}
+              title="No sleep data yet"
+              body="Wear your watch or ring overnight. Sleep stages, HRV and resting heart rate unlock your first Sleep and Recovery scores."
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const sleep = d.sleep;
+  const totals = stageTotals(sleep);
+  const score = d.sleepScore;
+  const hours = Math.floor(totals.asleepMin / 60);
+  const mins = totals.asleepMin % 60;
+  const startLabel = new Date(sleep.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const bankHours = Math.floor(Math.abs(d.sleepBankMin) / 60);
+  const bankMins = Math.abs(d.sleepBankMin) % 60;
+  const consistency = 78;
+
+  const hist = state.dayOrder.slice(-14).map((date) => {
+    const rec = state.days[date];
+    const s = rec?.sleep;
+    return s ? Math.round(stageTotals(s).asleepMin / 6) / 10 : 0;
+  });
+
+  return (
+    <div data-night>
+      <div className="screen screen--detail sleep-page">
+        <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+          <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
+          <div>
+            <div className="detail-head__title">Primary sleep</div>
+            <div className="detail-head__sub">{format(new Date(`${sleep.date}T12:00:00`), 'M/d/yy')} at {startLabel}</div>
+          </div>
+          <div className="detail-head__right">
+            <button className="icon-btn glass" onClick={() => setAlarmOpen(true)} aria-label="Alarm"><AlarmClock size={19} /></button>
+          </div>
+        </div>
+
+        <div className="row gap-6 caption" style={{ justifyContent: 'center', marginTop: 6 }}>
+          <Watch size={12} /> Tracked with {sleep.source}
+        </div>
+
+        <div className="sleep-hero">
+          <div className="row gap-10" style={{ alignItems: 'baseline' }}>
+            <span className="sleep-hero__score">{hours}<span style={{ fontSize: 24, fontWeight: 650 }}>h</span> {mins}<span style={{ fontSize: 24, fontWeight: 650 }}>m</span></span>
+          </div>
+          <div className="sleep-hero__label">asleep · {score.score}% sleep score</div>
+          <button className="pill pill--sm pill--flat mt-8" onClick={() => setScoreOpen(true)}>
+            <Sparkles size={12} /> {score.score >= 80 ? 'Restorative night' : score.score >= 70 ? 'Solid night' : 'Short on sleep'}
+          </button>
+        </div>
+
+        <div className="card mt-16" style={{ padding: '16px 14px 12px' }}>
+          <div className="row-between" style={{ padding: '0 4px 8px' }}>
+            <span className="card-title">Sleep Stages</span>
+            <button className="caption" onClick={() => setScoreOpen(true)}>Details</button>
+          </div>
+          <Hypnogram sleep={sleep} height={176} />
+        </div>
+
+        <div className="stage-grid mt-12">
+          {STAGE_INFO.map((stage) => {
+            const value = totals[`${stage.key}Min` as 'awakeMin' | 'remMin' | 'coreMin' | 'deepMin'];
+            const pct = Math.round((value / totals.inBedMin) * 100);
+            return (
+              <div className="stage-card" key={stage.key}>
+                <div>
+                  <div className="stage-card__label">{stage.label}</div>
+                  <div className="stage-card__value">{Math.floor(value / 60)}h {value % 60}m</div>
+                  <div className="stage-card__pct" style={{ color: stage.color }}>{pct}%</div>
+                </div>
+                <Ring value={pct} size={44} stroke={5} color={stage.color} className="stage-ring" />
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="col gap-8 mt-16">
+          <button className="sleep-row" onClick={() => setAlarmOpen(true)}>
+            <span>Last night's sleep needed</span>
+            <strong>
+              {Math.floor(d.sleepNeedMin / 60)}h {d.sleepNeedMin % 60}m <ChevronRight size={14} />
+            </strong>
+          </button>
+          <div className="sleep-row">
+            <span>Time To Fall Asleep</span>
+            <strong>{sleep.timeToFallAsleepMin != null ? `${sleep.timeToFallAsleepMin} minutes` : '—'}</strong>
+          </div>
+        </div>
+
+        <div className="section">
+          <div className="section-title" style={{ marginBottom: 12 }}>Sleep Bank</div>
+          <div className="card">
+            <div className="row-between">
+              <div>
+                <div className="caption">7-day balance</div>
+                <div className="mono-num" style={{ fontSize: 30, fontWeight: 760, letterSpacing: '-0.03em', color: d.sleepBankMin < 0 ? 'var(--orange)' : 'var(--green-deep)' }}>
+                  {d.sleepBankMin < 0 ? '−' : '+'}{bankHours}h {bankMins}m
+                </div>
+              </div>
+              <span className={`pill pill--sm ${d.sleepBankMin < 0 ? 'pill--orange' : 'pill--green'}`}>
+                {d.sleepBankMin < 0 ? 'Sleep debt' : 'Surplus'}
+              </span>
+            </div>
+            <p className="caption mt-8" style={{ lineHeight: 1.5 }}>
+              A 7-day, recency-weighted look at sleep against your {Math.floor(state.settings.sleepGoalMin / 60)}h goal. Naps count toward the balance.
+            </p>
+          </div>
+        </div>
+
+        <div className="section">
+          <div className="row-between" style={{ marginBottom: 12 }}>
+            <span className="section-title">Sleep trend</span>
+            <span className="caption">Last 14 nights</span>
+          </div>
+          <div className="chart-card">
+            <LineChart values={hist.filter((v) => v > 0)} yMax={10} yTicks={[10, 7, 4]} color="var(--sleep)" height={150} avg={hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)} avgLabel={`Avg ${(hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)).toFixed(1)}h`} xLabels={['2 weeks ago', 'Last night']} />
+          </div>
+        </div>
+
+        <div className="section">
+          <div className="section-title" style={{ marginBottom: 12 }}>Consistency</div>
+          <div className="card">
+            <div className="row-between">
+              <div className="row gap-10">
+                <span className="list-icon" style={{ background: 'rgba(109,124,247,.12)', color: 'var(--sleep)' }}><Clock size={16} /></span>
+                <div>
+                  <div className="card-title">Bedtime consistency</div>
+                  <div className="card-sub">Within 30 min most nights</div>
+                </div>
+              </div>
+              <strong className="mono-num" style={{ fontSize: 22 }}>{consistency}%</strong>
+            </div>
+            <div className="row gap-3 mt-12" style={{ display: 'flex', gap: 3 }}>
+              {Array.from({ length: 14 }, (_, i) => (
+                <span key={i} style={{ flex: 1, height: 26, borderRadius: 4, background: i > 10 ? 'var(--sleep)' : i % 3 === 0 ? 'rgba(109,124,247,.35)' : 'rgba(109,124,247,.7)' }} />
+              ))}
+            </div>
+            <div className="row-between caption mt-8"><span>2 weeks ago</span><span>Last night</span></div>
+          </div>
+        </div>
+
+        <button className="link-row mt-16" onClick={() => setAlarmOpen(true)}>
+          <BedDouble size={17} />
+          <span>Tonight's Sleep Needed</span>
+          <span style={{ marginLeft: 'auto', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            {Math.floor(sleepNeedFor(state, today) / 60)}h {sleepNeedFor(state, today) % 60}m <ChevronRight size={15} />
+          </span>
+        </button>
+
+        <div className="row gap-8 mt-16">
+          <button className="btn btn--soft btn--block" onClick={() => showToast('Sleep share card copied')}><Share2 size={16} /> Share</button>
+          <button className="btn btn--block" onClick={() => setAlarmOpen(true)}><AlarmClock size={16} /> Set alarm</button>
+        </div>
+      </div>
+
+      {alarmOpen ? (
+        <AlarmSheet
+          initial={sleep.alarm}
+          onClose={() => setAlarmOpen(false)}
+          onSave={(alarm) => {
+            const day = state.days[today];
+            if (day?.sleep) {
+              useAppStore.setState({
+                days: { ...state.days, [today]: { ...day, sleep: { ...day.sleep, alarm } } },
+              });
+            }
+            setAlarmOpen(false);
+            showToast(alarm.type === 'none' ? 'Alarm removed' : 'Alarm saved to Apple Watch');
+          }}
+        />
+      ) : null}
+
+      {scoreOpen ? (
+        <Sheet title="Sleep score" subtitle={`${score.score}/100 · a composite of duration, stages, efficiency, continuity and HR dip.`} onClose={() => setScoreOpen(false)}>
+          <div className="components-list">
+            {[
+              ['Duration', score.durationScore],
+              ['Stage balance', score.stageScore],
+              ['Efficiency', score.efficiencyScore],
+              ['Continuity', score.continuityScore],
+              ['Heart-rate dip', score.dipScore],
+            ].map(([label, value]) => (
+              <div className="component-row" key={String(label)}>
+                <span>{label}</span>
+                <div className="bar"><div className="bar__fill" style={{ width: `${value}%`, background: 'var(--sleep)' }} /></div>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          <p className="caption mt-16" style={{ lineHeight: 1.55 }}>
+            Deep target for your age is {score.deepPct.toFixed(0)}% today; REM target is 22%. Your efficiency was {score.efficiency}% with {Math.round(totals.awakeMin)}m awake.
+          </p>
+          <button className="btn btn--block mt-20" onClick={() => setScoreOpen(false)}>Close</button>
+        </Sheet>
+      ) : null}
+    </div>
+  );
+}
+
+function AlarmSheet({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: { type: AlarmType; time: string; windowMin: number } | null;
+  onClose: () => void;
+  onSave: (alarm: { type: AlarmType; time: string; windowMin: number; enabled: boolean }) => void;
+}) {
+  const [type, setType] = useState<AlarmType>(initial?.type ?? 'smart');
+  const [time, setTime] = useState(initial?.time ?? '07:30');
+  const options: { value: AlarmType; label: string; desc: string }[] = [
+    { value: 'smart', label: 'Smart alarm', desc: 'Wake in your lightest phase within a window' },
+    { value: 'regular', label: 'Regular alarm', desc: 'Wake at the same time every day' },
+    { value: 'sleepNeed', label: 'Sleep needed', desc: 'Wake after your sleep target is met' },
+    { value: 'none', label: 'No alarm', desc: 'Track sleep without waking you' },
+  ];
+  return (
+    <Sheet title="Alarm" subtitle="Saved to your Apple Watch for haptics and Smart wake." onClose={onClose}>
+      <div className="status-options">
+        {options.map((o) => (
+          <button key={o.value} className={`status-option ${type === o.value ? 'status-option--active' : ''}`} onClick={() => setType(o.value)}>
+            <span className="status-option__icon"><AlarmClock size={18} /></span>
+            <span className="grow"><span className="list-title">{o.label}</span><span className="list-sub">{o.desc}</span></span>
+            {type === o.value ? <span className="status-dot" /> : null}
+          </button>
+        ))}
+      </div>
+      {type !== 'none' ? (
+        <div className="row gap-12 mt-20">
+          <div className="grow">
+            <div className="field-label">Wake time</div>
+            <input className="text-input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+          <div style={{ width: 120 }}>
+            <div className="field-label">Window</div>
+            <select className="text-input" defaultValue="30">
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+            </select>
+          </div>
+        </div>
+      ) : null}
+      <p className="caption mt-16" style={{ lineHeight: 1.5 }}>
+        Time to Fall Asleep is measured from when the Bevel alarm is armed to your first detected sleep stage. Apple's Clock alarm does not count.
+      </p>
+      <button className="btn btn--block mt-20" onClick={() => onSave({ type, time, windowMin: 30, enabled: type !== 'none' })}>
+        Save to Watch
+      </button>
+    </Sheet>
+  );
+}
