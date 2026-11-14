@@ -1,0 +1,242 @@
+import type { AppStateData, DayRecord, SleepSession } from './types';
+import { ageFromBirthDate, mean, stageTotals, round } from './math';
+import { sleepBank, sleepNeedMinutes, sleepScore, type SleepScoreResult } from './scoring/sleep';
+import { baselineFromSessions, recoveryScore, recoveryNarrative, type RecoveryResult } from './scoring/recovery';
+import { computeStrain, type StrainResult } from './scoring/strain';
+import { stressSummary, type StressSummary } from './scoring/load';
+import { nutritionFor, type NutritionResult } from './scoring/nutrition';
+import { estimatedMaxHr } from './scoring/zones';
+
+export interface DayDerived {
+  date: string;
+  record: DayRecord;
+  age: number;
+  sleep: SleepSession | null;
+  sleepScore: SleepScoreResult | null;
+  sleepNeedMin: number;
+  sleepBankMin: number;
+  recovery: RecoveryResult;
+  recoveryNarrative: string;
+  strain: StrainResult;
+  stress: StressSummary;
+  nutrition: NutritionResult;
+  recentStrainAvg: number;
+  baselineHrv: number;
+  baselineRhr: number;
+}
+
+export function zoneConfigFor(data: AppStateData, date: string) {
+  const age = ageFromBirthDate(data.profile.birthDate, date);
+  return {
+    method: data.settings.hrZoneMethod,
+    age,
+    restingHr: Math.round(recoveryBaselineFor(data, date).rhrBpm || 55),
+    manualMaxHr: data.settings.manualMaxHr || estimatedMaxHr(age),
+    lactateThresholdHr: data.settings.lactateThresholdHr,
+  };
+}
+
+function priorSessions(data: AppStateData, date: string, daysBack: number): SleepSession[] {
+  const idx = data.dayOrder.indexOf(date);
+  const from = Math.max(0, idx - daysBack);
+  const out: SleepSession[] = [];
+  for (let i = from; i < idx; i++) {
+    const s = data.days[data.dayOrder[i]]?.sleep;
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+export function recoveryBaselineFor(data: AppStateData, date: string) {
+  return baselineFromSessions(priorSessions(data, date, 28));
+}
+
+function strainOfRecord(record: DayRecord | undefined): number {
+  if (!record) return 0;
+  const active = record.workouts.reduce(
+    (a, w) => a + w.zoneMinutes.reduce((x, m, i) => x + m * [1, 2, 3, 5, 8, 12][i], 0),
+    0,
+  );
+  const passive = record.metrics.hrSamples.reduce((a, s) => a + Math.max(0, s.bpm - 59) * 0.045, 0);
+  return 30 * Math.log(1 + (active + passive) / 55);
+}
+
+export function recentStrains(data: AppStateData, date: string, daysBack = 28): number[] {
+  const idx = data.dayOrder.indexOf(date);
+  const out: number[] = [];
+  for (let i = Math.max(0, idx - daysBack); i < idx; i++) out.push(strainOfRecord(data.days[data.dayOrder[i]]));
+  return out;
+}
+
+export function sleepNeedFor(data: AppStateData, date: string): number {
+  const idx = data.dayOrder.indexOf(date);
+  const age = ageFromBirthDate(data.profile.birthDate, date);
+  const prior = data.dayOrder.slice(Math.max(0, idx - 7), idx);
+  let debt = 0;
+  for (const d of prior) {
+    const rec = data.days[d];
+    if (!rec?.sleep) continue;
+    debt += stageTotals(rec.sleep).asleepMin - data.settings.sleepGoalMin;
+  }
+  const yesterday = data.dayOrder[idx - 1];
+  const yesterdayStrain = strainOfRecord(yesterday ? data.days[yesterday] : undefined);
+  return sleepNeedMinutes({
+    age,
+    sex: data.profile.sex,
+    recentDebtMin: debt,
+    yesterdayStrain,
+    sleepGoalMin: data.settings.sleepGoalMin,
+  });
+}
+
+export function deriveDay(data: AppStateData, date: string, now = new Date()): DayDerived {
+  const record = data.days[date] ?? {
+    date,
+    sleep: null,
+    metrics: {
+      date,
+      steps: 0,
+      activeCalories: 0,
+      totalCalories: 0,
+      exerciseMinutes: 0,
+      daylightMinutes: 0,
+      hydrationMl: 0,
+      caffeineMg: 0,
+      alcoholGrams: 0,
+      hrSamples: [],
+      daytimeHrvMs: null,
+      stressSamples: [],
+      tempDeviationC: null,
+      wearMinutes: 0,
+    },
+    workouts: [],
+    meals: [],
+    journal: [],
+  };
+  const idx = data.dayOrder.indexOf(date);
+  const isToday = date === dateOf(now);
+  const nowMinute = isToday ? now.getHours() * 60 + now.getMinutes() : 1440;
+  const age = ageFromBirthDate(data.profile.birthDate, date);
+  const needMin = sleepNeedFor(data, date);
+  const session = record.sleep;
+  const score = session ? sleepScore(session, { age, sex: data.profile.sex, needMin }) : null;
+
+  const baseline = recoveryBaselineFor(data, date);
+  const stagedNights =
+    priorSessions(data, date, 3).filter((s) => stageTotals(s).asleepMin > 60).length +
+    (session && stageTotals(session).asleepMin > 60 ? 1 : 0);
+  const recovery = recoveryScore({
+    sleep: session,
+    sleepScore: score?.status === 'scored' ? score.score : null,
+    stagedNights,
+    baseline,
+    hasHrv: session?.hrvMs != null,
+    hasRhr: session?.rhrBpm != null,
+  });
+
+  const recent = recentStrains(data, date, 28);
+  const strain = computeStrain({
+    workouts: isToday ? record.workouts : record.workouts,
+    hrSamples: record.metrics.hrSamples,
+    restingHr: Math.round(baseline.rhrBpm || 55),
+    recovery: recovery.score,
+    recentStrainAvg: mean(recent.slice(-14)),
+    recentStrainRange: recent,
+    nowMinute: isToday ? nowMinute : 1440,
+  });
+
+  const stress = stressSummary(record.metrics.stressSamples, {
+    daysOfBaseline: Math.min(60, Math.max(0, idx)),
+    sleepScore: score?.score ?? null,
+  });
+
+  const nutrition = nutritionFor(record.meals, data.settings.excludedContributors, record.metrics.totalCalories);
+
+  const bank = sleepBank(
+    data.dayOrder.slice(Math.max(0, idx - 6), idx + 1).map((d) => ({
+      date: d,
+      sleep: data.days[d]?.sleep ?? null,
+      needMin: data.settings.sleepGoalMin,
+    })),
+  );
+
+  return {
+    date,
+    record,
+    age,
+    sleep: session,
+    sleepScore: score,
+    sleepNeedMin: needMin,
+    sleepBankMin: bank.balanceMin,
+    recovery,
+    recoveryNarrative: recoveryNarrative({
+      score: recovery.score ?? 50,
+      hrv: session?.hrvMs ?? null,
+      hrvBaseline: baseline.hrvMs,
+      rhr: session?.rhrBpm ?? null,
+      rhrBaseline: baseline.rhrBpm,
+      sleepScore: score?.score ?? null,
+    }),
+    strain: { ...strain, score: isToday ? strain.score : strain.score },
+    stress,
+    nutrition,
+    recentStrainAvg: Math.round(mean(recent.slice(-14))),
+    baselineHrv: round(baseline.hrvMs, 1),
+    baselineRhr: round(baseline.rhrBpm, 1),
+  };
+}
+
+export function dateOf(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function scoreHistory(data: AppStateData, days = 14) {
+  const order = data.dayOrder.slice(-days);
+  return order.map((date) => {
+    const d = deriveDay(data, date);
+    return {
+      date,
+      recovery: d.recovery.score,
+      sleep: d.sleepScore?.status === 'scored' ? d.sleepScore.score : null,
+      strain: Math.round(d.strain.score),
+      stress: d.stress.average,
+      steps: d.record.metrics.steps,
+      hrv: d.sleep?.hrvMs ?? null,
+      rhr: d.sleep?.rhrBpm ?? null,
+    };
+  });
+}
+
+export function coachInsight(d: DayDerived, name: string): { title: string; body: string; tone: 'positive' | 'neutral' | 'warning' } {
+  const first = name.split(' ')[0] || 'there';
+  if (d.recovery.status !== 'scored') {
+    return {
+      title: d.recovery.status === 'calibrating' ? 'Still calibrating' : 'Almost there',
+      body:
+        d.recovery.reason ??
+        'Keep wearing your device overnight. Two full nights with sleep stages, HRV and resting heart rate unlock your first Recovery score.',
+      tone: 'neutral',
+    };
+  }
+  const r = d.recovery.score ?? 50;
+  if (r >= 70) {
+    return {
+      title: `Good morning, ${first}`,
+      body: `You hit your sleep goal with solid deep and REM sleep. HRV is up and resting heart rate is steady — strong signs of recovery. Aim for ${d.strain.target}% strain today and put the hard work in early.`,
+      tone: 'positive',
+    };
+  }
+  if (r >= 50) {
+    return {
+      title: `Steady start, ${first}`,
+      body: `Your overnight signals are close to baseline. Sleep scored ${d.sleepScore?.score ?? '—'}%, so keep today's intensity moderate at around ${d.strain.target}% strain and reassess after the warm-up.`,
+      tone: 'neutral',
+    };
+  }
+  return {
+    title: 'Time to take it easy',
+    body: `Your recovery is looking low today, and it's not just a one-off. Your resting HRV is ${d.sleep?.hrvMs?.toFixed(1) ?? '—'} ms, which is ${d.baselineHrv ? `well below your usual ${d.baselineHrv.toFixed(1)} ms` : 'below your baseline'}. Today might be a good day to scale back and prioritize rest.`,
+    tone: 'warning',
+  };
+}
