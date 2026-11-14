@@ -2,6 +2,20 @@
 
 This first iteration is deliberately **fully offline**: it ships a deterministic demo dataset and manual logging. It does not read Apple Health or Health Connect yet. This document describes how to add those adapters without changing the scoring layer.
 
+## Decision: Open Wearables (evaluated November 2026)
+
+We evaluated [Open Wearables](https://github.com/the-momentum/open-wearables) as a way to avoid writing every provider integration. Verdict: **not as the on-device data layer**.
+
+- Its native SDKs are upload-only: they read HealthKit/Health Connect and push to a server; they never return samples to the host app.
+- Its read API uses a global, org-wide API key, so a device cannot query it without a broker service.
+- It requires 5+ containers (FastAPI, PostgreSQL, Redis, Celery worker + beat), accounts and OAuth app credentials.
+- It computes sleep sessions server-side, typically 15–20 minutes after upload — too late for a morning readiness score.
+
+Useful artefacts we can reuse: its sleep-sessionisation logic, `SeriesType` vocabulary, and documented HealthKit/Health Connect edge cases. The full report is in [OPEN_WEARABLES_RESEARCH.md](OPEN_WEARABLES_RESEARCH.md).
+
+**Chosen direction:** native HealthKit and Health Connect adapters behind a custom Capacitor plugin (`BeneHealth`), local-only by default. An optional read-only connector to a user's own self-hosted Open Wearables instance can come later; it must be off by default and clearly disclose the destination host.
+
+
 ## The data contract
 
 Everything the app needs is in `src/domain/types.ts`:
