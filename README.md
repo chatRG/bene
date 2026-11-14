@@ -28,7 +28,7 @@ This is the first iteration. It is intentionally complete enough to use every da
 | **Biology** | ✅ Biological Age, confidence, contributor breakdown, biomarkers, health-record uploads (local). |
 | **Coach** | ✅ Offline, scripted coach grounded in your metrics — no model calls. The UI is ready for a local or user-supplied model later. |
 | **Native shells** | ✅ Capacitor iOS and Android projects included. |
-| **HealthKit / Health Connect** | 🚧 Next milestone — see [docs/HEALTH_SOURCES.md](docs/HEALTH_SOURCES.md). Manual logging and demo data work everywhere today. |
+| **Apple Health import** | ✅ Import `export.zip` / `export.xml` locally — sleep stages, overnight HRV/RHR, workouts, daily metrics and nutrition totals. Native HealthKit / Health Connect is the next milestone. |
 
 ## Screens
 
@@ -56,7 +56,7 @@ npm run dev          # http://localhost:5173
 First run opens a 3-step onboarding. Choose **Explore with demo data** to see the full 60-day dataset immediately, or enter your own name and start with an empty-ish profile.
 
 ```bash
-npm test             # scoring, backup and offline-coach invariants (20 tests)
+npm test             # scoring, backup, import and offline-coach invariants (23 tests)
 npm run lint         # TypeScript project check
 npm run build        # production web build in dist/
 npm run preview      # serve the production build
