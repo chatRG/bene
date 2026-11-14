@@ -7,8 +7,7 @@ All scoring code lives in `src/domain/scoring/` and is pure: given the same inpu
 ## Shared primitives
 
 - Personal baselines use the previous 28 days, excluding the scored day.
-- Z-scores are `(value − mean) / SD`, with sensible floors on SD to avoid division by zero.
-- “Centered” scores map a z-score to 1–100: `clamp(50 + direction × z × gain, 1, 100)`, default gain 19.
+- Robust z-scores use `(value − mean) / (1.253 × MAD)`, where MAD is the mean absolute deviation of the baseline. This is the EWMA-abs-dev spread used by NOOP's `RecoveryScorer`.
 - All scores are rounded only at the display boundary unless stated.
 - Time is stored in local wall-clock dates (`yyyy-MM-dd`), and timestamps as ISO strings.
 
@@ -62,30 +61,29 @@ Seven-day, recency-weighted sum of `(asleep − goal)` with weights `0.35, 0.25,
 3. Overnight RHR present → otherwise `insufficient`.
 4. At least five baseline nights and a scored sleep session → otherwise `calibrating`.
 
-**Components and weights:**
+**Components and weights** (ported from NOOP's transparent `RecoveryScorer`; missing optional terms are dropped and the weights renormalised):
 
 | Component | Weight | Direction |
 |---|---|---|
-| Sleep score | 0.35 | higher is better |
-| Overnight HRV z-score | 0.25 | higher is better |
+| Overnight HRV z-score | 0.55 | higher is better |
 | Overnight RHR z-score | 0.20 | lower is better |
-| Temperature deviation | 0.08 | smaller absolute deviation is better |
-| Respiratory rate z-score | 0.07 | lower/steady is better |
-| SpO₂ | 0.05 | higher (within healthy range) is better |
+| Sleep performance | 0.15 | `(sleepScore/100 − 0.85) / 0.12` |
+| Temperature deviation | 0.05 | `−|deviation °C|` |
+| Respiratory rate z-score | 0.05 | lower/steady is better |
 
-Daytime HRV is deliberately **not** used here; it feeds Stress instead. This mirrors the vendor's explicit split.
+`compositeZ = Σ(z × weight) / Σweight`, then `score = 100 / (1 + e^(−1.6 × (compositeZ + 0.20)))`, clamped 0–100. `compositeZ = 0` maps to 58%, the population-average anchor. Daytime HRV is deliberately **not** used here; it feeds Stress instead.
 
 ## Strain (0–100+, never clamped)
 
-`TRIMP_workout = Σ zoneMinutes × [1, 2, 3, 5, 8, 12]`
-`TRIMP_passive = Σ max(0, HR − restingHR − 4) × 0.045` over 5-minute samples
-`strain = 30 × ln(1 + (active + passive) / 55)`
+`TRIMP_workout = Σ zoneMinutes × [0, 1, 2, 3, 4, 5]` (Edwards weights on %HRR)
+`TRIMP_passive = Σ zoneWeight(HR) × sampleMinutes`, excluding samples inside logged workout windows
+`strain = 100 × ln(1 + TRIMP) / ln(7201)`
 
-Strain may exceed 100% on very demanding days. That is intentional.
+The denominator is the Edwards daily ceiling (5 × 24 h = 7200), so a theoretical maximum day maps to 100. Strain may exceed 100% on very demanding days and is never clamped.
 
-`targetStrain = clamp(18 + recovery × 0.62 + (recent14DayAverage − 50) × 0.12, 20, 95)`
+`targetStrain = clamp(24 + recovery × 0.65, 20, 95)`
 
-The displayed normal range is `target ± 16`. If Activity Status is **Injured** or **On a Break**, the target is hidden; **Sick** reduces it.
+The displayed normal range is `target ± 16`. At recovery 41 this yields target ≈ 51 and a 35–67 band, matching the reference screen. If Activity Status is **Injured** or **On a Break**, the target is hidden; **Sick** reduces it.
 
 ## Stress & Energy Bank
 
@@ -159,8 +157,8 @@ The contributors are designed to sum to the headline delta; the UI shows the equ
 
 ## Intentional differences from the vendor
 
-- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands).
-- Max HR is explicit rather than implicit.
+- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see `docs/ON_DEVICE_AI.md` and the source comments.
+- Max HR is explicit rather than implicit; strain uses Tanaka `208 − 0.7 × age` and %HRR zone weights.
 - Muscle-freshness’s 75% overlap is resolved to Recovered.
 - “Normal range” for strain is target ± 16 rather than an undisclosed distribution.
 - The offline coach is scripted from your metrics, not a language model.

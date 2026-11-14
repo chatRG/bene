@@ -61,9 +61,9 @@ export function zonePercents(minutes: number[]): number[] {
   return minutes.map((m) => (m / total) * 100);
 }
 
+/** Edwards zone weights on %HRR: Z1=1 … Z5=5; zone 0 (rest) contributes zero. */
 export function workoutTrimp(zoneMinutes: number[]): number {
-  const factors = [1, 2, 3, 5, 8, 12];
-  return zoneMinutes.reduce((acc, m, i) => acc + m * (factors[i] ?? 0), 0);
+  return zoneMinutes.reduce((acc, m, i) => acc + m * Math.min(5, Math.max(0, i)), 0);
 }
 
 /** Kim et al. style normalization used for display range labels. */

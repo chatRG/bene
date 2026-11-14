@@ -19,7 +19,7 @@ describe('offline coach', () => {
     const reply = generateCoachReply(data, 'Should I do intervals today?', NOW);
     expect(reply.text).toContain('recovery at 41%');
     expect(reply.text).toContain('HRV');
-    expect(reply.text).toContain('target strain is 43%');
+    expect(reply.text).toContain('target strain is 51%');
   });
 
   it('reports nutrition totals from the logged meals', () => {
