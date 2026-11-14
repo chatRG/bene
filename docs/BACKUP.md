@@ -10,9 +10,9 @@
 
 | What | Where |
 |---|---|
-| Live app state | `localStorage["bevel-community-v1"]` (web) or the WebView's local storage inside the native app |
-| Daily snapshot | `localStorage["bevel-community-snapshot"]` |
-| Downloaded file | `bevel-backup-YYYY-MM-DD.json` |
+| Live app state | `localStorage["bene-v1"]` (with one-time migration from `bevel-community-v1`) |
+| Daily snapshot | `localStorage["bene-snapshot"]` (falls back to `bevel-community-snapshot`) |
+| Downloaded file | `bene-backup-YYYY-MM-DD.json` |
 
 Snapshots are a convenience, not a second account. Clearing site data or uninstalling the app removes both the live state and the snapshot.
 
@@ -20,7 +20,7 @@ Snapshots are a convenience, not a second account. Clearing site data or uninsta
 
 ```json
 {
-  "app": "bevel-community",
+  "app": "bene",
   "version": 1,
   "exportedAt": "2026-11-14T14:00:00.000Z",
   "data": {
@@ -46,7 +46,7 @@ Snapshots are a convenience, not a second account. Clearing site data or uninsta
 `parseBackup()` checks, in order:
 
 1. Valid JSON.
-2. `app === "bevel-community"` — rejects foreign files.
+2. `app === "bene"` — legacy `"bevel-community"` files are still accepted.
 3. `version` is a number and not newer than the running build.
 4. `data.profile`, `data.days`, `data.dayOrder` exist and `dayOrder` is non-empty.
 5. `days` is an object with at least one day.

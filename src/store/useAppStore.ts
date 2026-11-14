@@ -22,6 +22,15 @@ import { dateOf } from '../domain/derive';
 import { generateCoachReply, ghostExpiry } from '../domain/coach';
 import { backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
 
+export const STORE_KEY = 'bene-v1';
+export const LEGACY_STORE_KEY = 'bevel-community-v1';
+
+// One-time migration: keep existing local data when the app is renamed.
+if (typeof localStorage !== 'undefined' && !localStorage.getItem(STORE_KEY)) {
+  const legacy = localStorage.getItem(LEGACY_STORE_KEY);
+  if (legacy) localStorage.setItem(STORE_KEY, legacy);
+}
+
 interface AppActions {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateNotifications: (patch: Partial<NotificationSettings>) => void;
@@ -369,7 +378,7 @@ export const useAppStore = create<AppStore>()(
       },
     }),
     {
-      name: 'bevel-community-v1',
+      name: STORE_KEY,
       storage: createJSONStorage(() => localStorage),
       version: 1,
       partialize: (state) => {

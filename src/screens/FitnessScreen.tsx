@@ -170,7 +170,7 @@ export function FitnessScreen() {
           ))}
           <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate('/intelligence')}>
             <div className="list-icon"><Sparkles size={16} /></div>
-            <div className="grow"><div className="list-title">Build a routine with Bevel</div><div className="list-sub">Describe your goal and available equipment</div></div>
+            <div className="grow"><div className="list-title">Build a routine with Bene</div><div className="list-sub">Describe your goal and available equipment</div></div>
             <ChevronRight size={17} className="chevron" />
           </button>
         </div>

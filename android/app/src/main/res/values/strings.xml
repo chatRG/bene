@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Bevel</string>
-    <string name="title_activity_main">Bevel</string>
-    <string name="package_name">health.bevel.community</string>
-    <string name="custom_url_scheme">health.bevel.community</string>
+    <string name="app_name">Bene</string>
+    <string name="title_activity_main">Bene</string>
+    <string name="package_name">health.bene.community</string>
+    <string name="custom_url_scheme">health.bene.community</string>
 </resources>

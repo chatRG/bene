@@ -1,6 +1,6 @@
 # Scoring model
 
-This document describes the independent scoring model used by Bevel Community. It is built from publicly documented inputs, directions of effect, ranges, calibration gates and a small number of published point values (notably the food-quality contributors and the deep-sleep target curve). The vendor does **not** publish its weights or curves, so nothing here claims to reproduce Bevel's private algorithm.
+This document describes the independent scoring model used by Bene. It is built from publicly documented inputs, directions of effect, ranges, calibration gates and a small number of published point values (notably the food-quality contributors and the deep-sleep target curve). The vendor does **not** publish its weights or curves, so nothing here claims to reproduce Bevel's private algorithm.
 
 All scoring code lives in `src/domain/scoring/` and is pure: given the same inputs it returns the same output, with no clock or network access except where a date is passed explicitly.
 

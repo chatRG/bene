@@ -1,4 +1,4 @@
-package health.bevel.community;
+package health.bene.community;
 
 import com.getcapacitor.BridgeActivity;
 

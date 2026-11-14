@@ -139,7 +139,7 @@ export interface CoachEngine {
 - **Apple's model changes with OS updates.** Apple documents three model versions across iOS 26.0–27.0; prompts must be evaluated per version.
 - **Small models are bad at arithmetic and multi-step reasoning** (Apple says so explicitly). Ground every number in app-computed tools.
 - **Health claims / medical device regulation.** Keep the "not medical advice" framing, avoid diagnosis and treatment claims, and review App Store / Play health policies before release.
-- **Bevel parity is not possible here.** Bevel's real AI is server-side with an undisclosed model; this is a deliberate offline/privacy divergence, not a reimplementation of their backend.
+- **Reference-app parity is not possible here.** Bevel's real AI is server-side with an undisclosed model; this is a deliberate offline/privacy divergence, not a reimplementation of their backend.
 
 ## 8. Bottom line
 

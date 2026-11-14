@@ -239,7 +239,7 @@ export function coachInsight(d: DayDerived, name: string): { title: string; body
   }
   return {
     title: 'Time to take it easy',
-    body: `Your recovery is looking low today, and it's not just a one-off. Your resting HRV is ${d.sleep?.hrvMs?.toFixed(1) ?? '—'} ms, which is ${d.baselineHrv ? `well below your usual ${d.baselineHrv.toFixed(1)} ms` : 'below your baseline'}. Today might be a good day to scale back and prioritize rest.`,
+    body: d.recoveryNarrative,
     tone: 'warning',
   };
 }

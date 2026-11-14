@@ -116,7 +116,7 @@ export function makeQuickMeal(date: string, name: string, calories: number, prot
     alcoholGrams: 0,
     sodiumMg: 350,
     addedSugarG: 4,
-    source: 'bevel',
+    source: 'bene',
     emoji,
     loggedVia: 'custom',
   };

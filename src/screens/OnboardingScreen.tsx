@@ -27,7 +27,7 @@ export function OnboardingScreen() {
       <div className="onboarding__top">
         <div className="brand-mark">
           <span className="brand-mark__icon"><Sparkles size={16} /></span>
-          Bevel
+          Bene
         </div>
         {step > 0 ? (
           <button className="icon-btn icon-btn--soft" onClick={() => setStep((s) => s - 1)} aria-label="Back"><ArrowLeft size={18} /></button>
@@ -65,7 +65,7 @@ export function OnboardingScreen() {
         {step === 1 ? (
           <div className="fade-up">
             <div className="onboarding__title" style={{ fontSize: 32 }}>Connect your health data</div>
-            <p className="onboarding__sub">Bevel reads what your devices already write. No wearable? Everything still works with manual logs.</p>
+            <p className="onboarding__sub">Bene reads what your devices already write. No wearable? Everything still works with manual logs.</p>
             <div className="col gap-8 mt-24">
               <button className={`status-option ${healthGranted ? 'status-option--active' : ''}`} onClick={() => setHealthGranted((v) => !v)}>
                 <span className="status-option__icon"><Watch size={18} /></span>

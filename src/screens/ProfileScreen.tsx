@@ -47,7 +47,7 @@ export function ProfileScreen() {
       <button className="pro-banner" onClick={() => navigate('/paywall')}>
         <span className="status-option__icon" style={{ background: 'rgba(255,255,255,.12)', color: '#b7f06a' }}><Sparkles size={18} /></span>
         <span className="grow">
-          <span style={{ display: 'block', fontWeight: 700, fontSize: 14 }}>Bevel Pro</span>
+          <span style={{ display: 'block', fontWeight: 700, fontSize: 14 }}>Bene Pro</span>
           <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,.6)' }}>Intelligence, Health Records and Biological Age</span>
         </span>
         <ChevronRight size={17} style={{ color: 'rgba(255,255,255,.5)' }} />
@@ -69,7 +69,7 @@ export function ProfileScreen() {
         <ListRow icon={<Watch size={16} />} title="Apple Watch & widgets" subtitle="Complications, Smart Alarm, Live Sync" onClick={() => showToast('Manage widgets from the iOS app')} />
       </div>
 
-      <div className="settings-group-label">Bevel Intelligence</div>
+      <div className="settings-group-label">Bene Intelligence</div>
       <div className="list-card">
         <ListRow icon={<Sparkles size={16} />} title="Coach settings" subtitle="Model, personality, Ghost Mode" onClick={() => navigate('/intelligence')} />
         <ListRow icon={<FileText size={16} />} title="Health Records" subtitle={`${state.healthRecords.length} documents`} onClick={() => navigate('/records')} />
@@ -84,7 +84,7 @@ export function ProfileScreen() {
       </div>
 
       <div className="settings-footer">
-        Bevel Community 0.1.0 · Unofficial clean-room build<br />
+        Bene 0.1.0 · Unofficial clean-room build<br />
         Not affiliated with Finerpoint, Inc. Health estimates are not medical advice.
       </div>
       <div className="row gap-6" style={{ justifyContent: 'center' }}>

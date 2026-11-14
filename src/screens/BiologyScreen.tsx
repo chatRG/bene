@@ -49,7 +49,7 @@ export function BiologyScreen() {
   const share = async () => {
     const text = bio.age
       ? `My biological age is ${bio.age} — ${Math.abs(bio.deltaYears)} years ${bio.deltaYears < 0 ? 'younger' : 'older'} than my chronological age.`
-      : 'Tracking my biological age with Bevel Community.';
+      : 'Tracking my biological age with Bene.';
     try {
       if (navigator.share) await navigator.share({ title: 'My Biological Age', text });
       else {
@@ -268,7 +268,7 @@ function BioInfo({ bio, onClose }: { bio: ReturnType<typeof biologicalAge>; onCl
         <div className="list-row"><div className="list-icon"><HeartPulse size={16} /></div><div className="grow"><div className="list-title">What lowers confidence</div><div className="list-sub">New tracking, missing bloodwork, or gaps in wearable data.</div></div></div>
         <div className="list-row"><div className="list-icon"><Sparkles size={16} /></div><div className="grow"><div className="list-title">Not a diagnosis</div><div className="list-sub">A wellness estimate — discuss health decisions with a clinician.</div></div></div>
       </div>
-      <p className="caption mt-16">This community build uses an independent, documented model. Bevel’s exact coefficients are not public.</p>
+      <p className="caption mt-16">This community build uses an independent, documented model. the reference app’s exact coefficients are not public.</p>
       <button className="btn btn--block mt-20" onClick={onClose}>Got it</button>
     </Sheet>
   );

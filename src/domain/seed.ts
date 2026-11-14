@@ -226,7 +226,7 @@ function makeMeal(
     alcoholGrams: 0,
     sodiumMg: 420,
     addedSugarG: 4,
-    source: 'bevel',
+    source: 'bene',
     emoji: '🍽️',
     loggedVia: 'search',
     ...extra,

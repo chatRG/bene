@@ -2,7 +2,7 @@
 
 ## What this app stores
 
-Bevel Community stores health-related data locally: sleep stages, heart-rate samples, workouts, meals, journal entries, biomarkers, health-record metadata and chat history. On the web this is `localStorage`; in the native shells it is the WebView's local storage inside the app sandbox.
+Bene stores health-related data locally: sleep stages, heart-rate samples, workouts, meals, journal entries, biomarkers, health-record metadata and chat history. On the web this is `localStorage`; in the native shells it is the WebView's local storage inside the app sandbox.
 
 Backups are plain JSON files created by the user and are not encrypted.
 

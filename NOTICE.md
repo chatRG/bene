@@ -2,7 +2,7 @@
 
 ## Unofficial status
 
-Bevel Community is an independent, clean-room project. It is not affiliated with, endorsed by, sponsored by, or connected to Finerpoint, Inc., Starlight Tech LLC, or the Bevel app.
+Bene is an independent, clean-room project. It is not affiliated with, endorsed by, sponsored by, or connected to Finerpoint, Inc., Starlight Tech LLC, or the Bevel app.
 
 “Bevel”, “Bevel: AI Health Coach”, and associated logos are trademarks of their respective owners. This repository does not include any Bevel application code, binaries, assets, fonts, or proprietary content. The UI is an original implementation inspired by publicly visible product behaviour and App Store screenshots.
 
@@ -14,9 +14,9 @@ The behavioural specification used to design this build was assembled from publi
 - Bevel's public methodology blog (score inputs, ranges, the deep-sleep target curve, food-quality contributor points).
 - Public App Store listing screenshots and metadata.
 - Public App Store reviews for edge-case behaviour.
-- The public NOOP project (architecture inspiration for an offline, local-first health app; no code copied).
+- The public NOOP project (MIT). Its transparent RecoveryScorer and StrainScorer formulas are the basis for Bene's recovery and strain implementations, rewritten in TypeScript. See `docs/SCORING.md`.
 
-No private API, binary, or proprietary algorithm is used. Where the vendor does not publish weights or thresholds, this project uses an independent model documented in [docs/SCORING.md](docs/SCORING.md).
+No private API, binary, or proprietary algorithm is used. The NOOP project is MIT-licensed; its copyright notice is reproduced in the repository history and its formulas are attributed here. Where the vendor does not publish weights or thresholds, this project uses an independent model documented in [docs/SCORING.md](docs/SCORING.md).
 
 ## Third-party software
 

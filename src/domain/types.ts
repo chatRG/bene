@@ -1,4 +1,4 @@
-/** Core domain types for Bevel Community. All health data stays on-device. */
+/** Core domain types for Bene. All health data stays on-device. */
 
 export type ISODate = string; // yyyy-MM-dd
 export type ISODateTime = string; // ISO 8601
@@ -165,7 +165,7 @@ export interface MealEntry {
   alcoholGrams: number;
   sodiumMg: number;
   addedSugarG: number;
-  source: 'bevel' | 'imported';
+  source: 'bene' | 'bevel' | 'imported';
   emoji?: string;
   loggedVia?: 'search' | 'barcode' | 'photo' | 'describe' | 'recipe' | 'custom';
 }

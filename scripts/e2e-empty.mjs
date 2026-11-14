@@ -18,7 +18,7 @@ await page.waitForTimeout(250);
 await page.getByText('Start tracking', { exact: true }).click();
 await page.waitForTimeout(700);
 
-const state = await page.evaluate(() => JSON.parse(localStorage.getItem('bevel-community-v1')).state);
+const state = await page.evaluate(() => JSON.parse(localStorage.getItem('bene-v1')).state);
 const text = await page.locator('body').innerText();
 console.log('days:', state.dayOrder.length);
 console.log('onboarded:', state.settings.onboarded);

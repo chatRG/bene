@@ -1,10 +1,10 @@
-# Bevel Community
+# Bene
 
 **An offline-first, open-source health coach for iOS, Android and the web.**
 
 Recovery, sleep, strain, training load, nutrition, journaling and biological age — built from a wearable-agnostic data model, with every score explained and every byte stored on your device.
 
-> **Unofficial project.** Bevel Community is an independent, clean-room community build inspired by publicly documented behaviour and public App Store screenshots of *Bevel: AI Health Coach*. It is **not affiliated with, endorsed by, or connected to Finerpoint, Inc.** “Bevel” is a trademark of its owner. See [NOTICE.md](NOTICE.md).
+> **Unofficial project.** Bene is an independent, clean-room community build inspired by publicly documented behaviour and public App Store screenshots of *Bevel: AI Health Coach*. It is **not affiliated with, endorsed by, or connected to Finerpoint, Inc.** “Bevel” is a trademark of its owner. See [NOTICE.md](NOTICE.md).
 
 ![Home, Recovery, Sleep and Biology](docs/screenshots/hero.png)
 
@@ -56,7 +56,7 @@ npm run dev          # http://localhost:5173
 First run opens a 3-step onboarding. Choose **Explore with demo data** to see the full 60-day dataset immediately, or enter your own name and start with an empty-ish profile.
 
 ```bash
-npm test             # scoring, backup and offline-coach invariants (19 tests)
+npm test             # scoring, backup and offline-coach invariants (20 tests)
 npm run lint         # TypeScript project check
 npm run build        # production web build in dist/
 npm run preview      # serve the production build
@@ -88,7 +88,7 @@ npm run cap:android  # opens android/ in Android Studio
 ```
 
 - **iOS:** run `cd ios/App && pod install` once (CocoaPods), then open `ios/App/App.xcworkspace`, select a signing team, and run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. Deployment target and bundle id live in Xcode and `capacitor.config.ts`.
-- **Android:** open `android/`, let Gradle sync, run on a device or emulator. `minSdk` is the Capacitor default; `applicationId` is `health.bevel.community`.
+- **Android:** open `android/`, let Gradle sync, run on a device or emulator. `minSdk` is the Capacitor default; `applicationId` is `health.bene.community`.
 - **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
 No native build is required for development — the web target is the fastest iteration loop and is what the automated screenshot suite uses.
@@ -97,12 +97,12 @@ No native build is required for development — the web target is the fastest it
 
 There is no server, so a backup file **is** your account.
 
-- **Create backup** → writes a timestamped snapshot to the device and downloads `bevel-backup-YYYY-MM-DD.json`.
+- **Create backup** → writes a timestamped snapshot to the device and downloads `bene-backup-YYYY-MM-DD.json`.
 - **Daily automatic snapshot** → once per 24 hours, saved on-device.
 - **Restore** → validates the file/snapshot, then replaces the current data. Invalid, foreign or newer-version backups are rejected without touching your data.
 - Backups include profile, settings, every day of metrics, meals, workouts, journal entries, biomarkers, records, routines and chat history.
 
-The format is a plain JSON document (`app: "bevel-community"`, `version: 1`). It is **not encrypted** — treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
+The format is a plain JSON document (`app: "bene"`, `version: 1`). It is **not encrypted** — treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
 ## Scoring, in one paragraph
 

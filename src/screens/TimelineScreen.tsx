@@ -193,7 +193,7 @@ export function TimelineScreen() {
                     alcoholGrams: 0,
                     sodiumMg: 120,
                     addedSugarG: 4,
-                    source: 'bevel',
+                    source: 'bene',
                     emoji: '🍎',
                     loggedVia: 'custom',
                   });
@@ -228,7 +228,7 @@ export function TimelineScreen() {
       ) : null}
 
       {detail ? (
-        <Sheet title="Entry details" subtitle="Logged in Bevel" onClose={() => setDetail(null)}>
+        <Sheet title="Entry details" subtitle="Logged in Bene" onClose={() => setDetail(null)}>
           <p className="body">This entry was logged in the app, so its details can be edited. Sleep and imported workouts stay read-only.</p>
           <button className="btn btn--soft btn--block mt-20" onClick={() => setDetail(null)}>Close</button>
         </Sheet>
@@ -278,7 +278,7 @@ function ActivityForm({ date, onDone }: { date: string; onDone: () => void }) {
             maxHr: isRun ? 168 : 150,
             calories: Math.round(duration * (isRun ? 11 : 7)),
             strain: Math.round(duration * 0.9),
-            source: 'Bevel',
+            source: 'Bene',
             imported: false,
             zoneMinutes: zone,
           });

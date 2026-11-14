@@ -87,7 +87,7 @@ export function NutritionScreen() {
       alcoholGrams: food.alcoholGrams * multiplier,
       sodiumMg: food.sodiumMg * multiplier,
       addedSugarG: food.addedSugarG * multiplier,
-      source: 'bevel',
+      source: 'bene',
       emoji: food.emoji,
       loggedVia: 'search',
     };
@@ -265,7 +265,7 @@ export function NutritionScreen() {
                   <ChevronRight size={16} className="chevron" />
                 </button>
               ))}
-              <div className="insight-unlock mt-8"><Sparkles size={16} /><span>Tip: photo and description logging use Bevel Intelligence. Review estimates before saving.</span></div>
+              <div className="insight-unlock mt-8"><Sparkles size={16} /><span>Tip: photo and description logging use Bene Intelligence. Review estimates before saving.</span></div>
             </div>
           ) : null}
 

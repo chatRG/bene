@@ -146,7 +146,7 @@ export function HomeScreen() {
             </button>
           </div>
         ) : (
-          <button className="icon-btn icon-btn--soft" onClick={() => navigate('/intelligence')} aria-label="Ask Bevel">
+          <button className="icon-btn icon-btn--soft" onClick={() => navigate('/intelligence')} aria-label="Ask Bene">
             <Sparkles size={18} />
           </button>
         )}
@@ -200,7 +200,7 @@ export function HomeScreen() {
                     </div>
                     <p className="coach-card__body">{insight.body}</p>
                     <div className="row gap-8" style={{ marginTop: 12 }}>
-                      <span className="pill pill--sm pill--flat"><Sparkles size={12} /> Ask Bevel</span>
+                      <span className="pill pill--sm pill--flat"><Sparkles size={12} /> Ask Bene</span>
                       <span className="caption">Grounded in today's numbers</span>
                     </div>
                   </button>

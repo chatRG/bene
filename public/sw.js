@@ -1,5 +1,5 @@
-/* Bevel Community offline shell. No analytics, no network calls except app assets. */
-const CACHE = 'bevel-community-v1';
+/* Bene offline shell. No analytics, no network calls except app assets. */
+const CACHE = 'bene-v1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

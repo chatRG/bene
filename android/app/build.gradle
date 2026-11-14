@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "health.bevel.community"
+    namespace "health.bene.community"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "health.bevel.community"
+        applicationId "health.bene.community"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
