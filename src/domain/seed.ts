@@ -316,7 +316,7 @@ export function buildSeed(now = new Date()): AppStateData {
     const inBed = isToday ? 490 : Math.round(430 + rnd() * 52);
     const stageMins = isToday ? { awake: 67, rem: 99, core: 268, deep: 56 } : undefined;
     const sleep = makeSleep(date, isToday ? 0 : 23, isToday ? 34 : Math.round(8 + rnd() * 40), inBed, {
-      hrv: isToday ? 31.3 : 48 + rnd() * 16,
+      hrv: isToday ? 57.5 : 48 + rnd() * 16,
       rhr: isToday ? 59.2 : 52 + rnd() * 5.5,
       rr: 13.8 + rnd() * 1.8,
       spo2: Math.round(96 + rnd() * 2),
@@ -454,7 +454,7 @@ export function buildSeed(now = new Date()): AppStateData {
         {
           id: 'm2',
           role: 'assistant',
-          text: "Your recovery is 41% this morning. Overnight HRV was 31.3 ms — well below your 56.8 ms baseline — and resting heart rate is up to 59.2 bpm. That combination usually means your body is still working through something.\n\nI'd swap the tempo run for 30–40 minutes of easy Zone 2, or take a full rest day. Keep tomorrow flexible too; one down day now tends to cost less than a week of pushing through.",
+          text: "Your recovery is 41% this morning. Overnight HRV was 57.5 ms against a 55.3 ms baseline, resting heart rate is up to 59.2 bpm, and sleep scored 74%. The elevated resting HR and the mediocre sleep are doing the damage — HRV itself is close to your usual range.\n\nI'd swap the tempo run for 30–40 minutes of easy Zone 2, or take a full rest day. Keep tomorrow flexible too; one down day now tends to cost less than a week of pushing through.",
           at: at(now, 8, 13),
           credits: 4,
           followUps: ['Build me an easy Zone 2 session', 'Why is my HRV low?', 'Plan the rest of my week'],

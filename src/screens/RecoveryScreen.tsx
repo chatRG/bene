@@ -184,7 +184,7 @@ export function RecoveryScreen() {
         <div className="card">
           <div className="components-list">
             {d.recovery.components.map((c) => {
-              const label = { sleep: 'Sleep score', hrv: 'HRV', rhr: 'Resting HR', temp: 'Temperature', respiratory: 'Respiratory', spo2: 'SpO₂' }[c.key];
+              const label = { sleep: 'Sleep score', hrv: 'HRV', rhr: 'Resting HR', temp: 'Temperature', respiratory: 'Respiratory' }[c.key];
               return (
                 <div className="component-row" key={c.key}>
                   <span>{label}</span>

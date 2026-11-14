@@ -1,6 +1,7 @@
 import type { DayRecord, Workout } from '../types';
 import { clamp, mean } from '../math';
 import type { ZoneConfig } from './zones';
+import { workoutTrimp } from './zones';
 
 export interface StressSummary {
   current: number;
@@ -74,7 +75,7 @@ export function computeCardioLoad(workouts: Workout[], days: Record<string, DayR
   for (let i = Math.max(0, todayIndex - 41); i <= todayIndex; i++) {
     const d = days[dayOrder[i]];
     if (!d) continue;
-    const trimp = d.workouts.reduce((a, w) => a + w.zoneMinutes.reduce((x, m, zi) => x + m * [1, 2, 3, 5, 8, 12][zi], 0), 0);
+    const trimp = d.workouts.reduce((a, w) => a + workoutTrimp(w.zoneMinutes), 0);
     dailyTrimp.push(trimp);
     if (d.workouts.some((w) => w.durationMin >= 20)) qualifying.add(d.date);
   }

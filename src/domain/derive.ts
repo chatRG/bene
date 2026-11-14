@@ -53,12 +53,13 @@ export function recoveryBaselineFor(data: AppStateData, date: string) {
 
 function strainOfRecord(record: DayRecord | undefined): number {
   if (!record) return 0;
-  const active = record.workouts.reduce(
-    (a, w) => a + w.zoneMinutes.reduce((x, m, i) => x + m * [1, 2, 3, 5, 8, 12][i], 0),
-    0,
-  );
-  const passive = record.metrics.hrSamples.reduce((a, s) => a + Math.max(0, s.bpm - 59) * 0.045, 0);
-  return 30 * Math.log(1 + (active + passive) / 55);
+  const active = record.workouts.reduce((a, w) => a + w.zoneMinutes.reduce((x, m, i) => x + m * i, 0), 0);
+  const passive = record.metrics.hrSamples.reduce((a, s) => {
+    const pct = ((s.bpm - 55) / (190 - 55)) * 100;
+    const weight = pct >= 90 ? 5 : pct >= 80 ? 4 : pct >= 70 ? 3 : pct >= 60 ? 2 : pct >= 50 ? 1 : 0;
+    return a + weight * 10;
+  }, 0);
+  return (100 * Math.log(1 + active + passive)) / Math.log(7201);
 }
 
 export function recentStrains(data: AppStateData, date: string, daysBack = 28): number[] {
@@ -142,6 +143,8 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     recovery: recovery.score,
     recentStrainAvg: mean(recent.slice(-14)),
     recentStrainRange: recent,
+    age,
+    maxHr: Math.round(208 - 0.7 * age),
     nowMinute: isToday ? nowMinute : 1440,
   });
 

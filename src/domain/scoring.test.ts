@@ -22,7 +22,7 @@ describe('demo dataset', () => {
     expect(d.sleepScore?.score).toBe(74);
     expect(d.recovery.status).toBe('scored');
     expect(d.recovery.score).toBe(41);
-    expect(Math.round(d.strain.score)).toBe(42);
+    expect(Math.round(d.strain.score)).toBe(49);
     expect(d.nutrition.totals.calories).toBe(2304);
     expect(d.nutrition.netEnergy).toBe(-257);
   });
@@ -96,11 +96,11 @@ describe('published invariants', () => {
     const d = deriveDay(data, today, NOW);
     const baseline = {
       hrvMs: d.baselineHrv,
-      hrvSd: 8,
+      hrvSpread: 8,
       rhrBpm: d.baselineRhr,
-      rhrSd: 3,
+      rhrSpread: 3,
       rr: 14,
-      rrSd: 1,
+      rrSpread: 1,
       tempC: 36.4,
       nights: 28,
     };
