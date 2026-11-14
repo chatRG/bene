@@ -67,4 +67,14 @@ Please do not open a public issue for a vulnerability that could expose health d
 
 ## License
 
-By contributing you agree that your contribution is licensed under the MIT License.
+Bene is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Noncommercial use is free; commercial use needs a separate paid licence (see
+[COMMERCIAL.md](COMMERCIAL.md)).
+
+By contributing, you agree that:
+
+1. your contribution is licensed under the PolyForm Noncommercial License 1.0.0; and
+2. you grant the maintainer a perpetual, worldwide, irrevocable, royalty-free right
+   to relicense your contribution under any terms, including commercial terms.
+
+If you cannot grant those rights, open an issue before contributing.

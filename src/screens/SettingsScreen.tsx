@@ -86,7 +86,7 @@ export function SettingsScreen() {
 
         <GroupLabel>App</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.1.0 · MIT" onClick={() => navigate('/settings/about')} />
+          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.1.0 · Noncommercial" onClick={() => navigate('/settings/about')} />
         </div>
 
         <div className="settings-footer">Bene is an unofficial, local-first health app.<br />Not affiliated with Finerpoint, Inc.</div>
@@ -753,12 +753,12 @@ function About() {
         <div className="caption mt-4">Version 0.1.0 · clean-room build</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
-          <span className="pill pill--sm pill--flat">MIT</span>
+          <span className="pill pill--sm pill--flat">Noncommercial</span>
         </div>
       </div>
       <div className="list-card mt-16">
         <ListRow icon={<Info size={16} />} title="Scoring methodology" subtitle="docs/SCORING.md in the repository" onClick={() => showToast('Open docs/SCORING.md in the repo')} />
-        <ListRow icon={<FileText size={16} />} title="Open-source licenses" subtitle="React, Capacitor, Inter, Lucide" onClick={() => showToast('See NOTICE.md for attribution')} />
+        <ListRow icon={<FileText size={16} />} title="Third-party licenses" subtitle="React, Capacitor, Inter, Lucide" onClick={() => showToast('See NOTICE.md for attribution')} />
         <ListRow icon={<Smartphone size={16} />} title="Native builds" subtitle="iOS and Android via Capacitor" onClick={() => showToast('Run npm run cap:ios / cap:android')} />
         <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => showToast('Add your repository URL before release')} />
       </div>
