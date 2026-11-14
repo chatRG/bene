@@ -7,6 +7,11 @@ const page = await context.newPage();
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(e.message));
+const externalRequests = [];
+page.on('request', (r) => {
+  const u = new URL(r.url());
+  if (u.protocol.startsWith('http') && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') externalRequests.push(r.url());
+});
 
 const results = [];
 const check = (name, ok, detail = '') => {
@@ -117,4 +122,5 @@ check('edit home exits', (await page.locator('.edit-bar').count()) === 0);
 
 console.log(results.join('\n'));
 console.log('\nCONSOLE ERRORS:', errors.length ? '\n' + [...new Set(errors)].slice(0, 10).join('\n') : 'none');
+console.log('EXTERNAL REQUESTS:', externalRequests.length ? externalRequests.slice(0, 5).join('\n') : 'none');
 await browser.close();

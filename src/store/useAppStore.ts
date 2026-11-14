@@ -86,17 +86,36 @@ export const useAppStore = create<AppStore>()(
       updateProfile: (patch) => set((s) => ({ profile: { ...s.profile, ...patch } })),
 
       completeOnboarding: (name, opts) =>
-        set((s) => ({
-          profile: {
+        set((s) => {
+          const onboardedSettings = { ...s.settings, onboarded: true, demoMode: opts?.demo ?? s.settings.demoMode };
+          const profile = {
             ...s.profile,
             name: name.trim() || s.profile.name,
             sex: opts?.sex ?? s.profile.sex,
             birthDate: opts?.birthDate ?? s.profile.birthDate,
             goal: opts?.goal ?? s.profile.goal,
-          },
-          settings: { ...s.settings, onboarded: true, demoMode: opts?.demo ?? s.settings.demoMode },
-          seededAt: new Date().toISOString(),
-        })),
+          };
+          if (opts?.demo === false) {
+            const today = dateOf(new Date());
+            const resets = new Date();
+            resets.setDate(resets.getDate() + 3);
+            return {
+              profile,
+              settings: onboardedSettings,
+              days: { [today]: emptyDay(today) },
+              dayOrder: [today],
+              journalEntries: [],
+              biomarkers: [],
+              healthRecords: [],
+              chats: [],
+              routines: [],
+              credits: { weeklyAllowance: 700, weeklyUsed: 0, purchased: 0, resetsAt: resets.toISOString() },
+              activityEvents: [],
+              seededAt: new Date().toISOString(),
+            };
+          }
+          return { profile, settings: onboardedSettings, seededAt: new Date().toISOString() };
+        }),
 
       ensureToday: () => {
         const today = dateOf(new Date());

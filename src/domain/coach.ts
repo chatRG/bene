@@ -20,7 +20,7 @@ export function generateCoachReply(data: AppStateData, text: string, now = new D
   const strain = Math.round(d.strain.score);
   const sleepMinutes = d.sleep ? stageTotals(d.sleep).asleepMin : 0;
 
-  if (/train|workout|run|gym|lift|exercise/.test(q)) {
+  if (/train|workout|run|gym|lift|exercise|interval|cardio|strength|session/.test(q)) {
     if (recovery != null && recovery < 45) {
       return {
         text: `With recovery at ${recovery}% and HRV ${d.sleep?.hrvMs?.toFixed(1) ?? '—'} ms, I'd keep today genuinely easy.\n\n• 30–40 min Zone 2, nasal-breathing pace\n• Or a full rest day if you feel run down\n• Skip intervals and training to failure\n\nYour target strain is ${d.strain.target}% today. You're at ${strain}% so far — no need to chase more.`,

@@ -15,6 +15,7 @@
     "shots": "node scripts/screenshots.mjs",
     "test:e2e": "node scripts/e2e.mjs",
     "test:backup": "node scripts/e2e-backup.mjs",
+    "test:empty": "node scripts/e2e-empty.mjs",
     "test:pwa": "node scripts/e2e-pwa.mjs",
     "cap:sync": "cap sync",
     "cap:ios": "cap open ios",

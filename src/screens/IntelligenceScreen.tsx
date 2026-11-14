@@ -104,7 +104,7 @@ export function IntelligenceScreen() {
             <div className="chat-date">{format(new Date(), 'EEE, MMM d')}</div>
             <div className="chat-greeting">Welcome back, {state.profile.name.split(' ')[0]}!</div>
             <p className="caption" style={{ maxWidth: 280, marginTop: 4 }}>
-              Fully offline. Your coach reads today’s recovery, sleep, training and nutrition on this device — no account, no cloud.
+              Offline demo coach. Replies are generated locally from your metrics — no language model, no network.
             </p>
             <div className="chat-suggestions">
               {SUGGESTIONS.map((s) => (

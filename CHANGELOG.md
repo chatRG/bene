@@ -22,7 +22,7 @@ First public iteration: offline-first, local-only, demo-data complete.
 - iOS and Android Capacitor shells with generated app icons and splash screens.
 - PWA manifest, installable icon set and offline service-worker shell.
 - Deterministic 60-day demo dataset that reproduces the reference screenshots (recovery 41%, sleep 74%, 2,304 kcal, −257 net, biological age 26.0).
-- 13 domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap and backup validation.
+- 19 domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap, backup validation and deterministic coach replies.
 - Playwright screenshot, E2E, backup and offline-PWA checks.
 - Documentation: architecture, scoring model, backup format, health-source roadmap, contributing, security, notice, code of conduct.
 
