@@ -7,13 +7,14 @@ import {
   FileText,
   Gift,
   Globe,
+  HardDrive,
   Heart,
   Mail,
+  MessageCircle,
   MessageSquare,
   RefreshCw,
   Settings2,
   Shield,
-  Sparkles,
   Trash2,
   User,
   Watch,
@@ -40,15 +41,14 @@ export function ProfileScreen() {
         <div className="row gap-6 mt-8">
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           {state.settings.demoMode ? <span className="pill pill--sm pill--flat">Demo dataset</span> : null}
-          <span className="pill pill--sm pill--dark">Pro</span>
         </div>
       </div>
 
-      <button className="pro-banner" onClick={() => navigate('/paywall')}>
-        <span className="status-option__icon" style={{ background: 'rgba(255,255,255,.12)', color: '#b7f06a' }}><Sparkles size={18} /></span>
+      <button className="pro-banner" onClick={() => navigate('/settings/backup')}>
+        <span className="status-option__icon" style={{ background: 'rgba(255,255,255,.12)', color: '#e0a184' }}><HardDrive size={18} /></span>
         <span className="grow">
-          <span style={{ display: 'block', fontWeight: 700, fontSize: 14 }}>Bene Pro</span>
-          <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,.6)' }}>Intelligence, Health Records and Biological Age</span>
+          <span className="pro-banner__title">Backup and restore</span>
+          <span className="pro-banner__sub">Keep a portable copy of your data</span>
         </span>
         <ChevronRight size={17} style={{ color: 'rgba(255,255,255,.5)' }} />
       </button>
@@ -56,28 +56,28 @@ export function ProfileScreen() {
       <div className="settings-group-label">Account</div>
       <div className="list-card">
         <ListRow icon={<User size={16} />} title="Personal details" subtitle="Name, sex, birth date, height and weight" onClick={() => navigate('/settings/account')} />
-        <ListRow icon={<Mail size={16} />} title="Email" subtitle="Used to sign in — cannot be changed" value={state.profile.email} right={<span />} onClick={() => showToast('Email cannot be changed in the app')} />
-        <ListRow icon={<Heart size={16} />} title="Activity Status" subtitle={state.settings.activityStatus === 'active' ? 'Active · until changed' : state.settings.activityStatus} onClick={() => navigate('/settings/activity')} />
+        <ListRow icon={<Mail size={16} />} title="Email" subtitle="Local profile · cannot be changed" value={state.profile.email} right={<span />} onClick={() => showToast('Email cannot be changed in the app')} />
+        <ListRow icon={<Heart size={16} />} title="Activity status" subtitle={state.settings.activityStatus === 'active' ? 'Active · today' : state.settings.activityStatus} onClick={() => navigate('/settings/activity')} />
       </div>
 
       <div className="settings-group-label">Data & app</div>
       <div className="list-card">
-        <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="No live adapters · synthetic demo data" onClick={() => navigate('/settings/data')} />
+        <ListRow icon={<Database size={16} />} title="Data sources" subtitle="No live adapters · sample data" onClick={() => navigate('/settings/data')} />
         <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Goals, units, calculations, tabs" onClick={() => navigate('/settings/general')} />
         <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal and coach" onClick={() => navigate('/settings/notifications')} />
         <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
         <ListRow icon={<Watch size={16} />} title="Apple Watch & widgets" subtitle="Complications, Smart Alarm, Live Sync" onClick={() => showToast('Manage widgets from the iOS app')} />
       </div>
 
-      <div className="settings-group-label">Bene Intelligence</div>
+      <div className="settings-group-label">Local coach</div>
       <div className="list-card">
-        <ListRow icon={<Sparkles size={16} />} title="Coach settings" subtitle="Model, personality, Ghost Mode" onClick={() => navigate('/intelligence')} />
+        <ListRow icon={<MessageCircle size={16} />} title="Coach settings" subtitle="Tone, ghost mode, credits" onClick={() => navigate('/intelligence')} />
         <ListRow icon={<FileText size={16} />} title="Health Records" subtitle={`${state.healthRecords.length} documents`} onClick={() => navigate('/records')} />
       </div>
 
       <div className="settings-group-label">More</div>
       <div className="list-card">
-        <ListRow icon={<Gift size={16} />} title="Invite & Earn Rewards" subtitle="Give a month, get a month" onClick={() => showToast('Invite link copied')} right={<ArrowUpRight size={15} className="chevron" />} />
+        <ListRow icon={<Gift size={16} />} title="Invite a friend" subtitle="Share Bene with someone" onClick={() => showToast('Invite link copied')} right={<ArrowUpRight size={15} className="chevron" />} />
         <ListRow icon={<MessageSquare size={16} />} title="Report a bug" subtitle="Help improve the community build" onClick={() => showToast('Thanks — report noted')} />
         <ListRow icon={<RefreshCw size={16} />} title="Clear cache & reload data" subtitle="Re-seeds the local demo dataset" onClick={() => { state.resetDemo(); showToast('Demo data reloaded'); }} />
         <ListRow icon={<Trash2 size={16} />} title="Delete all data" subtitle="Removes everything from this device" danger onClick={() => navigate('/settings/privacy')} />

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ArrowLeft, Check, ChevronRight, Heart, Moon, Shield, Sparkles, Watch } from 'lucide-react';
+import { Activity, ArrowLeft, Check, ChevronRight, Heart, MessageCircle, Moon, Shield, Watch } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { CoachOrb } from '../components/ui';
+import { BeneMark, Ring } from '../components/ui';
 import { showToast } from '../components/toast';
 import type { Sex } from '../domain/types';
 
@@ -26,32 +26,56 @@ export function OnboardingScreen() {
     <div className="onboarding">
       <div className="onboarding__top">
         <div className="brand-mark">
-          <span className="brand-mark__icon"><Sparkles size={16} /></span>
+          <span className="brand-mark__icon"><BeneMark size={18} /></span>
           Bene
         </div>
         {step > 0 ? (
           <button className="icon-btn icon-btn--soft" onClick={() => setStep((s) => s - 1)} aria-label="Back"><ArrowLeft size={18} /></button>
-        ) : (
-          <button className="caption" onClick={() => finish(true)}>Skip</button>
-        )}
+        ) : <span />}
       </div>
 
       <div className="onboarding__body">
         {step === 0 ? (
           <div className="fade-up">
-            <div className="row" style={{ justifyContent: 'center', marginBottom: 26 }}>
-              <CoachOrb size={96} />
-            </div>
-            <div className="onboarding__title">One app.<br />One clear view.</div>
+            <h1 className="onboarding__title">How ready is your body today?</h1>
             <p className="onboarding__sub">
-              Recovery, sleep, strain and nutrition — read from the wearable you already own, explained in plain language by a coach that knows your numbers.
+              Bene reads last night’s sleep, heart-rate variability and resting heart rate, then gives you one
+              recovery number and a strain target for the day.
             </p>
+
+            <div className="onboarding__art">
+              <div className="card" style={{ padding: 16 }}>
+                <div className="row-between">
+                  <span className="meta-mono">Sample morning · 8:12 AM</span>
+                </div>
+                <div className="row gap-16 mt-12" style={{ alignItems: 'center' }}>
+                  <Ring value={41} size={92} stroke={5} color="var(--amber)" track="var(--field)">
+                    <div className="ring__center">
+                      <span style={{ fontSize: 26, fontWeight: 500, letterSpacing: '-0.01em' }}>41</span>
+                      <span className="ring__label">Recovery</span>
+                    </div>
+                  </Ring>
+                  <div className="grow">
+                    <div className="card-title">Low</div>
+                    <p className="caption" style={{ marginTop: 4 }}>
+                      HRV is 6% below baseline and sleep scored 78%. Today’s target is 34% strain.
+                    </p>
+                  </div>
+                </div>
+                <div className="row gap-16 mt-16">
+                  <div className="grow"><div className="caption">Sleep</div><strong style={{ fontWeight: 500 }}>7h 03m</strong></div>
+                  <div className="grow"><div className="caption">Strain</div><strong style={{ fontWeight: 500 }}>12%</strong></div>
+                  <div className="grow"><div className="caption">Target strain</div><strong style={{ fontWeight: 500 }}>34%</strong></div>
+                </div>
+              </div>
+            </div>
+
             <div className="feature-list">
               {[
-                [<Heart size={16} />, 'Recovery every morning, built from overnight HRV and RHR'],
-                [<Moon size={16} />, 'Sleep stages, sleep bank and a smart alarm'],
-                [<Activity size={16} />, 'Strain and training load that respect how you feel'],
-                [<Sparkles size={16} />, 'A coach grounded in your own data — on device'],
+                [<Heart size={16} key="heart" />, 'One recovery score from overnight HRV, resting heart rate and sleep'],
+                [<Moon size={16} key="moon" />, 'Sleep stages, a seven-night balance and a wake-up window'],
+                [<Activity size={16} key="activity" />, 'A daily strain target that follows your recovery'],
+                [<MessageCircle size={16} key="coach" />, 'A local coach that answers from your own numbers'],
               ].map(([icon, text]) => (
                 <div className="feature-item" key={String(text)}>
                   <span className="feature-item__icon">{icon}</span>
@@ -64,8 +88,8 @@ export function OnboardingScreen() {
 
         {step === 1 ? (
           <div className="fade-up">
-            <div className="onboarding__title" style={{ fontSize: 32 }}>Connect your health data</div>
-            <p className="onboarding__sub">Bene reads what your devices already write. No wearable? Everything still works with manual logs.</p>
+            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Connect your health data</h1>
+            <p className="onboarding__sub">Bene reads what your watch or ring already records. No wearable? Manual logs work too.</p>
             <div className="col gap-8 mt-24">
               <button className={`status-option ${healthGranted ? 'status-option--active' : ''}`} onClick={() => setHealthGranted((v) => !v)}>
                 <span className="status-option__icon"><Watch size={18} /></span>
@@ -86,15 +110,15 @@ export function OnboardingScreen() {
             </div>
             <div className="insight-unlock mt-16">
               <Shield size={17} />
-              <span>In this build everything stays on your device. You can revoke access at any time in system settings.</span>
+              <span>Everything stays on this device. You can revoke access at any time in system settings.</span>
             </div>
           </div>
         ) : null}
 
         {step === 2 ? (
           <div className="fade-up">
-            <div className="onboarding__title" style={{ fontSize: 32 }}>Make it yours</div>
-            <p className="onboarding__sub">A few details tune your zones, recovery baseline and Biological Age.</p>
+            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Make it yours</h1>
+            <p className="onboarding__sub">These details tune your heart-rate zones, recovery baseline and age estimate.</p>
             <div className="mt-24">
               <div className="field-label">Name</div>
               <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
@@ -125,36 +149,35 @@ export function OnboardingScreen() {
                 ))}
               </div>
             </div>
-            <div className="insight-unlock mt-20">
-              <Sparkles size={17} />
-              <span>Want to look around first? “Explore demo” loads a realistic 60-day history so every screen has data.</span>
-            </div>
+            <p className="caption mt-20" style={{ lineHeight: 1.5 }}>
+              You can look around with a sample day before connecting anything.
+            </p>
           </div>
         ) : null}
       </div>
 
       <div className="onboarding__footer">
-        <div className="progress-dots">
+        <div className="progress-dots" aria-hidden>
           {[0, 1, 2].map((i) => <span key={i} className={i === step ? 'on' : ''} />)}
         </div>
         {step === 0 ? (
           <>
-            <button className="btn btn--block" onClick={() => setStep(1)}>Get started <ChevronRight size={17} /></button>
-            <button className="btn btn--soft btn--block" onClick={() => finish(true)}>Explore with demo data</button>
+            <button className="btn btn--block" onClick={() => setStep(1)}>Continue <ChevronRight size={17} /></button>
+            <button className="onboarding__link" onClick={() => finish(true)}>See a sample day</button>
           </>
         ) : step === 1 ? (
           <>
             <button className="btn btn--block" onClick={() => { setStep(2); showToast(healthGranted ? 'Health access granted' : 'You can connect later'); }}>
-              {healthGranted ? 'Looks good' : 'Continue'} <ChevronRight size={17} />
+              Continue <ChevronRight size={17} />
             </button>
-            <button className="caption" onClick={() => setStep(2)}>Not now</button>
+            <button className="onboarding__link" onClick={() => setStep(2)}>Not now</button>
           </>
         ) : (
           <>
             <button className="btn btn--block" onClick={() => finish(false)} disabled={!name.trim()}>
               Start tracking <Check size={17} />
             </button>
-            <button className="btn btn--soft btn--block" onClick={() => finish(true)}>Explore demo instead</button>
+            <button className="onboarding__link" onClick={() => finish(true)}>See a sample day</button>
             <p className="caption" style={{ textAlign: 'center' }}>By continuing you agree to the Terms and Privacy Policy. Wellness use only.</p>
           </>
         )}

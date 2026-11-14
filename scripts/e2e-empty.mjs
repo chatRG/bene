@@ -11,7 +11,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Get started').click();
+await page.getByText('Continue', { exact: true }).click();
 await page.waitForTimeout(250);
 await page.getByText('Continue', { exact: true }).click();
 await page.waitForTimeout(250);

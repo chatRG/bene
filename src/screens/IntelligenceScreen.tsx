@@ -3,33 +3,27 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ChevronRight,
-  CreditCard,
   FileText,
   Ghost,
   History,
-  Image as ImageIcon,
   Menu,
-  Mic,
-  MoreHorizontal,
+  MessageCircle,
   Paperclip,
   Pin,
   Plus,
   Send,
   Settings2,
-  Sparkles,
   Trash2,
   Utensils,
-  X,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { CoachOrb, Sheet } from '../components/ui';
+import { BeneMark, Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
-import { format as fmt } from 'date-fns';
 
 const SUGGESTIONS = [
-  { icon: <FileText size={18} />, title: 'Create a training plan', sub: 'Personalized for you', prompt: 'Create a training plan for the next 6 weeks.' },
-  { icon: <Utensils size={18} />, title: 'Log food', sub: 'Track your daily nutrition', prompt: 'Help me log lunch — chicken bowl with rice and avocado.' },
-  { icon: <Sparkles size={18} />, title: 'Review my recovery', sub: 'See what is driving it', prompt: 'Why is my recovery low today?' },
+  { icon: <FileText size={18} />, title: 'Create a training plan', sub: 'Build a week around recovery', prompt: 'Create a training plan for the next 6 weeks.' },
+  { icon: <Utensils size={18} />, title: 'Log food', sub: 'Add a meal or snack', prompt: 'Help me log lunch — chicken bowl with rice and avocado.' },
+  { icon: <MessageCircle size={18} />, title: 'Review my recovery', sub: 'See what moved last night', prompt: 'Why is my recovery low today?' },
   { icon: <History size={18} />, title: 'Plan my week', sub: 'Balance load and sleep', prompt: 'Plan my training week around my recovery.' },
 ];
 
@@ -40,16 +34,13 @@ export function IntelligenceScreen() {
   const [text, setText] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [attachOpen, setAttachOpen] = useState(false);
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   const thread = state.chats.find((c) => c.id === id);
   const recent = state.chats.filter((c) => !c.ghost && !c.pinned).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const pinned = state.chats.filter((c) => c.pinned && !c.ghost);
-  const creditsLeft = state.credits.weeklyAllowance - state.credits.weeklyUsed + state.credits.purchased;
-  const canSend = creditsLeft > 0 && state.settings.aiEnabled;
+  const canSend = state.settings.aiEnabled;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -68,7 +59,7 @@ export function IntelligenceScreen() {
     const message = (value ?? text).trim();
     if (!message) return;
     if (!canSend) {
-      setCreditsOpen(true);
+      setSettingsOpen(true);
       return;
     }
     let threadId = id;
@@ -90,21 +81,23 @@ export function IntelligenceScreen() {
     <div className="chat-page">
       <div className="chat-head">
         <button className="icon-btn icon-btn--soft" onClick={() => setHistoryOpen(true)} aria-label="Chat history"><Menu size={19} /></button>
-        <div className="row gap-6" style={{ alignItems: 'center' }}>
-          <span className="chat-orb-small" style={{ width: 22, height: 22 }} />
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Bene Intelligence</span>
+        <div className="chat-head__name">
+          <BeneMark size={18} />
+          <span>Local coach</span>
         </div>
-        <button className="icon-btn icon-btn--soft" onClick={() => navigate('/')} aria-label="Close"><X size={19} /></button>
+        <button className="icon-btn icon-btn--soft" onClick={() => navigate('/intelligence')} aria-label="New chat"><Plus size={19} /></button>
       </div>
 
       <div className="chat-scroll" ref={scrollRef}>
         {!thread || thread.messages.length === 0 ? (
           <div className="chat-empty">
-            <CoachOrb size={88} />
+            <div className="brand-mark__icon" style={{ width: 56, height: 56, borderRadius: 12 }}>
+              <BeneMark size={30} />
+            </div>
             <div className="chat-date">{format(new Date(), 'EEE, MMM d')}</div>
-            <div className="chat-greeting">Welcome back, {state.profile.name.split(' ')[0]}!</div>
+            <div className="chat-greeting">Welcome back, {state.profile.name.split(' ')[0]}</div>
             <p className="caption" style={{ maxWidth: 280, marginTop: 4 }}>
-              Offline demo coach. Replies are generated locally from your metrics — no language model, no network.
+              Runs on this device. Answers are composed from your metrics by local rules — no network call.
             </p>
             <div className="chat-suggestions">
               {SUGGESTIONS.map((s) => (
@@ -126,7 +119,7 @@ export function IntelligenceScreen() {
             {thread.messages.map((m) => (
               <div key={m.id}>
                 <div className={`msg-row ${m.role === 'user' ? 'msg-row--user' : ''}`}>
-                  {m.role === 'assistant' ? <span className="chat-orb-small" /> : null}
+                  {m.role === 'assistant' ? <BeneMark size={24} className="chat-mark" /> : null}
                   <div className={`bubble ${m.role === 'user' ? 'bubble--user' : 'bubble--assistant'}`}>
                     {m.pending ? (
                       <span className="thinking"><i /><i /><i /></span>
@@ -134,9 +127,6 @@ export function IntelligenceScreen() {
                       <>
                         {m.attachmentName ? <div className="bubble-meta" style={{ color: 'inherit', opacity: 0.7 }}><Paperclip size={11} /> {m.attachmentName}</div> : null}
                         {m.text}
-                        {m.role === 'assistant' ? (
-                          <div className="bubble-meta"><Sparkles size={10} /> {m.credits ?? 1} credits</div>
-                        ) : null}
                       </>
                     )}
                   </div>
@@ -158,7 +148,7 @@ export function IntelligenceScreen() {
         <textarea
           ref={textRef}
           rows={1}
-          placeholder="Ask Bene anything"
+          placeholder="Ask about your numbers"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -173,34 +163,14 @@ export function IntelligenceScreen() {
           }}
         />
         <div className="composer-actions">
-          <button className="composer-plus" onClick={() => setAttachOpen(true)} aria-label="Attach"><Plus size={18} /></button>
-          <button className="composer-mode" onClick={() => { state.updateSettings({ aiModel: state.settings.aiModel === 'standard' ? 'upgraded' : 'standard' }); showToast(state.settings.aiModel === 'standard' ? 'Upgraded model enabled' : 'Standard model enabled'); }}>
-            {state.settings.aiModel === 'standard' ? 'Fast' : 'Deep'}
-          </button>
-          <span className="pill pill--sm pill--flat" style={{ padding: '5px 8px', fontSize: 10.5 }}>Offline</span>
-          <button className="icon-btn icon-btn--ghost" style={{ width: 32, height: 32 }} onClick={() => showToast('Voice input requires the native build')} aria-label="Microphone"><Mic size={18} className="chevron" /></button>
+          <span className="pill pill--sm pill--flat" style={{ padding: '5px 8px', fontSize: 10.5 }}>On-device</span>
           <button className="send-btn" disabled={!text.trim()} onClick={() => send()} aria-label="Send"><Send size={15} /></button>
         </div>
       </div>
 
       {historyOpen ? (
         <Sheet title="Chats" onClose={() => setHistoryOpen(false)} full>
-          <div className="credit-card">
-            <div className="row-between">
-              <div>
-                <div className="credit-card__label">Weekly allowance</div>
-                <div className="credit-card__value">{creditsLeft}</div>
-              </div>
-              <button className="pill pill--sm" style={{ background: 'rgba(255,255,255,.12)', color: '#fff' }} onClick={() => { setHistoryOpen(false); setCreditsOpen(true); }}>
-                <CreditCard size={12} /> Buy credits
-              </button>
-            </div>
-            <div className="credit-bar"><span style={{ width: `${Math.min(100, (state.credits.weeklyUsed / state.credits.weeklyAllowance) * 100)}%` }} /></div>
-            <div className="row-between mt-8" style={{ fontSize: 10.5, color: 'rgba(255,255,255,.55)' }}>
-              <span>{state.credits.weeklyUsed} used this week</span>
-              <span>Resets {format(new Date(state.credits.resetsAt), 'MMM d')}</span>
-            </div>
-          </div>
+          <p className="caption" style={{ margin: '0 4px 4px' }}>Chats are stored on this device and never leave it.</p>
           <div className="row gap-8 mt-16">
             <button className="btn btn--soft btn--block" onClick={() => { setHistoryOpen(false); navigate('/intelligence'); }}><Plus size={16} /> New chat</button>
             <button
@@ -220,7 +190,7 @@ export function IntelligenceScreen() {
               <div className="settings-group-label">Pinned</div>
               {pinned.map((c) => (
                 <button key={c.id} className="thread-row" onClick={() => { setHistoryOpen(false); navigate(`/chat/${c.id}`); }}>
-                  <span className="chat-orb-small" style={{ width: 24, height: 24 }} />
+                  <BeneMark size={20} className="chat-mark" />
                   <span className="grow">
                     <span className="thread-title" style={{ display: 'block' }}>{c.title}</span>
                     <span className="thread-sub" style={{ display: 'block' }}>{c.messages.length} messages</span>
@@ -253,39 +223,18 @@ export function IntelligenceScreen() {
       ) : null}
 
       {settingsOpen ? (
-        <Sheet title="Bene Intelligence" subtitle="Your coach, your rules." onClose={() => setSettingsOpen(false)}>
+        <Sheet title="Local coach" subtitle="Answers from your metrics, on this device" onClose={() => setSettingsOpen(false)}>
           <div className="list-card" style={{ boxShadow: 'none' }}>
             <div className="list-row">
-              <div className="list-icon"><Sparkles size={16} /></div>
-              <div className="grow"><div className="list-title">Bene Intelligence</div><div className="list-sub">Grounded in your health data</div></div>
+              <div className="list-icon"><MessageCircle size={16} /></div>
+              <div className="grow"><div className="list-title">Local coach</div><div className="list-sub">Reads your metrics on this device</div></div>
               <button className={`switch ${state.settings.aiEnabled ? 'switch--on' : ''}`} onClick={() => state.updateSettings({ aiEnabled: !state.settings.aiEnabled })} aria-label="Toggle AI" />
-            </div>
-            <div className="list-row">
-              <div className="list-icon"><CreditCard size={16} /></div>
-              <div className="grow"><div className="list-title">Usage & credits</div><div className="list-sub">{creditsLeft} left · resets {format(new Date(state.credits.resetsAt), 'MMM d')}</div></div>
-              <button className="pill pill--sm pill--flat" onClick={() => { setSettingsOpen(false); setCreditsOpen(true); }}>Manage</button>
             </div>
             <div className="list-row">
               <div className="list-icon"><Ghost size={16} /></div>
               <div className="grow"><div className="list-title">Ghost Mode</div><div className="list-sub">Chats vanish after {state.settings.ghostRetentionMin >= 60 ? `${state.settings.ghostRetentionMin / 60}h` : `${state.settings.ghostRetentionMin}m`}</div></div>
               <button className={`switch ${state.settings.ghostDefault ? 'switch--on' : ''}`} onClick={() => state.updateSettings({ ghostDefault: !state.settings.ghostDefault })} aria-label="Ghost default" />
             </div>
-            <div className="list-row">
-              <div className="list-icon"><Settings2 size={16} /></div>
-              <div className="grow"><div className="list-title">Model</div><div className="list-sub">Upgraded uses more credits</div></div>
-              <button className="pill pill--sm pill--flat" onClick={() => state.updateSettings({ aiModel: state.settings.aiModel === 'standard' ? 'upgraded' : 'standard' })}>
-                {state.settings.aiModel === 'standard' ? 'Standard' : 'Upgraded'}
-              </button>
-            </div>
-          </div>
-
-          <div className="settings-group-label">Personality</div>
-          <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
-            {(['supportive', 'direct', 'analytical', 'playful'] as const).map((p) => (
-              <button key={p} className={`pill ${state.settings.aiPersonality === p ? 'pill--dark' : 'pill--flat'}`} onClick={() => state.updateSettings({ aiPersonality: p })}>
-                {p[0].toUpperCase() + p.slice(1)}
-              </button>
-            ))}
           </div>
 
           <div className="settings-group-label">Conversation</div>
@@ -293,10 +242,6 @@ export function IntelligenceScreen() {
             <div className="list-row">
               <div className="grow"><div className="list-title">Suggested follow-ups</div><div className="list-sub">Show chips under replies</div></div>
               <button className={`switch ${state.settings.suggestedFollowUps ? 'switch--on' : ''}`} onClick={() => state.updateSettings({ suggestedFollowUps: !state.settings.suggestedFollowUps })} aria-label="Suggestions" />
-            </div>
-            <div className="list-row">
-              <div className="grow"><div className="list-title">Expanded thinking</div><div className="list-sub">Show reasoning steps (beta)</div></div>
-              <button className={`switch ${state.settings.expandedThinking ? 'switch--on' : ''}`} onClick={() => state.updateSettings({ expandedThinking: !state.settings.expandedThinking })} aria-label="Thinking" />
             </div>
             <div className="list-row">
               <div className="list-icon"><Trash2 size={16} /></div>
@@ -307,55 +252,6 @@ export function IntelligenceScreen() {
           <p className="caption mt-16">Bene Intelligence cannot diagnose conditions, recommend medication doses, start workouts or change settings. It is not a doctor.</p>
         </Sheet>
       ) : null}
-
-      {creditsOpen ? (
-        <Sheet title="Credits" subtitle="Purchased credits roll over and never expire." onClose={() => setCreditsOpen(false)}>
-          <div className="credit-card" style={{ background: 'linear-gradient(135deg,#20301a,#33452a)' }}>
-            <div className="credit-card__label">Balance</div>
-            <div className="credit-card__value">{creditsLeft}</div>
-            <div className="credit-bar"><span style={{ width: `${Math.min(100, (state.credits.weeklyUsed / state.credits.weeklyAllowance) * 100)}%` }} /></div>
-          </div>
-          <div className="col gap-8 mt-16">
-            {[
-              [350, '$4.99', '350 credits'],
-              [700, '$8.99', '700 + 50 bonus'],
-              [1400, '$16.99', '1,400 + 150 bonus'],
-              [3500, '$39.99', '3,500 + 700 bonus'],
-            ].map(([n, price, label]) => (
-              <button key={String(n)} className="status-option" onClick={() => { state.buyCredits(Number(n) as 350 | 700 | 1400 | 3500); showToast('Credits added'); }}>
-                <span className="status-option__icon">✨</span>
-                <span className="grow"><span className="list-title">{n} credits</span><span className="list-sub">{label}</span></span>
-                <span style={{ fontWeight: 700 }}>{price}</span>
-              </button>
-            ))}
-          </div>
-          <p className="caption mt-16">Pro includes a weekly allowance that resets every 7 days. Standard features stay free.</p>
-        </Sheet>
-      ) : null}
-
-      {attachOpen ? (
-        <Sheet title="Attach" subtitle="Files are analyzed on-device in this build." onClose={() => setAttachOpen(false)}>
-          <div className="col gap-8">
-            {[
-              ['Photo library', <ImageIcon size={18} />, 'Add a meal or lab photo'],
-              ['Take a photo', <ImageIcon size={18} />, 'Camera'],
-              ['Health record', <FileText size={18} />, 'PDF, image or text · max 5 MB'],
-            ].map(([label, icon, sub]) => (
-              <button key={String(label)} className="status-option" onClick={() => { setAttachOpen(false); showToast('Attachment added to your next message'); }}>
-                <span className="status-option__icon">{icon}</span>
-                <span className="grow"><span className="list-title">{label}</span><span className="list-sub">{sub}</span></span>
-                <ChevronRight size={16} className="chevron" />
-              </button>
-            ))}
-          </div>
-          <p className="caption mt-16">Sending a lab report can improve Biological Age confidence. You can delete files any time.</p>
-        </Sheet>
-      ) : null}
-
-      <div className="row" style={{ justifyContent: 'center', gap: 4, paddingBottom: 2 }}>
-        <MoreHorizontal size={12} className="chevron" />
-        <span style={{ fontSize: 9.5, color: 'var(--muted-2)' }}>{fmt(new Date(), 'yyyy')} · Bene · on-device demo</span>
-      </div>
     </div>
   );
 }

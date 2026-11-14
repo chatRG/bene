@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format, subDays } from 'date-fns';
-import { Check, ChevronRight, Flame, Info, Lock, Pin, Plus, Sparkles, X } from 'lucide-react';
+import { Check, ChevronRight, Flame, Info, Lock, Pin, Plus, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
@@ -126,7 +126,7 @@ export function JournalScreen() {
       </div>
 
       <div className="section">
-        <SectionHead title="Insights" action={<span className="pill pill--sm pill--flat"><Sparkles size={11} /> Habits</span>} />
+        <SectionHead title="Insights" action={<span className="caption">Last 30 days</span>} />
         {correlations.length ? (
           <div className="col gap-10">
             {correlations.map((c) => {
@@ -139,7 +139,7 @@ export function JournalScreen() {
                     <span className="pill pill--sm pill--flat" style={{ marginLeft: 'auto' }}>Correlation</span>
                   </div>
                   <p className="body" style={{ fontSize: 13, marginTop: 6 }}>
-                    Recovery averages <strong>{Math.round(c.yesAvg)}%</strong> on days you log <em>{c.tag.label.toLowerCase()}</em> — {delta >= 0 ? 'higher' : 'lower'} than your {Math.round(c.noAvg)}% average without it.
+                    Recovery averages <strong>{Math.round(c.yesAvg)}%</strong> on days you log {c.tag.label.toLowerCase()} — {delta >= 0 ? 'higher' : 'lower'} than your {Math.round(c.noAvg)}% average without it.
                   </p>
                   <div className="correlation-bar">
                     <span>Without {Math.round(c.noAvg)}%</span>
@@ -254,7 +254,7 @@ function TagSheet({
               step="0.1"
               value={num}
               onChange={(e) => setNum(Number(e.target.value))}
-              style={{ fontSize: 28, fontWeight: 700, textAlign: 'center' }}
+              style={{ fontSize: 26, fontWeight: 500, textAlign: 'center' }}
             />
             <span className="pill pill--flat">{tag.unit ?? ''}</span>
           </div>

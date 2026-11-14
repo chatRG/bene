@@ -12,18 +12,18 @@ import {
   Heart,
   Leaf,
   Minus,
+  MessageCircle,
   Moon,
   Plus,
-  Sparkles,
-  Sun,
   Utensils,
   X,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay, coachInsight } from '../domain/derive';
+import { recoveryColor } from '../domain/scoring/recovery';
 import { stageTotals } from '../domain/math';
-import { Ring, Sheet, SectionHead, ProgressBar } from '../components/ui';
+import { Ring, Sheet, SectionHead } from '../components/ui';
 import { EnergyBar } from '../components/charts';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
@@ -54,7 +54,7 @@ export function HomeScreen() {
   const state = useAppStore();
   const today = dateKey(new Date());
   const derived = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
-  const insight = coachInsight(derived, state.profile.name);
+  const insight = coachInsight(derived);
   const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string[]>(state.settings.homeOrder);
@@ -111,16 +111,9 @@ export function HomeScreen() {
             {status === 'active' ? <span className="status-dot" /> : <Heart size={13} />}
             <span>
               <strong>{STATUS_LABEL[status]}</strong>
-              <small>{state.settings.activityStatusUntil ? 'Until ' + format(new Date(state.settings.activityStatusUntil), 'MMM d') : 'Until changed'}</small>
+              <small>{state.settings.activityStatusUntil ? 'Until ' + format(new Date(state.settings.activityStatusUntil), 'MMM d') : 'Today'}</small>
             </span>
           </button>
-          <div className="weather-pill">
-            <Sun size={15} color="#e7a800" />
-            <span>
-              <strong>72°F</strong>
-              <small>New York, NY</small>
-            </span>
-          </div>
         </div>
         <button
           className="avatar"
@@ -146,8 +139,8 @@ export function HomeScreen() {
             </button>
           </div>
         ) : (
-          <button className="icon-btn icon-btn--soft" onClick={() => navigate('/intelligence')} aria-label="Ask Bene">
-            <Sparkles size={18} />
+          <button className="icon-btn icon-btn--soft" onClick={() => navigate('/intelligence')} aria-label="Open coach">
+            <MessageCircle size={18} strokeWidth={1.5} />
           </button>
         )}
       </div>
@@ -170,9 +163,9 @@ export function HomeScreen() {
                     </button>
                     <div className="score-card__divider" />
                     <button className="score-card__col" onClick={() => navigate('/recovery')}>
-                      <Ring value={derived.recovery.score ?? 0} size={78} stroke={7} color="var(--lime)">
+                      <Ring value={derived.recovery.score ?? 0} size={78} stroke={7} color={recoveryColor(derived.recovery.score)}>
                         <div className="ring__center">
-                          <span className="ring__value">{derived.recovery.score ?? '—'}{derived.recovery.score != null ? '%' : ''}</span>
+                          <span className="ring__value">{derived.recovery.score ?? '—'}</span>
                           <span className="ring__label">Recovery</span>
                         </div>
                       </Ring>
@@ -199,10 +192,6 @@ export function HomeScreen() {
                       <ChevronRight size={16} className="chevron" style={{ marginLeft: 'auto' }} />
                     </div>
                     <p className="coach-card__body">{insight.body}</p>
-                    <div className="row gap-8" style={{ marginTop: 12 }}>
-                      <span className="pill pill--sm pill--flat"><Sparkles size={12} /> Ask Bene</span>
-                      <span className="caption">Grounded in today's numbers</span>
-                    </div>
                   </button>
                 );
               case 'stress':
@@ -226,10 +215,10 @@ export function HomeScreen() {
                         </span>
                       </div>
                       <div className="stress-stats">
-                        <div><strong style={{ color: 'var(--orange)' }}>{derived.stress.high}</strong><span>Highest</span></div>
-                        <div><strong style={{ color: 'var(--teal)' }}>{derived.stress.low}</strong><span>Lowest</span></div>
-                        <div><strong style={{ color: 'var(--blue)' }}>{derived.stress.average}</strong><span>Average</span></div>
-                        <div style={{ borderLeft: '1px solid var(--hairline)', paddingLeft: 14 }}><strong>{derived.stress.energyBank}</strong><span>Energy Bank</span></div>
+                        <div><strong>{derived.stress.high}</strong><span>Highest</span></div>
+                        <div><strong>{derived.stress.low}</strong><span>Lowest</span></div>
+                        <div><strong>{derived.stress.average}</strong><span>Average</span></div>
+                        <div><strong>{derived.stress.energyBank}</strong><span>Energy bank</span></div>
                       </div>
                       <EnergyBar value={derived.stress.energyBank} />
                     </div>
@@ -254,16 +243,16 @@ export function HomeScreen() {
                     {sleepTotals ? (
                       <>
                         <div className="stage-bar">
-                          <span style={{ width: `${(sleepTotals.deepMin / sleepTotals.inBedMin) * 100}%`, background: '#b0a0ff' }} />
-                          <span style={{ width: `${(sleepTotals.coreMin / sleepTotals.inBedMin) * 100}%`, background: '#5f9df8' }} />
-                          <span style={{ width: `${(sleepTotals.remMin / sleepTotals.inBedMin) * 100}%`, background: '#9ac8ff' }} />
-                          <span style={{ width: `${(sleepTotals.awakeMin / sleepTotals.inBedMin) * 100}%`, background: '#f6a265' }} />
+                          <span style={{ width: `${(sleepTotals.deepMin / sleepTotals.inBedMin) * 100}%`, background: 'var(--sleep-deep)' }} />
+                          <span style={{ width: `${(sleepTotals.coreMin / sleepTotals.inBedMin) * 100}%`, background: 'var(--sleep-core)' }} />
+                          <span style={{ width: `${(sleepTotals.remMin / sleepTotals.inBedMin) * 100}%`, background: 'var(--sleep-rem)' }} />
+                          <span style={{ width: `${(sleepTotals.awakeMin / sleepTotals.inBedMin) * 100}%`, background: 'var(--sleep-awake)' }} />
                         </div>
                         <div className="stage-legend">
-                          <span><i style={{ background: '#b0a0ff' }} />Deep {Math.round((sleepTotals.deepMin / sleepTotals.inBedMin) * 100)}%</span>
-                          <span><i style={{ background: '#5f9df8' }} />Core {Math.round((sleepTotals.coreMin / sleepTotals.inBedMin) * 100)}%</span>
-                          <span><i style={{ background: '#9ac8ff' }} />REM {Math.round((sleepTotals.remMin / sleepTotals.inBedMin) * 100)}%</span>
-                          <span><i style={{ background: '#f6a265' }} />Awake {Math.round((sleepTotals.awakeMin / sleepTotals.inBedMin) * 100)}%</span>
+                          <span><i style={{ background: 'var(--sleep-deep)' }} />Deep {Math.round((sleepTotals.deepMin / sleepTotals.inBedMin) * 100)}%</span>
+                          <span><i style={{ background: 'var(--sleep-core)' }} />Core {Math.round((sleepTotals.coreMin / sleepTotals.inBedMin) * 100)}%</span>
+                          <span><i style={{ background: 'var(--sleep-rem)' }} />REM {Math.round((sleepTotals.remMin / sleepTotals.inBedMin) * 100)}%</span>
+                          <span><i style={{ background: 'var(--sleep-awake)' }} />Awake {Math.round((sleepTotals.awakeMin / sleepTotals.inBedMin) * 100)}%</span>
                         </div>
                       </>
                     ) : null}
@@ -281,40 +270,41 @@ export function HomeScreen() {
                       action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/timeline')}>View timeline</button>}
                     />
                     <div className="list-card">
-                      <div className="list-row">
-                        <div className="list-icon" style={{ background: 'rgba(109,124,247,.12)', color: 'var(--sleep)' }}><Moon size={16} /></div>
-                        <div className="grow">
-                          <div className="list-title">Primary sleep</div>
-                          <div className="list-sub">12:34 AM – 8:44 AM · 7h 03m asleep</div>
+                      {derived.sleep && sleepTotals ? (
+                        <div className="list-row">
+                          <div className="list-icon" style={{ background: 'rgba(109,124,247,.12)', color: 'var(--sleep)' }}><Moon size={16} /></div>
+                          <div className="grow">
+                            <div className="list-title">Primary sleep</div>
+                            <div className="list-sub">
+                              {format(new Date(derived.sleep.start), 'h:mm a')} – {format(new Date(derived.sleep.end), 'h:mm a')} · {Math.floor(sleepTotals.asleepMin / 60)}h {sleepTotals.asleepMin % 60}m asleep
+                            </div>
+                          </div>
+                          <span className="caption">Sleep</span>
                         </div>
-                        <span className="caption">Sleep</span>
-                      </div>
-                      {derived.record.workouts.slice(0, 1).map((w) => (
+                      ) : null}
+                      {derived.record.workouts.slice(0, 2).map((w) => (
                         <div className="list-row" key={w.id}>
                           <div className="list-icon" style={{ background: 'rgba(255,122,51,.12)', color: 'var(--orange)' }}><Flame size={16} /></div>
                           <div className="grow">
                             <div className="list-title">{w.name}</div>
-                            <div className="list-sub">{w.durationMin} min · {w.distanceKm?.toFixed(1)} km · {w.calories} kcal</div>
+                            <div className="list-sub">{w.durationMin} min{w.distanceKm != null ? ` · ${w.distanceKm.toFixed(1)} km` : ''} · {w.calories} kcal</div>
                           </div>
                           <span className="caption">{w.start.slice(11, 16)}</span>
                         </div>
                       ))}
-                      <div className="list-row">
-                        <div className="list-icon" style={{ background: 'rgba(75,201,58,.12)', color: 'var(--green-deep)' }}><Utensils size={16} /></div>
-                        <div className="grow">
-                          <div className="list-title">Chicken grain bowl</div>
-                          <div className="list-sub">780 kcal · 55g protein</div>
+                      {derived.record.meals.slice(0, 2).map((m) => (
+                        <div className="list-row" key={m.id}>
+                          <div className="list-icon" style={{ background: 'rgba(75,201,58,.12)', color: 'var(--green-deep)' }}><Utensils size={16} /></div>
+                          <div className="grow">
+                            <div className="list-title">{m.name}</div>
+                            <div className="list-sub">{m.calories} kcal · {Math.round(m.proteinG)}g protein</div>
+                          </div>
+                          <span className="caption">{m.time}</span>
                         </div>
-                        <span className="caption">12:35</span>
-                      </div>
-                      <div className="list-row">
-                        <div className="list-icon"><Plus size={16} /></div>
-                        <div className="grow">
-                          <div className="list-title" style={{ color: 'var(--muted)' }}>Upper Strength · planned</div>
-                          <div className="list-sub">Tomorrow · 6:15 PM</div>
-                        </div>
-                        <span className="pill pill--sm pill--flat">Planned</span>
-                      </div>
+                      ))}
+                      {!derived.sleep && derived.record.workouts.length === 0 && derived.record.meals.length === 0 ? (
+                        <div className="empty" style={{ padding: '18px 12px' }}>Nothing logged yet. Add food, an activity or last night's sleep.</div>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -326,46 +316,30 @@ export function HomeScreen() {
                       action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/nutrition')}>Open</button>}
                     />
                     <button className="card nutrition-mini" onClick={() => navigate('/nutrition')} style={{ width: '100%', textAlign: 'left' }}>
-                      <div className="row-between">
+                      <div className="row-between" style={{ alignItems: 'flex-start' }}>
                         <div>
-                          <div className="card-sub">Calories</div>
+                          <div className="card-sub">Calories eaten</div>
                           <div className="row gap-6" style={{ alignItems: 'baseline' }}>
-                            <span className="mono-num" style={{ fontSize: 30, fontWeight: 760, letterSpacing: '-0.03em' }}>{derived.nutrition.totals.calories.toLocaleString()}</span>
-                            <span className="caption" style={{ fontWeight: 650, color: remaining >= 0 ? 'var(--green-deep)' : 'var(--red)' }}>
-                              {remaining >= 0 ? `${remaining.toLocaleString()} kcal left` : `${Math.abs(remaining).toLocaleString()} over`}
+                            <span className="mono-num" style={{ fontSize: 28, fontWeight: 500 }}>{derived.nutrition.totals.calories.toLocaleString()}</span>
+                            <span className="caption" style={{ color: remaining >= 0 ? 'var(--good)' : 'var(--bad)' }}>
+                              {remaining >= 0 ? `${remaining.toLocaleString()} under goal` : `${Math.abs(remaining).toLocaleString()} over goal`}
                             </span>
                           </div>
                         </div>
-                        <div className="macro-dots">
-                          {[
-                            ['Fat', derived.nutrition.macroPercents.fat, 'var(--fat)'],
-                            ['Carbs', derived.nutrition.macroPercents.carbs, 'var(--carbs)'],
-                            ['Protein', derived.nutrition.macroPercents.protein, 'var(--protein)'],
-                          ].map(([label, pct, color]) => (
-                            <div key={String(label)} className="macro-dot">
-                              <Ring value={Number(pct)} size={40} stroke={4} color={String(color)}>
-                                <span style={{ fontSize: 9.5, fontWeight: 750 }}>{pct}%</span>
-                              </Ring>
-                              <span>{label}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <span className="meta-mono">{Math.round((derived.nutrition.totals.calories / state.settings.calorieGoal) * 100)}% of goal</span>
                       </div>
-                      <div className="macro-bars">
-                        {[
-                          ['Protein', derived.nutrition.totals.proteinG, state.settings.proteinGoalG, 'var(--protein)'],
-                          ['Carbs', derived.nutrition.totals.carbsG, 240, 'var(--carbs)'],
-                          ['Fat', derived.nutrition.totals.fatG, 70, 'var(--fat)'],
-                        ].map(([label, val, goal, color]) => (
-                          <div key={String(label)} className="macro-bar-row">
-                            <span>{label}</span>
-                            <ProgressBar value={(Number(val) / Number(goal)) * 100} color={String(color)} height={5} />
-                            <strong>{val}g</strong>
-                          </div>
-                        ))}
+                      <div className="stage-bar" aria-hidden>
+                        <span style={{ width: `${derived.nutrition.macroPercents.protein}%`, background: 'var(--protein)' }} />
+                        <span style={{ width: `${derived.nutrition.macroPercents.carbs}%`, background: 'var(--carbs)' }} />
+                        <span style={{ width: `${derived.nutrition.macroPercents.fat}%`, background: 'var(--fat)' }} />
+                      </div>
+                      <div className="stage-legend">
+                        <span><i style={{ background: 'var(--protein)' }} />Protein {derived.nutrition.totals.proteinG} g · {derived.nutrition.macroPercents.protein}%</span>
+                        <span><i style={{ background: 'var(--carbs)' }} />Carbs {derived.nutrition.totals.carbsG} g · {derived.nutrition.macroPercents.carbs}%</span>
+                        <span><i style={{ background: 'var(--fat)' }} />Fat {derived.nutrition.totals.fatG} g · {derived.nutrition.macroPercents.fat}%</span>
                       </div>
                       <div className="net-row">
-                        <span>Net energy</span>
+                        <span>Net energy · intake − burn</span>
                         <strong>{derived.nutrition.netEnergy != null ? `${derived.nutrition.netEnergy > 0 ? '+' : ''}${derived.nutrition.netEnergy} kcal` : '—'}</strong>
                       </div>
                     </button>

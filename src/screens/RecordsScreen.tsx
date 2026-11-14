@@ -42,20 +42,13 @@ export function RecordsScreen() {
     <div className="screen screen--detail">
       <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
         <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
-        <div><div className="detail-head__title">Health Records</div><div className="detail-head__sub">Documents, lab reports and biomarkers</div></div>
+        <div><div className="detail-head__title">Health records</div><div className="detail-head__sub">Documents, lab reports and biomarkers</div></div>
         <div className="detail-head__right">
           <button className="icon-btn icon-btn--soft" onClick={() => setUploadOpen(true)} aria-label="Upload"><Upload size={18} /></button>
         </div>
       </div>
 
-      {!state.settings.pro ? (
-        <button className="pro-banner mt-16" onClick={() => navigate('/paywall')}>
-          <span className="status-option__icon" style={{ background: 'rgba(255,255,255,.12)', color: '#b7f06a' }}><Upload size={18} /></span>
-          <span className="grow"><span style={{ display: 'block', fontWeight: 700 }}>Upgrade to upload files</span><span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,.6)' }}>Health Records is a Pro feature</span></span>
-        </button>
-      ) : null}
-
-      <div className="card mt-16" style={{ background: 'linear-gradient(135deg, rgba(0,168,143,.1), rgba(108,123,245,.08))', boxShadow: 'none' }}>
+      <div className="card mt-16" style={{ background: 'var(--accent-soft)', boxShadow: 'none' }}>
         <div className="row gap-10">
           <span className="bio-contributor__icon"><FileText size={18} /></span>
           <div className="grow">
@@ -144,7 +137,7 @@ export function RecordsScreen() {
         <Sheet title="Add records" subtitle="PDF, image and text files · max 5 MB each" onClose={() => setUploadOpen(false)}>
           <button
             className="card"
-            style={{ width: '100%', border: '1.5px dashed var(--hairline-strong)', boxShadow: 'none', padding: 30, textAlign: 'center' }}
+            style={{ width: '100%', border: '1px dashed var(--hairline-strong)', boxShadow: 'none', padding: 30, textAlign: 'center' }}
             onClick={() => inputRef.current?.click()}
           >
             <Upload size={26} style={{ marginBottom: 10 }} />

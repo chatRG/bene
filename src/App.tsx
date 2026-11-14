@@ -16,11 +16,10 @@ import { IntelligenceScreen } from './screens/IntelligenceScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
-import { PaywallScreen } from './screens/PaywallScreen';
 import { WorkoutDetailScreen } from './screens/WorkoutDetailScreen';
 import { RecordsScreen } from './screens/RecordsScreen';
 
-const TABS = ['/', '/fitness', '/journal', '/biology'];
+const TABS = ['/', '/fitness', '/journal', '/biology', '/intelligence'];
 
 function ThemeSync() {
   const theme = useAppStore((s) => s.settings.theme);
@@ -47,7 +46,7 @@ function Shell() {
   const autoBackup = useAppStore((s) => s.settings.autoBackup);
   const lastBackupAt = useAppStore((s) => s.settings.lastBackupAt);
   const backupNow = useAppStore((s) => s.backupNow);
-  const isTab = TABS.includes(location.pathname);
+  const isTab = TABS.includes(location.pathname) || location.pathname.startsWith('/chat/');
   const isOnboarding = location.pathname === '/onboarding';
 
   useEffect(() => {
@@ -81,7 +80,6 @@ function Shell() {
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="/settings/:section" element={<SettingsScreen />} />
-        <Route path="/paywall" element={<PaywallScreen />} />
         <Route path="/workout/:id" element={<WorkoutDetailScreen />} />
         <Route path="/records" element={<RecordsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -86,8 +86,8 @@ export function lifestyleYears(days: DayRecord[], chronologicalAge: number, vo2m
   const fitnessYears = clamp(((medianVo2 - (vo2max ?? medianVo2)) / 4) * 2 + ((OPTIMAL.strengthMinPerWeek - weeklyStrength) / 30) * 0.3, -3.5, 3);
 
   const contributorDetails = {
-    sleep: `${Math.round(avgSleep)} avg sleep score`,
-    activity: `${Math.round(avgSteps).toLocaleString()} steps/day · ${Math.round(weeklyZone2)} Z2–3 min/wk`,
+    sleep: `${Math.round(avgSleep)} sleep score avg`,
+    activity: `${Math.round(avgSteps).toLocaleString()} steps/day · ${Math.round(weeklyZone2)} min Zone 2–3/wk`,
     fitness: vo2max ? `VO₂ max ${Math.round(vo2max)}` : 'VO₂ max not measured',
     bloodwork: '9 PhenoAge markers',
   };
@@ -135,10 +135,10 @@ export function biologicalAge(input: {
     confidence,
     confidenceLabel:
       confidence >= 80
-        ? 'High-quality age estimate with minor gaps'
+        ? 'Model estimate, not a lab result — taps open the inputs'
         : confidence >= 55
-          ? 'Good estimate — more wearable data will improve it'
-          : 'Low confidence — upload recent bloodwork or wear your device more',
+          ? 'More wearable data would narrow the range'
+          : 'Wide range — add recent bloodwork or more nights of data',
     contributors: [
       { key: 'sleep', label: 'Sleep', years: life.sleepYears, detail: life.details.sleep },
       { key: 'activity', label: 'Activity', years: life.activityYears, detail: life.details.activity },
