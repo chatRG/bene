@@ -31,3 +31,6 @@ android/app/src/main/assets/public/
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Local agent skills (unslop audit)
+.agents/
