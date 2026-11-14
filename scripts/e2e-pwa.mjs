@@ -11,7 +11,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 await page.goto('http://localhost:4173/', { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Explore with demo data').click();
+await page.getByText('See a sample day').click();
 await page.waitForTimeout(800);
 
 const swReady = await page.evaluate(async () => {

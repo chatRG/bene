@@ -44,7 +44,7 @@ export function WorkoutDetailScreen() {
   if (routine) {
     const isRun = routine.kind === 'run';
     return (
-      <div className="screen screen--detail" style={{ background: isRun ? 'linear-gradient(180deg,#e9f8f6,var(--bg) 45%)' : 'var(--bg)' }}>
+      <div className="screen screen--detail" style={{ background: 'var(--bg)' }}>
         <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
           <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Close"><ChevronLeft size={20} /></button>
           <div />
@@ -103,7 +103,7 @@ export function WorkoutDetailScreen() {
 
         <div className="device-bar mt-16">
           <span>Device</span>
-          <span className="row gap-6" style={{ color: 'var(--text)', fontWeight: 650 }}><Watch size={15} /> Apple Watch <ChevronRight size={14} className="chevron" /></span>
+          <span className="row gap-6" style={{ color: 'var(--text)', fontWeight: 500 }}><Watch size={15} /> Apple Watch <ChevronRight size={14} className="chevron" /></span>
         </div>
 
         {startedAt == null ? (

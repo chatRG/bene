@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, ChevronRight, Heart, Info, Leaf, Share2, Sparkles, Waves } from 'lucide-react';
+import { ChevronDown, ChevronRight, Heart, Info, Leaf, Share2, Waves } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay, scoreHistory } from '../domain/derive';
+import { recoveryColor } from '../domain/scoring/recovery';
 import { DetailHeader, EmptyState, Ring, Sheet } from '../components/ui';
 import { LineChart } from '../components/charts';
 import { showToast } from '../components/toast';
@@ -14,7 +15,7 @@ export function RecoveryScreen() {
   const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
   const history = useMemo(() => scoreHistory(state, 30), [state]);
   const [range, setRange] = useState<7 | 14 | 30>(14);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
 
   const points = history
@@ -74,6 +75,8 @@ export function RecoveryScreen() {
   }
 
   const score = d.recovery.score ?? 0;
+  const hrvDelta = d.sleep?.hrvMs != null ? d.sleep.hrvMs - d.baselineHrv : null;
+  const rhrDelta = d.sleep?.rhrBpm != null ? d.sleep.rhrBpm - d.baselineRhr : null;
 
   return (
     <div className="screen screen--detail recovery-page">
@@ -94,11 +97,10 @@ export function RecoveryScreen() {
 
       <div className="recovery-hero">
         <div className="recovery-gauge-wrap">
-          <div className="recovery-gauge-bg" />
-          <Ring value={score} size={196} stroke={12} color="var(--lime)" track="rgba(0,0,0,0.06)">
+          <Ring value={score} size={196} stroke={6} color={recoveryColor(score)} track="var(--field)">
             <div className="ring__center">
-              <span className="recovery-score">{score}%</span>
-              <span className="recovery-band">Recovered</span>
+              <span className="recovery-score">{score}</span>
+              <span className="recovery-band">{d.recovery.label} · out of 100</span>
             </div>
           </Ring>
         </div>
@@ -110,7 +112,11 @@ export function RecoveryScreen() {
           <div className="metric-card__value">
             <strong>{d.sleep?.hrvMs?.toFixed(1) ?? '—'}</strong>
             <span>ms</span>
-            <span className="metric-card__delta" style={{ color: 'var(--orange)' }}>▼</span>
+            {hrvDelta != null ? (
+              <span className="metric-card__delta" style={{ color: hrvDelta >= 0 ? 'var(--good)' : 'var(--warn)' }}>
+                {hrvDelta >= 0 ? '↑' : '↓'} {Math.abs(hrvDelta).toFixed(1)}
+              </span>
+            ) : null}
           </div>
           <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineHrv.toFixed(1)} ms</div>
         </div>
@@ -119,7 +125,11 @@ export function RecoveryScreen() {
           <div className="metric-card__value">
             <strong>{d.sleep?.rhrBpm?.toFixed(1) ?? '—'}</strong>
             <span>bpm</span>
-            <span className="metric-card__delta" style={{ color: 'var(--orange)' }}>▲</span>
+            {rhrDelta != null ? (
+              <span className="metric-card__delta" style={{ color: rhrDelta <= 0 ? 'var(--good)' : 'var(--warn)' }}>
+                {rhrDelta >= 0 ? '↑' : '↓'} {Math.abs(rhrDelta).toFixed(1)}
+              </span>
+            ) : null}
           </div>
           <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineRhr.toFixed(1)} bpm</div>
         </div>
@@ -128,7 +138,7 @@ export function RecoveryScreen() {
       <div className="card insight-card mt-12">
         <div className="row gap-8">
           <span className={`coach-dot ${score < 50 ? 'warning' : ''}`}><Leaf size={14} /></span>
-          <span className="insight-card__title">{score < 45 ? 'Time to take it easy' : score >= 67 ? 'Green light to push' : 'Train with intention'}</span>
+          <span className="insight-card__title">{score < 45 ? 'Time to take it easy' : score >= 67 ? 'Recovery in your upper range' : 'Recovery is mid-range'}</span>
           <button
             className="icon-btn icon-btn--ghost"
             style={{ marginLeft: 'auto', width: 28, height: 28 }}
@@ -142,18 +152,18 @@ export function RecoveryScreen() {
       </div>
 
       <button className="link-row mt-12" onClick={() => setInfoOpen(true)}>
-        <Sparkles size={17} />
-        <span>View insights</span>
+        <Info size={17} />
+        <span>How this score is built</span>
         <ChevronRight size={17} className="chevron" style={{ marginLeft: 'auto' }} />
       </button>
 
       <div className="section">
         <div className="section-head">
-          <div className="section-title">Recovery Timeline</div>
+          <div className="section-title">Recovery timeline</div>
           <div className="segmented">
             {([7, 14, 30] as const).map((r) => (
               <button key={r} className={`segmented__btn ${range === r ? 'segmented__btn--active' : ''}`} onClick={() => setRange(r)}>
-                {r}D
+                {r} days
               </button>
             ))}
           </div>
@@ -164,16 +174,15 @@ export function RecoveryScreen() {
               <div className="chart-card__title">Recovery score</div>
               <div className="caption">Morning reading · 1–100</div>
             </div>
-            <span className="pill pill--sm pill--flat">Avg {Math.round(points.reduce((a, b) => a + b, 0) / Math.max(1, points.length))}%</span>
+            <span className="pill pill--sm pill--flat">Avg {Math.round(points.reduce((a, b) => a + b, 0) / Math.max(1, points.length))}</span>
           </div>
           <LineChart
             values={points}
             yMax={100}
-            yTicks={[100, 67, 33]}
-            color="var(--lime)"
+            yTicks={[100, 75, 50, 25]}
+            color={recoveryColor(score)}
             height={190}
             avg={points.reduce((a, b) => a + b, 0) / Math.max(1, points.length)}
-            avgLabel={`Avg. ${Math.round(points.reduce((a, b) => a + b, 0) / Math.max(1, points.length))}%`}
             xLabels={[history[Math.max(0, history.length - range)]?.date.slice(5) ?? '', 'Today']}
           />
         </div>

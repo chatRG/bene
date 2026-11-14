@@ -73,7 +73,7 @@ export function StrainScreen() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="caption" style={{ marginTop: 3 }}>{hiddenTarget ? 'Injured status' : 'Normal range'}</div>
-            {!hiddenTarget ? <div style={{ fontSize: 15, fontWeight: 650 }}>{d.strain.normLow} – {d.strain.normHigh}%</div> : null}
+            {!hiddenTarget ? <div style={{ fontSize: 15, fontWeight: 500 }}>{d.strain.normLow} – {d.strain.normHigh}%</div> : null}
           </div>
         </div>
       </div>
@@ -152,7 +152,7 @@ export function StrainScreen() {
           <div className="card">
             <div className="caption">Total Energy</div>
             <div className="row gap-6" style={{ alignItems: 'baseline' }}>
-              <span className="mono-num" style={{ fontSize: 38, fontWeight: 760, letterSpacing: '-0.04em' }}>{d.record.metrics.totalCalories.toLocaleString()}</span>
+              <span className="mono-num" style={{ fontSize: 36, fontWeight: 500, letterSpacing: '-0.02em' }}>{d.record.metrics.totalCalories.toLocaleString()}</span>
               <span className="caption">kcal</span>
             </div>
             <div className="row gap-16 mt-12">

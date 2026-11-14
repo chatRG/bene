@@ -21,7 +21,7 @@ const check = (name, ok, detail = '') => {
 await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Explore with demo data').click();
+await page.getByText('See a sample day').click();
 await page.waitForTimeout(600);
 
 check('home renders score trio', (await page.locator('.score-card').count()) === 1);

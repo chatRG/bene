@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { AlarmClock, BedDouble, ChevronRight, Clock, Moon, Share2, Sparkles, Watch, X } from 'lucide-react';
+import { AlarmClock, BedDouble, ChevronRight, Clock, Moon, Share2, Watch, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
@@ -12,10 +12,10 @@ import { showToast } from '../components/toast';
 import type { AlarmType } from '../domain/types';
 
 const STAGE_INFO = [
-  { key: 'awake', label: 'Awake', color: '#f6a265' },
-  { key: 'rem', label: 'REM', color: '#9ac8ff' },
-  { key: 'core', label: 'Core', color: '#5f9df8' },
-  { key: 'deep', label: 'Deep', color: '#b0a0ff' },
+  { key: 'awake', label: 'Awake', color: 'var(--sleep-awake)' },
+  { key: 'rem', label: 'REM', color: 'var(--sleep-rem)' },
+  { key: 'core', label: 'Core', color: 'var(--sleep-core)' },
+  { key: 'deep', label: 'Deep', color: 'var(--sleep-deep)' },
 ] as const;
 
 export function SleepScreen() {
@@ -28,7 +28,7 @@ export function SleepScreen() {
 
   if (!d.sleep || !d.sleepScore || d.sleepScore.status !== 'scored') {
     return (
-      <div data-night>
+      <div>
         <div className="screen screen--detail sleep-page">
           <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
             <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
@@ -64,7 +64,7 @@ export function SleepScreen() {
   });
 
   return (
-    <div data-night>
+    <div>
       <div className="screen screen--detail sleep-page">
         <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
           <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
@@ -83,11 +83,11 @@ export function SleepScreen() {
 
         <div className="sleep-hero">
           <div className="row gap-10" style={{ alignItems: 'baseline' }}>
-            <span className="sleep-hero__score">{hours}<span style={{ fontSize: 24, fontWeight: 650 }}>h</span> {mins}<span style={{ fontSize: 24, fontWeight: 650 }}>m</span></span>
+            <span className="sleep-hero__score">{hours}<span style={{ fontSize: 24, fontWeight: 500 }}>h</span> {mins}<span style={{ fontSize: 24, fontWeight: 500 }}>m</span></span>
           </div>
           <div className="sleep-hero__label">asleep · {score.score}% sleep score</div>
           <button className="pill pill--sm pill--flat mt-8" onClick={() => setScoreOpen(true)}>
-            <Sparkles size={12} /> {score.score >= 80 ? 'Restorative night' : score.score >= 70 ? 'Solid night' : 'Short on sleep'}
+            {score.score >= 80 ? 'Restorative night' : score.score >= 70 ? 'Solid night' : 'Short on sleep'}
           </button>
         </div>
 
@@ -124,18 +124,18 @@ export function SleepScreen() {
             </strong>
           </button>
           <div className="sleep-row">
-            <span>Time To Fall Asleep</span>
+            <span>Time to fall asleep</span>
             <strong>{sleep.timeToFallAsleepMin != null ? `${sleep.timeToFallAsleepMin} minutes` : '—'}</strong>
           </div>
         </div>
 
         <div className="section">
-          <div className="section-title" style={{ marginBottom: 12 }}>Sleep Bank</div>
+          <div className="section-title" style={{ marginBottom: 12 }}>Sleep bank</div>
           <div className="card">
             <div className="row-between">
               <div>
                 <div className="caption">7-day balance</div>
-                <div className="mono-num" style={{ fontSize: 30, fontWeight: 760, letterSpacing: '-0.03em', color: d.sleepBankMin < 0 ? 'var(--orange)' : 'var(--green-deep)' }}>
+                <div className="mono-num" style={{ fontSize: 30, fontWeight: 500, letterSpacing: '-0.01em', color: d.sleepBankMin < 0 ? 'var(--warn)' : 'var(--good)' }}>
                   {d.sleepBankMin < 0 ? '−' : '+'}{bankHours}h {bankMins}m
                 </div>
               </div>
@@ -172,9 +172,9 @@ export function SleepScreen() {
               </div>
               <strong className="mono-num" style={{ fontSize: 22 }}>{consistency}%</strong>
             </div>
-            <div className="row gap-3 mt-12" style={{ display: 'flex', gap: 3 }}>
+            <div className="row gap-3 mt-12">
               {Array.from({ length: 14 }, (_, i) => (
-                <span key={i} style={{ flex: 1, height: 26, borderRadius: 4, background: i > 10 ? 'var(--sleep)' : i % 3 === 0 ? 'rgba(109,124,247,.35)' : 'rgba(109,124,247,.7)' }} />
+                <span key={i} style={{ flex: 1, height: 24, borderRadius: 2, background: i > 10 ? 'var(--sleep)' : 'color-mix(in srgb, var(--sleep) 55%, var(--field))' }} />
               ))}
             </div>
             <div className="row-between caption mt-8"><span>2 weeks ago</span><span>Last night</span></div>

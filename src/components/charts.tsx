@@ -6,11 +6,11 @@ import { stageTotals } from '../domain/math';
 
 export function Sparkline({
   values,
-  color = 'var(--orange)',
+  color = 'var(--accent)',
   width = 76,
   height = 34,
   fill = true,
-  strokeWidth = 2,
+  strokeWidth = 1.5,
 }: {
   values: number[];
   color?: string;
@@ -19,7 +19,7 @@ export function Sparkline({
   fill?: boolean;
   strokeWidth?: number;
 }) {
-  const id = useId().replace(/[:]/g, '');
+  useId();
   if (values.length < 2) return <div style={{ width, height }} />;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -31,17 +31,13 @@ export function Sparkline({
   });
   const d = smoothPath(pts);
   const area = `${d} L ${width} ${height} L 0 ${height} Z`;
+  const last = pts[pts.length - 1];
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
-      <defs>
-        <linearGradient id={`sp-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={color} stopOpacity="0.22" />
-          <stop offset="1" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {fill ? <path d={area} fill={`url(#sp-${id})`} /> : null}
+      {fill ? <path d={area} fill={color} opacity={0.08} /> : null}
       <path d={d} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={2.6} fill={color} stroke="var(--card)" strokeWidth={1.5} />
+      <line x1={last[0]} y1={last[1] - 5} x2={last[0]} y2={last[1] + 5} stroke={color} strokeWidth="1" opacity="0.45" />
+      <circle cx={last[0]} cy={last[1]} r="2.4" fill={color} />
     </svg>
   );
 }
@@ -68,7 +64,7 @@ function smoothPath(points: readonly (readonly [number, number])[]): string {
 export function LineChart({
   values,
   height = 190,
-  color = 'var(--orange)',
+  color = 'var(--accent)',
   yMax = 100,
   yTicks = [100, 67, 33],
   avg,
@@ -93,9 +89,9 @@ export function LineChart({
   const id = useId().replace(/[:]/g, '');
   const w = 320;
   const h = height;
-  const padR = 30;
+  const padR = 34;
   const padT = 12;
-  const padB = 20;
+  const padB = 22;
   const chartW = w - padR;
   const chartH = h - padT - padB;
   const ys = (v: number) => padT + chartH - (Math.min(yMax, Math.max(0, v)) / yMax) * chartH;
@@ -103,19 +99,15 @@ export function LineChart({
   const pts = values.map((v, i) => [xs(i), ys(v)] as const);
   const d = smoothPath(pts);
   const area = `${d} L ${chartW} ${padT + chartH} L 0 ${padT + chartH} Z`;
+  const last = pts[pts.length - 1];
 
   return (
     <div className="chart-wrap">
       <svg viewBox={`0 0 ${w} ${h}`} className="chart-svg" style={{ height }} role="img" aria-label="Trend chart">
         <defs>
-          <linearGradient id={`lc-${id}`} x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0" stopColor={color} stopOpacity="0.16" />
-            <stop offset="1" stopColor={color} stopOpacity="0.02" />
-          </linearGradient>
-          <linearGradient id={`stroke-${id}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor={color} stopOpacity="0.55" />
-            <stop offset="0.55" stopColor={color} stopOpacity="0.95" />
-            <stop offset="1" stopColor={color} />
+          <linearGradient id={`lc-${id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={color} stopOpacity="0.1" />
+            <stop offset="1" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -127,13 +119,20 @@ export function LineChart({
             height={Math.max(4, ys(band[0]) - ys(band[1]))}
             fill={color}
             opacity="0.07"
-            rx="6"
+            rx="2"
           />
         ) : null}
 
-        {yTicks.map((t) => (
+        {yTicks.map((t, i) => (
           <g key={t}>
-            <line x1={0} y1={ys(t)} x2={chartW} y2={ys(t)} className="chart-grid" strokeDasharray={t === yTicks[0] ? undefined : '2 5'} />
+            <line
+              x1={0}
+              y1={ys(t)}
+              x2={chartW}
+              y2={ys(t)}
+              className="chart-grid"
+              strokeDasharray={i === 0 ? undefined : '1 4'}
+            />
             <text x={chartW + 8} y={ys(t) + 4} className="chart-label">
               {t}
             </text>
@@ -144,25 +143,29 @@ export function LineChart({
 
         {avg != null ? (
           <g>
-            <line x1={0} y1={ys(avg)} x2={chartW} y2={ys(avg)} stroke={color} strokeWidth="1.4" strokeDasharray="2 5" opacity="0.75" />
-            <rect x={chartW * 0.36} y={ys(avg) - 18} width={62} height={17} rx="8.5" fill={color} opacity="0.92" />
-            <text x={chartW * 0.36 + 31} y={ys(avg) - 6} textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff">
-              {avgLabel ?? `Avg. ${Math.round(avg)}%`}
+            <line
+              x1={0}
+              y1={ys(avg)}
+              x2={chartW}
+              y2={ys(avg)}
+              stroke={color}
+              strokeWidth="1"
+              strokeDasharray="3 4"
+              opacity="0.7"
+            />
+            <text x={chartW - 2} y={ys(avg) - 6} textAnchor="end" className="chart-label">
+              {avgLabel ?? `Avg ${Math.round(avg)}%`}
             </text>
           </g>
         ) : null}
 
-        <path d={d} fill="none" stroke={`url(#stroke-${id})`} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
-        {pts.filter((_, i) => i % Math.max(1, Math.round(pts.length / 8)) === 0).map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="3.2" fill="var(--card)" stroke={color} strokeWidth="1.8" />
-        ))}
-
-        {liveDot && pts.length > 0 ? (
-          <>
-            <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="8" fill={color} opacity="0.18" />
-            <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="4.5" fill="var(--card)" stroke={color} strokeWidth="2.6" />
-          </>
+        {liveDot && last ? (
+          <g>
+            <line x1={last[0]} y1={last[1] - 8} x2={last[0]} y2={last[1] + 8} stroke={color} strokeWidth="1" opacity="0.4" />
+            <circle cx={last[0]} cy={last[1]} r="3" fill="var(--card)" stroke={color} strokeWidth="2" />
+          </g>
         ) : null}
 
         {xLabels ? (
@@ -179,10 +182,10 @@ export function LineChart({
 /* ---------------- Hypnogram ---------------- */
 
 const STAGE_META: Record<Stage, { label: string; color: string; row: number }> = {
-  awake: { label: 'Awake', color: '#f6a265', row: 0 },
-  rem: { label: 'REM', color: '#9ac8ff', row: 1 },
-  core: { label: 'Core', color: '#5f9df8', row: 2 },
-  deep: { label: 'Deep', color: '#b0a0ff', row: 3 },
+  awake: { label: 'Awake', color: 'var(--sleep-awake)', row: 0 },
+  rem: { label: 'REM', color: 'var(--sleep-rem)', row: 1 },
+  core: { label: 'Core', color: 'var(--sleep-core)', row: 2 },
+  deep: { label: 'Deep', color: 'var(--sleep-deep)', row: 3 },
 };
 
 const STAGE_ORDER: Stage[] = ['awake', 'rem', 'core', 'deep'];
@@ -191,22 +194,46 @@ export function Hypnogram({ sleep, height = 168 }: { sleep: SleepSession; height
   const totals = stageTotals(sleep);
   const total = Math.max(1, totals.inBedMin);
   const w = 340;
-  const rowH = (height - 28) / 4;
-  const blockH = Math.min(14, rowH - 4);
-  const xs = (min: number) => (min / total) * w;
+  const padL = 42;
+  const padB = 24;
+  const chartW = w - padL;
+  const rowH = (height - padB) / 4;
+  const blockH = Math.min(12, rowH - 6);
+  const xs = (min: number) => padL + (min / total) * chartW;
   const ys = (stage: Stage) => STAGE_META[stage].row * rowH + rowH / 2;
 
   const startLabel = new Date(sleep.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const endLabel = new Date(sleep.end).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const asleep = `${Math.floor(totals.asleepMin / 60)}h ${String(totals.asleepMin % 60).padStart(2, '0')}m`;
 
   return (
     <div>
       <svg viewBox={`0 0 ${w} ${height}`} className="chart-svg" style={{ height }} role="img" aria-label="Sleep stages">
-        {[1, 2, 3].map((i) => (
-          <line key={i} x1="0" y1={(i * (height - 28)) / 4} x2={w} y2={(i * (height - 28)) / 4} stroke="var(--hairline)" strokeDasharray="2 6" />
+        {STAGE_ORDER.map((stage, i) => (
+          <g key={stage}>
+            <line
+              x1={padL}
+              y1={(i + 1) * rowH}
+              x2={w}
+              y2={(i + 1) * rowH}
+              stroke="var(--hairline)"
+              strokeDasharray="1 4"
+            />
+            <text x={0} y={ys(stage) + 3.5} className="chart-label" fontSize="10">
+              {STAGE_META[stage].label}
+            </text>
+          </g>
         ))}
         {[0.25, 0.5, 0.75].map((p) => (
-          <line key={p} x1={p * w} y1="0" x2={p * w} y2={height - 28} stroke="var(--hairline)" strokeDasharray="2 8" opacity="0.6" />
+          <line
+            key={p}
+            x1={padL + p * chartW}
+            y1="0"
+            x2={padL + p * chartW}
+            y2={height - padB}
+            stroke="var(--hairline)"
+            strokeDasharray="1 5"
+          />
         ))}
         {sleep.stages.map((b, i) => {
           const meta = STAGE_META[b.stage];
@@ -219,9 +246,8 @@ export function Hypnogram({ sleep, height = 168 }: { sleep: SleepSession; height
                   y1={ys(prev.stage)}
                   x2={xs(b.startMin)}
                   y2={ys(b.stage)}
-                  stroke={STAGE_META[b.stage].color}
-                  strokeWidth="1.2"
-                  opacity="0.55"
+                  stroke="var(--hairline-strong)"
+                  strokeWidth="1"
                 />
               ) : null}
               <rect
@@ -229,30 +255,19 @@ export function Hypnogram({ sleep, height = 168 }: { sleep: SleepSession; height
                 y={ys(b.stage) - blockH / 2}
                 width={Math.max(1.2, xs(b.endMin) - xs(b.startMin))}
                 height={blockH}
-                rx={3}
+                rx={2}
                 fill={meta.color}
-                opacity={b.stage === 'awake' ? 0.9 : 0.95}
               />
             </g>
           );
         })}
-        {STAGE_ORDER.map((stage) => (
-          <text
-            key={stage}
-            x={w - 2}
-            y={ys(stage) + 3.5}
-            textAnchor="end"
-            fontSize="9"
-            fill="var(--muted)"
-            opacity="0.8"
-          >
-            {STAGE_META[stage].label.slice(0, 1)}
-          </text>
-        ))}
+        <line x1={padL} y1={height - padB} x2={w} y2={height - padB} stroke="var(--hairline-strong)" strokeWidth="1" />
+        <text x={padL} y={height - 6} className="chart-label">{startLabel}</text>
+        <text x={w} y={height - 6} textAnchor="end" className="chart-label">{endLabel}</text>
       </svg>
       <div className="row-between" style={{ marginTop: 6 }}>
-        <span className="pill pill--sm pill--flat">🌙 {startLabel}</span>
-        <span className="pill pill--sm pill--flat">☀️ {endLabel}</span>
+        <span className="meta-mono">{asleep} asleep</span>
+        <span className="meta-mono">{Math.round((totals.awakeMin / total) * 100)}% awake</span>
       </div>
     </div>
   );
@@ -264,7 +279,7 @@ export function SemiGauge({
   value,
   min,
   max,
-  color = 'var(--teal)',
+  color = 'var(--accent)',
   labels,
   size = 250,
 }: {
@@ -307,20 +322,21 @@ export function SemiGauge({
               x2={cx + Math.cos(a) * r2}
               y2={cy + Math.sin(a) * r2}
               stroke="var(--muted-2)"
-              strokeWidth={i % 5 === 0 ? 1.2 : 0.7}
-              opacity={i % 5 === 0 ? 0.55 : 0.3}
+              strokeWidth={i % 5 === 0 ? 1.1 : 0.6}
+              opacity={i % 5 === 0 ? 0.6 : 0.3}
             />
           );
         })}
-        <path d={arc(0, Math.max(0.001, pct))} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" opacity="0.9" />
-        <circle cx={point.x} cy={point.y} r="7" fill={color} stroke="var(--card)" strokeWidth="3" />
-        <circle cx={cx} cy={cy} r="4" fill="var(--muted-2)" opacity="0.5" />
+        <path d={arc(0, Math.max(0.001, pct))} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" />
+        <line x1={cx} y1={cy} x2={point.x} y2={point.y} stroke={color} strokeWidth="1" opacity="0.35" />
+        <circle cx={point.x} cy={point.y} r="5" fill={color} stroke="var(--card)" strokeWidth="2" />
+        <circle cx={cx} cy={cy} r="3" fill="var(--muted-2)" />
       </svg>
       {labels ? (
         <>
-          <span style={{ position: 'absolute', left: 4, bottom: 4, fontSize: 11, color: 'var(--muted)' }}>{labels[0]}</span>
-          <span style={{ position: 'absolute', right: 4, bottom: 4, fontSize: 11, color: 'var(--muted)' }}>{labels[1]}</span>
-          <span style={{ position: 'absolute', bottom: 2, fontSize: 11.5, color: 'var(--muted)' }}>{labels[2]}</span>
+          <span className="meta-mono" style={{ position: 'absolute', left: 0, bottom: 0 }}>{labels[0]}</span>
+          <span className="meta-mono" style={{ position: 'absolute', right: 0, bottom: 0 }}>{labels[1]}</span>
+          <span className="meta-mono" style={{ position: 'absolute', bottom: 0 }}>{labels[2]}</span>
         </>
       ) : null}
     </div>
@@ -338,7 +354,7 @@ export function DotMatrix({ pct, color, cols = 8, rows = 8 }: { pct: number; col
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gap: 4,
-        width: 76,
+        width: 72,
       }}
       aria-hidden
     >
@@ -353,9 +369,8 @@ export function DotMatrix({ pct, color, cols = 8, rows = 8 }: { pct: number; col
             key={i}
             style={{
               aspectRatio: '1',
-              borderRadius: '999px',
+              borderRadius: 1.5,
               background: on ? color : 'color-mix(in srgb, ' + color + ' 16%, transparent)',
-              opacity: on ? 1 : 0.55,
             }}
           />
         );
@@ -370,7 +385,6 @@ export function RangeBar({
   value,
   min,
   max,
-  gradient,
   markerLabel,
 }: {
   value: number;
@@ -379,18 +393,20 @@ export function RangeBar({
   gradient?: string;
   markerLabel?: string;
 }) {
-  const pct = ((value - min) / (max - min)) * 100;
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  const zeroPct = Math.max(0, Math.min(100, ((0 - min) / (max - min)) * 100));
+  const left = Math.min(pct, zeroPct);
+  const width = Math.abs(pct - zeroPct);
   return (
-    <div style={{ position: 'relative', paddingTop: markerLabel ? 22 : 0 }}>
+    <div style={{ position: 'relative', paddingTop: markerLabel ? 24 : 0 }}>
       {markerLabel ? (
         <span
+          className="meta-mono"
           style={{
             position: 'absolute',
-            left: `${Math.max(4, Math.min(96, pct))}%`,
+            left: `${Math.max(6, Math.min(94, pct))}%`,
             top: 0,
             transform: 'translateX(-50%)',
-            fontSize: 11,
-            fontWeight: 700,
             color: 'var(--text)',
             whiteSpace: 'nowrap',
           }}
@@ -398,35 +414,45 @@ export function RangeBar({
           {markerLabel}
         </span>
       ) : null}
-      <div
-        style={{
-          height: 10,
-          borderRadius: 999,
-          background: gradient ?? 'linear-gradient(90deg, #ff7a33, #ffd166 45%, #f7f4ec 55%, #9db7ff 75%, #6f7bf5)',
-          position: 'relative',
-        }}
-      >
+      <div style={{ height: 8, borderRadius: 4, background: 'var(--field)', position: 'relative' }}>
         <span
           style={{
             position: 'absolute',
-            left: `${Math.max(0, Math.min(100, pct))}%`,
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 18,
+            left: `${left}%`,
+            width: `${width}%`,
+            top: 0,
+            bottom: 0,
+            background: 'var(--accent)',
+            borderRadius: 4,
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            left: `${zeroPct}%`,
+            top: -3,
+            bottom: -3,
+            width: 1,
+            background: 'var(--hairline-strong)',
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            left: `${pct}%`,
+            top: -5,
             height: 18,
-            borderRadius: 999,
-            background: 'var(--card)',
-            border: '2px solid var(--text)',
-            boxShadow: '0 2px 6px rgba(0,0,0,.15)',
+            width: 2,
+            marginLeft: -1,
+            borderRadius: 1,
+            background: 'var(--text)',
           }}
         />
       </div>
-      <div className="row-between" style={{ marginTop: 6, fontSize: 10.5, color: 'var(--muted)' }}>
-        <span>{min}</span>
-        <span>{Math.round((min + max) / 4)}</span>
-        <span>0</span>
-        <span>{Math.round((max * 3) / 4)}</span>
-        <span>{max}</span>
+      <div className="row-between" style={{ marginTop: 6 }}>
+        <span className="meta-mono">{min}</span>
+        <span className="meta-mono">0</span>
+        <span className="meta-mono">{max}</span>
       </div>
     </div>
   );
@@ -437,27 +463,26 @@ export function RangeBar({
 export function EnergyBar({ value }: { value: number }) {
   return (
     <div style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', gap: 2, height: 12 }}>
+      <div style={{ display: 'flex', gap: 2, height: 10 }}>
         {Array.from({ length: 28 }, (_, i) => {
           const on = (i / 28) * 100 < value;
-          const hue = i < 10 ? '#ffd166' : i < 19 ? '#b6e35c' : '#5fd0a0';
           return (
             <span
               key={i}
               style={{
                 flex: 1,
-                borderRadius: 3,
-                background: on ? hue : 'var(--field)',
-                opacity: on ? 1 : 0.75,
+                borderRadius: 1,
+                background: on ? 'var(--accent)' : 'var(--field)',
+                opacity: on ? 0.35 + (i / 27) * 0.65 : 1,
               }}
             />
           );
         })}
       </div>
-      <div className="row-between" style={{ marginTop: 7, fontSize: 11, color: 'var(--muted)' }}>
-        <span>Drained</span>
-        <span>Steady</span>
-        <span>Charged</span>
+      <div className="row-between" style={{ marginTop: 8 }}>
+        <span className="meta-mono">Drained</span>
+        <span className="meta-mono">Steady</span>
+        <span className="meta-mono">Charged</span>
       </div>
     </div>
   );

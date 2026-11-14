@@ -1,6 +1,6 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { BookOpen, ChevronLeft, ChevronRight, Dna, Dumbbell, House, Sparkles, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Dna, Dumbbell, House, MessageCircle, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 
 /* ---------------- Ring ---------------- */
@@ -85,12 +85,12 @@ export function DetailHeader({
 
 export function TabBar() {
   const activeTabs = useAppStore((s) => s.settings.activeTabs);
-  const items: { to: string; label: string; icon: ReactNode; end: boolean; coach?: boolean }[] = [
-    { to: '/', label: 'Home', icon: <House size={21} strokeWidth={2} />, end: true },
-    ...(activeTabs.fitness ? [{ to: '/fitness', label: 'Fitness', icon: <Dumbbell size={21} strokeWidth={2} />, end: false }] : []),
-    ...(activeTabs.journal ? [{ to: '/journal', label: 'Journal', icon: <BookOpen size={21} strokeWidth={2} />, end: false }] : []),
-    ...(activeTabs.biology ? [{ to: '/biology', label: 'Biology', icon: <Dna size={21} strokeWidth={2} />, end: false }] : []),
-    { to: '/intelligence', label: 'Coach', icon: <Sparkles size={15} color="#fff" strokeWidth={2.2} />, end: false, coach: true },
+  const items: { to: string; label: string; icon: ReactNode; end: boolean }[] = [
+    { to: '/', label: 'Home', icon: <House size={20} strokeWidth={1.5} />, end: true },
+    ...(activeTabs.fitness ? [{ to: '/fitness', label: 'Fitness', icon: <Dumbbell size={20} strokeWidth={1.5} />, end: false }] : []),
+    ...(activeTabs.journal ? [{ to: '/journal', label: 'Journal', icon: <BookOpen size={20} strokeWidth={1.5} />, end: false }] : []),
+    ...(activeTabs.biology ? [{ to: '/biology', label: 'Biology', icon: <Dna size={20} strokeWidth={1.5} />, end: false }] : []),
+    { to: '/intelligence', label: 'Coach', icon: <MessageCircle size={20} strokeWidth={1.5} />, end: false },
   ];
   return (
     <nav className="navbar" aria-label="Primary" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
@@ -99,7 +99,7 @@ export function TabBar() {
           key={item.to}
           to={item.to}
           end={item.end}
-          className={({ isActive }) => `nav-item ${item.coach ? 'nav-item--coach' : ''} ${isActive ? 'nav-item--active' : ''}`}
+          className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
         >
           <span className="nav-item__icon">{item.icon}</span>
           {item.label}
@@ -257,53 +257,21 @@ export function ProgressBar({ value, color, height = 7 }: { value: number; color
   );
 }
 
-export function CoachOrb({ size = 78, eyes = true }: { size?: number; eyes?: boolean }) {
+/** The product mark: a measured value on an axis, drawn flat in one colour. */
+export function BeneMark({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
-    <div
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      className={className}
       aria-hidden
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '999px',
-        background:
-          'radial-gradient(circle at 32% 26%, #ffffff 0%, #dbe6ff 18%, #a7b8ff 38%, #7a6cf0 64%, #4b3fa8 92%)',
-        boxShadow: '0 12px 36px rgba(100, 90, 240, 0.4), inset 0 2px 10px rgba(255,255,255,0.5)',
-        position: 'relative',
-        flex: '0 0 auto',
-        filter: 'saturate(1.05)',
-      }}
+      fill="none"
     >
-      {eyes ? (
-        <>
-          <span
-            style={{
-              position: 'absolute',
-              left: '33%',
-              top: '43%',
-              width: size * 0.09,
-              height: size * 0.15,
-              borderRadius: '999px',
-              background: '#fff',
-              transform: 'rotate(8deg)',
-              boxShadow: '0 1px 2px rgba(30,20,90,0.2)',
-            }}
-          />
-          <span
-            style={{
-              position: 'absolute',
-              left: '55%',
-              top: '43%',
-              width: size * 0.09,
-              height: size * 0.15,
-              borderRadius: '999px',
-              background: '#fff',
-              transform: 'rotate(8deg)',
-              boxShadow: '0 1px 2px rgba(30,20,90,0.2)',
-            }}
-          />
-        </>
-      ) : null}
-    </div>
+      <path d="M4 16h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10 4v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="10" cy="8" r="2" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -342,7 +310,7 @@ export function MetricTile({
         {label}
       </div>
       <div className="row gap-6" style={{ alignItems: 'baseline', marginTop: 6 }}>
-        <span className="mono-num" style={{ fontSize: 25, fontWeight: 750, letterSpacing: '-0.03em', color }}>
+        <span className="mono-num" style={{ fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', color }}>
           {value}
         </span>
         {unit ? <span className="caption" style={{ fontWeight: 600 }}>{unit}</span> : null}

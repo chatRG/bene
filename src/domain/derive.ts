@@ -211,8 +211,13 @@ export function scoreHistory(data: AppStateData, days = 14) {
   });
 }
 
-export function coachInsight(d: DayDerived, name: string): { title: string; body: string; tone: 'positive' | 'neutral' | 'warning' } {
-  const first = name.split(' ')[0] || 'there';
+/**
+ * The morning note is assembled from the same deltas the score uses. Each
+ * sentence is conditional, so it never claims a direction that the data does
+ * not support. The name is accepted for call-site compatibility but a greeting
+ * is not the product's voice.
+ */
+export function coachInsight(d: DayDerived): { title: string; body: string; tone: 'positive' | 'neutral' | 'warning' } {
   if (d.recovery.status !== 'scored') {
     return {
       title: d.recovery.status === 'calibrating' ? 'Still calibrating' : 'Almost there',
@@ -222,24 +227,39 @@ export function coachInsight(d: DayDerived, name: string): { title: string; body
       tone: 'neutral',
     };
   }
+
   const r = d.recovery.score ?? 50;
-  if (r >= 70) {
-    return {
-      title: `Good morning, ${first}`,
-      body: `You hit your sleep goal with solid deep and REM sleep. HRV is up and resting heart rate is steady — strong signs of recovery. Aim for ${d.strain.target}% strain today and put the hard work in early.`,
-      tone: 'positive',
-    };
+  const hrv = d.sleep?.hrvMs ?? null;
+  const rhr = d.sleep?.rhrBpm ?? null;
+  const hrvPct =
+    hrv != null && d.baselineHrv > 0 ? Math.round(((hrv - d.baselineHrv) / d.baselineHrv) * 100) : null;
+  const rhrDelta = rhr != null ? Math.round((rhr - d.baselineRhr) * 10) / 10 : null;
+
+  const signals: string[] = [];
+  if (hrv != null && hrvPct != null) {
+    signals.push(
+      Math.abs(hrvPct) < 3
+        ? `HRV is close to your baseline at ${hrv.toFixed(0)} ms`
+        : `HRV is ${Math.abs(hrvPct)}% ${hrvPct > 0 ? 'above' : 'below'} your baseline`,
+    );
   }
-  if (r >= 50) {
-    return {
-      title: `Steady start, ${first}`,
-      body: `Your overnight signals are close to baseline. Sleep scored ${d.sleepScore?.score ?? '—'}%, so keep today's intensity moderate at around ${d.strain.target}% strain and reassess after the warm-up.`,
-      tone: 'neutral',
-    };
+  if (rhrDelta != null) {
+    signals.push(
+      Math.abs(rhrDelta) < 1
+        ? `resting heart rate is steady at ${rhr!.toFixed(0)} bpm`
+        : `resting heart rate is ${Math.abs(rhrDelta).toFixed(1)} bpm ${rhrDelta < 0 ? 'below' : 'above'} baseline`,
+    );
   }
-  return {
-    title: 'Time to take it easy',
-    body: d.recoveryNarrative,
-    tone: 'warning',
-  };
+  const sleep = d.sleepScore?.score != null ? `Sleep scored ${d.sleepScore.score}%,` : '';
+  const detail = signals.join(' and ');
+  const target = `Target strain is ${d.strain.target}%.`;
+  const body = [sleep, detail ? `${detail}.` : '', target].filter(Boolean).join(' ');
+
+  if (r >= 67) {
+    return { title: 'A day to build', body: `${body} A longer session fits if the warm-up feels easy.`, tone: 'positive' };
+  }
+  if (r >= 45) {
+    return { title: 'A moderate day', body: `${body} Keep the session controlled and reassess after the warm-up.`, tone: 'neutral' };
+  }
+  return { title: 'Recovery is low today', body: `${body} Keep the day light and protect tonight’s sleep.`, tone: 'warning' };
 }

@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays } from 'date-fns';
-import { ChevronRight, Dumbbell, Flame, Footprints, Play, Plus, Sparkles, Timer, TrendingUp, Zap } from 'lucide-react';
+import { Check, ChevronRight, Dumbbell, Flame, Footprints, MessageCircle, Play, Timer, Zap } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
 import { computeCardioLoad, muscleFreshness, muscleLoadStatus } from '../domain/scoring/load';
 import { zoneConfigFor } from '../domain/derive';
 import { Avatar, SectionHead } from '../components/ui';
-import { Sparkline } from '../components/charts';
 import { MUSCLE_LABELS } from '../domain/math';
 
 export function FitnessScreen() {
@@ -23,6 +22,10 @@ export function FitnessScreen() {
   const strength = muscleLoadStatus(state.dayOrder.flatMap((date) => state.days[date].workouts), state.days, state.dayOrder, state.dayOrder.length - 1);
   const weekWorkouts = state.dayOrder.slice(-7).flatMap((date) => state.days[date].workouts);
   const weekMinutes = weekWorkouts.reduce((a, w) => a + w.durationMin, 0);
+  const priorWeekMinutes = state.dayOrder
+    .slice(-14, -7)
+    .flatMap((date) => state.days[date].workouts)
+    .reduce((a, w) => a + w.durationMin, 0);
   const recent = [...state.dayOrder.slice(-8)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
   const nextRoutine = state.routines.find((r) => r.scheduledDates.some((x) => x >= today)) ?? state.routines[0];
   const calibrated = load.status !== 'Calibrating';
@@ -41,11 +44,13 @@ export function FitnessScreen() {
         <div className="fitness-hero__label">This week</div>
         <div className="fitness-hero__title">{weekWorkouts.length} sessions · {Math.round(weekMinutes / 60)}h {weekMinutes % 60}m</div>
         <div className="fitness-hero__sub">
-          {d.recovery.status === 'scored' ? `Recovery ${d.recovery.score ?? '—'}% — ${(d.recovery.score ?? 0) >= 60 ? 'ready to build' : 'keep it controlled'}` : 'Building your training baseline'}
+          {d.recovery.status === 'scored'
+            ? `Recovery ${d.recovery.score ?? '—'}%. ${(d.recovery.score ?? 0) >= 60 ? 'A harder session fits today.' : 'Keep the session easy today.'}`
+            : 'Building your training baseline'}
         </div>
         <div className="fitness-stats">
           <div className="fitness-stat"><strong>{Math.round(d.strain.score)}%</strong><span>Strain today</span></div>
-          <div className="fitness-stat"><strong>{load.status}</strong><span>Cardio status</span></div>
+          <div className="fitness-stat"><strong>{Math.round(weekMinutes / 60)}h {weekMinutes % 60}m</strong><span>Training this week</span></div>
           <div className="fitness-stat"><strong>{strength.weeklySets}</strong><span>Strength sets</span></div>
         </div>
       </div>
@@ -57,10 +62,12 @@ export function FitnessScreen() {
             const key = dateKey(date);
             const done = (state.days[key]?.workouts.length ?? 0) > 0;
             const isToday = key === today;
+            const planned = state.routines.some((r) => r.scheduledDates.includes(key));
+            const state_ = done ? 'done' : isToday ? 'today' : planned ? 'missed' : 'rest';
             return (
-              <div key={key} className={`week-day ${isToday ? 'week-day--today' : ''} ${done ? 'week-day--done' : ''}`}>
-                <span>{format(date, 'EEEEE')}</span>
-                <span className="week-day__dot">{done ? '✓' : format(date, 'd')}</span>
+              <div key={key} className={`week-day week-day--${state_} ${isToday ? 'week-day--today' : ''}`} aria-label={`${format(date, 'EEEE')}: ${state_}${isToday ? ', today' : ''}`}>
+                <span className="week-day__label">{format(date, 'EEEEE')}</span>
+                <span className="week-day__dot">{done ? <Check size={14} strokeWidth={1.5} /> : format(date, 'd')}</span>
               </div>
             );
           })}
@@ -70,7 +77,7 @@ export function FitnessScreen() {
       <div className="section">
         <SectionHead
           title="Next up"
-          action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/intelligence')}><Sparkles size={12} /> Ask coach</button>}
+          action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/intelligence')}>Ask the coach</button>}
         />
         <button className="card" style={{ width: '100%', textAlign: 'left', padding: 16 }} onClick={() => navigate(`/workout/${nextRoutine.id}`)}>
           <div className="row gap-12">
@@ -92,7 +99,7 @@ export function FitnessScreen() {
           <div className="load-card">
             <div className="load-card__label">Cardio Load</div>
             <div className="load-card__value">{calibrated ? `${load.ratio.toFixed(2)}×` : `${load.calibrationPct}%`}</div>
-            <div className="load-card__sub">{calibrated ? `Acute ${load.acute} · Chronic ${load.chronic}` : `${load.qualifyingDays}/10 qualifying days`}</div>
+            <div className="load-card__sub">{calibrated ? `Acute ${load.acute} · Chronic ${load.chronic}` : `${Math.min(10, load.qualifyingDays)} of 10 baseline days`}</div>
             <div className="bar mt-10"><div className="bar__fill" style={{ width: `${calibrated ? Math.min(100, (load.ratio / 1.6) * 100) : load.calibrationPct}%`, background: 'var(--orange)' }} /></div>
           </div>
           <div className="load-card">
@@ -109,7 +116,7 @@ export function FitnessScreen() {
           </div>
           <div className="row gap-2 mt-12" style={{ height: 10 }}>
             {load.focus.map((pct, i) => (
-              <span key={i} style={{ width: `${pct}%`, height: '100%', background: ['#9ac8ff', '#ffc83d', '#ff7a33'][i], borderRadius: 999 }} />
+              <span key={i} style={{ width: `${pct}%`, height: '100%', background: ['var(--sleep-rem)', 'var(--sleep)', 'var(--accent)'][i], borderRadius: 2 }} />
             ))}
           </div>
           <div className="row-between mt-8" style={{ fontSize: 10.5, color: 'var(--muted)' }}>
@@ -130,7 +137,7 @@ export function FitnessScreen() {
                 <div className="bar__fill" style={{ width: `${m.pct}%`, background: m.band === 'Recovered' ? 'var(--green)' : m.band === 'Fatigued' ? 'var(--amber)' : m.band === 'Depleted' ? 'var(--red)' : 'var(--muted-2)' }} />
               </div>
               <span className="freshness-row__pct">{m.band === 'Calibrating' ? '—' : `${m.pct}%`}</span>
-              <span className="pill pill--sm" style={{ background: 'var(--field)', color: m.band === 'Recovered' ? 'var(--green-deep)' : 'var(--muted)', minWidth: 78, justifyContent: 'center' }}>{m.band}</span>
+              <span className={`freshness-row__band ${m.band === 'Recovered' ? 'freshness-row__band--good' : m.band === 'Fatigued' ? 'freshness-row__band--warn' : m.band === 'Depleted' ? 'freshness-row__band--bad' : ''}`}>{m.band}</span>
             </div>
           ))}
         </div>
@@ -148,7 +155,6 @@ export function FitnessScreen() {
                 <div className="workout-row__title">{w.name}</div>
                 <div className="workout-row__sub">{format(new Date(`${w.date}T12:00:00`), 'EEE, MMM d')} · {w.durationMin} min{w.distanceKm ? ` · ${w.distanceKm.toFixed(1)} km` : ''} · {w.calories} kcal</div>
               </div>
-              <Sparkline values={w.zoneMinutes} width={64} height={30} color={w.kind === 'strength' ? 'var(--indigo)' : 'var(--orange)'} />
               <ChevronRight size={16} className="chevron" />
             </button>
           ))}
@@ -156,7 +162,7 @@ export function FitnessScreen() {
       </div>
 
       <div className="section">
-        <SectionHead title="Strength Builder" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/intelligence')}><Plus size={12} /> New</button>} />
+        <SectionHead title="Strength builder" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/intelligence')}>New routine</button>} />
         <div className="list-card">
           {state.routines.map((r) => (
             <button key={r.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/workout/${r.id}`)}>
@@ -169,7 +175,7 @@ export function FitnessScreen() {
             </button>
           ))}
           <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate('/intelligence')}>
-            <div className="list-icon"><Sparkles size={16} /></div>
+            <div className="list-icon"><MessageCircle size={16} /></div>
             <div className="grow"><div className="list-title">Build a routine with Bene</div><div className="list-sub">Describe your goal and available equipment</div></div>
             <ChevronRight size={17} className="chevron" />
           </button>
@@ -177,23 +183,23 @@ export function FitnessScreen() {
       </div>
 
       <div className="section">
-        <SectionHead title="Weekly balance" action={<TrendingUp size={16} className="chevron" />} />
+        <SectionHead title="Weekly balance" />
         <div className="card">
           <div className="row gap-16">
             <div className="grow">
               <div className="caption">Cardio minutes</div>
-              <div className="mono-num" style={{ fontSize: 24, fontWeight: 750 }}>{weekWorkouts.filter((w) => w.kind !== 'strength').reduce((a, w) => a + w.durationMin, 0)}</div>
+              <div className="mono-num" style={{ fontSize: 24, fontWeight: 500 }}>{weekWorkouts.filter((w) => w.kind !== 'strength').reduce((a, w) => a + w.durationMin, 0)}</div>
               <div className="caption mt-4">Goal 150 · {Math.min(100, Math.round((weekWorkouts.filter((w) => w.kind !== 'strength').reduce((a, w) => a + w.durationMin, 0) / 150) * 100))}%</div>
             </div>
             <div className="grow">
               <div className="caption">Strength sets</div>
-              <div className="mono-num" style={{ fontSize: 24, fontWeight: 750 }}>{strength.weeklySets}</div>
+              <div className="mono-num" style={{ fontSize: 24, fontWeight: 500 }}>{strength.weeklySets}</div>
               <div className="caption mt-4">Goal 12 · {Math.min(100, Math.round((strength.weeklySets / 12) * 100))}%</div>
             </div>
             <div className="grow">
               <div className="caption">Training time</div>
-              <div className="mono-num" style={{ fontSize: 24, fontWeight: 750 }}>{Math.round(weekMinutes / 60)}h</div>
-              <div className="caption mt-4">vs 4h last week</div>
+              <div className="mono-num" style={{ fontSize: 24, fontWeight: 500 }}>{Math.round(weekMinutes / 60)}h</div>
+              <div className="caption mt-4">vs {Math.round(priorWeekMinutes / 60)}h last week</div>
             </div>
           </div>
           <div className="divider" />
@@ -207,7 +213,7 @@ export function FitnessScreen() {
       <div className="section">
         <div className="card card--flat" style={{ background: 'transparent' }}>
           <div className="row gap-10">
-            <Zap size={18} color="var(--orange)" />
+            <Zap size={18} color="var(--muted)" />
             <div className="grow">
               <div className="card-title">Live HR sensor</div>
               <div className="card-sub">Connect a Bluetooth strap in Strength Builder. Requires Health write permission.</div>

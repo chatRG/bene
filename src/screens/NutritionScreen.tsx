@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Apple, Barcode, Camera, ChevronRight, Flame, Image, Info, PencilLine, Plus, Search, Share2, Sparkles, Utensils } from 'lucide-react';
+import { Apple, ArrowRight, Barcode, Camera, ChevronRight, Flame, Image as ImageIcon, Info, PencilLine, Plus, Search, Share2, Utensils } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
@@ -121,50 +121,48 @@ export function NutritionScreen() {
           <div className="caption">Calories</div>
           <div className="calorie-hero__value">{n.totals.calories.toLocaleString()}</div>
           <div className="calorie-hero__sub" style={{ color: left >= 0 ? 'var(--green-deep)' : 'var(--red)' }}>
-            {left >= 0 ? `${left} kcal under goal` : `${Math.abs(left)} kcal over goal`}
+            {left >= 0 ? `${left} kcal under ${goals.calories.toLocaleString()} goal` : `${Math.abs(left)} kcal over ${goals.calories.toLocaleString()} goal`}
           </div>
         </div>
-        <Ring value={(n.totals.calories / goals.calories) * 100} size={84} stroke={8} color="var(--pink)">
+        <Ring value={n.score} size={84} stroke={6} color="var(--accent)">
           <div className="ring__center">
-            <span className="ring__value" style={{ fontSize: 17 }}>{n.score}</span>
-            <span className="ring__label" style={{ fontSize: 9 }}>score</span>
+            <span className="ring__value" style={{ fontSize: 18 }}>{n.score}</span>
+            <span className="ring__label">/ 100</span>
           </div>
         </Ring>
       </div>
 
       <div className="macro-cards mt-12">
         {([
-          ['Fat', n.totals.fatG, remaining.fat, n.macroPercents.fat, 'var(--fat)'],
-          ['Carbs', n.totals.carbsG, remaining.carbs, n.macroPercents.carbs, 'var(--carbs)'],
-          ['Protein', n.totals.proteinG, remaining.protein, n.macroPercents.protein, 'var(--protein)'],
-        ] as [string, number, number, number, string][]).map(([label, value, leftG, pct, color]) => (
+          ['Fat', n.totals.fatG, remaining.fat, n.macroPercents.fat],
+          ['Carbs', n.totals.carbsG, remaining.carbs, n.macroPercents.carbs],
+          ['Protein', n.totals.proteinG, remaining.protein, n.macroPercents.protein],
+        ] as [string, number, number, number][]).map(([label, value, leftG, pct]) => (
           <button key={String(label)} className="macro-card" onClick={() => setDetailOpen(true)} style={{ textAlign: 'left' }}>
             <div className="row-between">
               <span className="macro-card__label">{label}</span>
-              <Ring value={Number(pct)} size={30} stroke={4} color={String(color)}>
-                <span style={{ fontSize: 7.5, fontWeight: 700 }}>{pct}%</span>
-              </Ring>
+              <span className="macro-card__share">{pct}% of energy</span>
             </div>
-            <div className="macro-card__value">{value}<span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 550 }}> g</span></div>
+            <div className="macro-card__value">{value}<span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}> g</span></div>
             <div className="macro-card__left">{leftG >= 0 ? `${leftG} g left` : `${Math.abs(leftG)} g over`}</div>
           </button>
         ))}
       </div>
-      <p className="caption" style={{ margin: '6px 4px 0', lineHeight: 1.45 }}>
-        Rings show each macro's share of today's calories. Grams left/over compare against your macro goals.
+      <p className="caption" style={{ margin: '8px 4px 0', lineHeight: 1.45 }}>
+        Percent is each macro's share of today's calories. Grams left or over compare with your macro goal.
       </p>
 
       <div className="card net-card mt-12">
         <div className="row-between">
           <div>
-            <div className="net-card__value">{n.netEnergy != null ? `${n.netEnergy > 0 ? '+' : ''}${n.netEnergy}` : '—'}<span style={{ fontSize: 14, fontWeight: 550 }}> kcal</span></div>
-            <div className="caption">Net energy</div>
+            <div className="caption">Net energy · intake − burn</div>
+            <div className="net-card__value">{n.netEnergy != null ? `${n.netEnergy > 0 ? '+' : ''}${n.netEnergy}` : '—'}<span style={{ fontSize: 14, fontWeight: 400 }}> kcal</span></div>
           </div>
           <button className="icon-btn icon-btn--soft" onClick={() => showToast('Net energy = intake − burn')} aria-label="Info"><Info size={16} /></button>
         </div>
         <div className="net-energy-row">
-          <span style={{ color: 'var(--orange)' }}><Flame size={14} /> Burn {d.record.metrics.totalCalories.toLocaleString()}</span>
-          <span style={{ color: 'var(--blue)' }}><Apple size={14} /> Intake {n.totals.calories.toLocaleString()}</span>
+          <span><Flame size={14} color="var(--muted)" /> Burn {d.record.metrics.totalCalories.toLocaleString()}</span>
+          <span><Apple size={14} color="var(--muted)" /> Intake {n.totals.calories.toLocaleString()}</span>
         </div>
         <div className="mt-12">
           <RangeBar value={n.netEnergy ?? 0} min={-500} max={500} markerLabel={`${n.netEnergy ?? 0} kcal`} />
@@ -173,7 +171,7 @@ export function NutritionScreen() {
 
       <div className="section">
         <SectionHead
-          title="Nutritional Details"
+          title="Nutritional details"
           action={
             <button className="pill pill--sm pill--flat" onClick={() => setDetailOpen(true)}>
               g / % <ChevronRight size={12} />
@@ -268,7 +266,7 @@ export function NutritionScreen() {
                   <ChevronRight size={16} className="chevron" />
                 </button>
               ))}
-              <div className="insight-unlock mt-8"><Sparkles size={16} /><span>Tip: photo and description logging use Bene Intelligence. Review estimates before saving.</span></div>
+              <div className="insight-unlock mt-8"><Info size={16} /><span>Photo and description estimates run on this device. Review the portion before saving.</span></div>
             </div>
           ) : null}
 
@@ -305,7 +303,7 @@ export function NutritionScreen() {
                   addFood({ ...FOODS[2], name: method === 'photo' ? 'Photo meal estimate' : 'Salmon bowl', calories: 620, proteinG: 42, carbsG: 58, fatG: 22, vegGrams: 90, wholeGrainServings: 0.6 }, 1);
                 }}
               >
-                <Sparkles size={16} /> Estimate & log
+                <ArrowRight size={16} /> Estimate and log
               </button>
             </div>
           ) : null}
@@ -317,7 +315,7 @@ export function NutritionScreen() {
                 <div className="card-title">Point at a barcode</div>
                 <div className="card-sub">Camera access is simulated in this build.</div>
               </div>
-              <button className="btn btn--block mt-16" onClick={() => addFood(FOODS[9])}><Barcode size={16} /> Use demo barcode (protein shake)</button>
+              <button className="btn btn--block mt-16" onClick={() => addFood(FOODS[9])}><Barcode size={16} /> Use sample barcode (protein shake)</button>
             </div>
           ) : null}
 
@@ -327,8 +325,8 @@ export function NutritionScreen() {
 
       {detailOpen ? (
         <Sheet
-          title="Nutritional Details"
-          subtitle="Macro split by energy"
+          title="Nutritional details"
+          subtitle="Each macro as a share of energy"
           onClose={() => setDetailOpen(false)}
         >
           <div className="row-between" style={{ marginBottom: 16 }}>
@@ -375,7 +373,7 @@ export function NutritionScreen() {
 
       <div className="section">
         <div className="card card--flat" style={{ display: 'flex', gap: 10 }}>
-          <Image size={17} className="chevron" />
+          <ImageIcon size={17} className="chevron" />
           <span className="caption" style={{ flex: 1 }}>Meals imported from Apple Health don’t produce a Nutrition Score because portion context is missing.</span>
         </div>
       </div>

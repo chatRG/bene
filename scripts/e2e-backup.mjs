@@ -13,7 +13,7 @@ const check = (n, ok, d = '') => results.push(`${ok ? 'PASS' : 'FAIL'} ${n}${d ?
 await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Explore with demo data').click();
+await page.getByText('See a sample day').click();
 await page.waitForTimeout(800);
 
 const snapshot = await page.evaluate(() => localStorage.getItem('bene-snapshot'));
@@ -50,7 +50,7 @@ check('theme restored to light', (await page.evaluate(() => document.documentEle
 // Import a backup file after a reset
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('Explore with demo data').click();
+await page.getByText('See a sample day').click();
 await page.waitForTimeout(500);
 await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);

@@ -12,6 +12,7 @@ import {
   HardDrive,
   Heart,
   Info,
+  MessageCircle,
   Lock,
   Moon,
   RefreshCw,
@@ -19,7 +20,6 @@ import {
   Settings2,
   Shield,
   Smartphone,
-  Sparkles,
   Target,
   Trash2,
   Upload,
@@ -28,7 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import { DetailHeader, ListRow, Sheet, Segmented } from '../components/ui';
+import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { snapshotInfo } from '../domain/backup';
@@ -38,16 +38,16 @@ import type { ActivityStatus, ThemeMode, UnitSystem } from '../domain/types';
 const SECTION_TITLES: Record<string, string> = {
   general: 'Customization',
   account: 'Account',
-  data: 'Data Sources',
+  data: 'Data sources',
   notifications: 'Notifications',
-  goals: 'Goals & units',
+  goals: 'Goals and units',
   calculations: 'Calculations',
-  coach: 'Bene Intelligence',
-  privacy: 'Privacy & data',
-  activity: 'Activity Status',
+  coach: 'Local coach',
+  privacy: 'Privacy and data',
+  activity: 'Activity status',
   language: 'Language',
   about: 'About',
-  backup: 'Backup & Restore',
+  backup: 'Backup and restore',
 };
 
 export function SettingsScreen() {
@@ -60,20 +60,35 @@ export function SettingsScreen() {
     return (
       <div className="screen screen--detail">
         <DetailHeader title="Settings" />
-        <p className="caption" style={{ margin: '2px 4px 14px' }}>Everything stays in this app or on your device.</p>
+        <p className="caption" style={{ margin: '2px 4px 0' }}>Stored on this device. No sign-in, no cloud sync.</p>
+
+        <GroupLabel>You</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<User size={16} />} title="Account" subtitle="Profile, subscription" onClick={() => navigate('/settings/account')} />
-          <ListRow icon={<Database size={16} />} title="Data Sources" subtitle="Apple Health import, Oura, Garmin, CGM" onClick={() => navigate('/settings/data')} />
+          <ListRow icon={<User size={16} />} title="Profile and plan" subtitle="Name, body metrics, subscription" onClick={() => navigate('/settings/account')} />
+          <ListRow icon={<Heart size={16} />} title="Activity status" subtitle={s.activityStatus === 'active' ? 'Active' : s.activityStatus === 'break' ? 'On a break' : s.activityStatus[0].toUpperCase() + s.activityStatus.slice(1)} onClick={() => navigate('/settings/activity')} />
+        </div>
+
+        <GroupLabel>Data and privacy</GroupLabel>
+        <div className="list-card">
+          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="Apple Health import and adapters" onClick={() => navigate('/settings/data')} />
+          <ListRow icon={<Shield size={16} />} title="Privacy and permissions" subtitle="Export, delete, access" onClick={() => navigate('/settings/privacy')} />
+          <ListRow icon={<HardDrive size={16} />} title="Backup and restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
+        </div>
+
+        <GroupLabel>Preferences</GroupLabel>
+        <div className="list-card">
           <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, units, calculations" onClick={() => navigate('/settings/general')} />
           <ListRow icon={<Target size={16} />} title="Goals" subtitle={`Sleep ${Math.floor(s.sleepGoalMin / 60)}h ${s.sleepGoalMin % 60}m · ${s.calorieGoal} kcal`} onClick={() => navigate('/settings/goals')} />
-          <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal" onClick={() => navigate('/settings/notifications')} />
-          <ListRow icon={<Heart size={16} />} title="Activity Status" subtitle={s.activityStatus === 'active' ? 'Active' : s.activityStatus === 'break' ? 'On a break' : s.activityStatus[0].toUpperCase() + s.activityStatus.slice(1)} onClick={() => navigate('/settings/activity')} />
-          <ListRow icon={<Sparkles size={16} />} title="Bene Intelligence" subtitle="Model, persona, credits" onClick={() => navigate('/settings/coach')} />
+          <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Morning report and reminders" onClick={() => navigate('/settings/notifications')} />
+          <ListRow icon={<MessageCircle size={16} />} title="Local coach" subtitle="Rule-based, on this device" onClick={() => navigate('/settings/coach')} />
           <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
-          <ListRow icon={<Shield size={16} />} title="Privacy & data" subtitle="Export, delete, permissions" onClick={() => navigate('/settings/privacy')} />
-          <ListRow icon={<HardDrive size={16} />} title="Backup & Restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
-          <ListRow icon={<Info size={16} />} title="About" subtitle="0.1.0 · open source" onClick={() => navigate('/settings/about')} />
         </div>
+
+        <GroupLabel>App</GroupLabel>
+        <div className="list-card">
+          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.1.0 · MIT" onClick={() => navigate('/settings/about')} />
+        </div>
+
         <div className="settings-footer">Bene is an unofficial, local-first health app.<br />Not affiliated with Finerpoint, Inc.</div>
       </div>
     );
@@ -117,6 +132,7 @@ function SwitchRow({ title, subtitle, on, onChange }: { title: string; subtitle?
 
 function General() {
   const state = useAppStore();
+  const navigate = useNavigate();
   const s = state.settings;
   return (
     <>
@@ -157,8 +173,8 @@ function General() {
 
       <GroupLabel>Calculations</GroupLabel>
       <div className="list-card">
-        <ListRow title="HRV & RHR method" subtitle={`${s.hrvMethod.toUpperCase()} · ${s.hrvWindow === 'entireSleep' ? 'entire sleep' : 'REM + Deep'}`} onClick={() => location.assign('#/settings/calculations')} />
-        <ListRow title="Heart-rate zones" subtitle={s.hrZoneMethod === 'manual' ? `Manual · ${s.manualMaxHr} bpm` : s.hrZoneMethod} onClick={() => location.assign('#/settings/calculations')} />
+        <ListRow title="HRV and RHR method" subtitle={`${s.hrvMethod === 'sdnn' ? 'SDNN' : 'RMSSD'} · ${s.hrvWindow === 'entireSleep' ? 'entire sleep' : 'REM + deep'}`} onClick={() => navigate('/settings/calculations')} />
+        <ListRow title="Heart-rate zones" subtitle={s.hrZoneMethod === 'manual' ? `Manual · ${s.manualMaxHr} bpm` : s.hrZoneMethod === 'hrReserve' ? 'Heart-rate reserve' : 'Max heart rate'} onClick={() => navigate('/settings/calculations')} />
       </div>
 
       <GroupLabel>Advanced</GroupLabel>
@@ -172,7 +188,6 @@ function General() {
 
 function Account() {
   const state = useAppStore();
-  const navigate = useNavigate();
   const [name, setName] = useState(state.profile.name);
   const [height, setHeight] = useState(state.profile.heightCm);
   const [weight, setWeight] = useState(state.profile.weightKg);
@@ -214,13 +229,6 @@ function Account() {
         </div>
       </div>
       <button className="btn btn--block mt-16" onClick={() => { state.updateProfile({ name, heightCm: height, weightKg: weight }); showToast('Profile saved'); }}>Save changes</button>
-
-      <GroupLabel>Subscription</GroupLabel>
-      <div className="list-card">
-        <ListRow icon={<Sparkles size={16} />} title="Bene Pro" subtitle="Active · $99.99/year (demo)" value="Manage" onClick={() => navigate('/paywall')} />
-        <ListRow icon={<FileText size={16} />} title="Restore purchases" subtitle="App Store / Play Store" onClick={() => showToast('Nothing to restore in this demo')} />
-      </div>
-      <p className="caption mt-12" style={{ lineHeight: 1.5 }}>Subscriptions are billed by the App Store or Play Store. This community build does not process payments.</p>
     </>
   );
 }
@@ -462,16 +470,16 @@ function CoachSettings() {
   return (
     <>
       <div className="list-card">
-        <SwitchRow title="Bene Intelligence" subtitle="Turn the coach on or off" on={s.aiEnabled} onChange={(v) => state.updateSettings({ aiEnabled: v })} />
-        <SwitchRow title="Ghost Mode by default" subtitle="New chats disappear after retention" on={s.ghostDefault} onChange={(v) => state.updateSettings({ ghostDefault: v })} />
-        <SwitchRow title="Suggested follow-ups" subtitle="Show chips after each reply" on={s.suggestedFollowUps} onChange={(v) => state.updateSettings({ suggestedFollowUps: v })} />
-        <SwitchRow title="Expanded thinking" subtitle="Beta" on={s.expandedThinking} onChange={(v) => state.updateSettings({ expandedThinking: v })} />
+        <SwitchRow title="Local coach" subtitle="Turn the coach on or off" on={s.aiEnabled} onChange={(v) => state.updateSettings({ aiEnabled: v })} />
+        <SwitchRow title="Ghost mode by default" subtitle="New chats disappear after the retention window" on={s.ghostDefault} onChange={(v) => state.updateSettings({ ghostDefault: v })} />
+        <SwitchRow title="Follow-up suggestions" subtitle="Show suggested questions after each reply" on={s.suggestedFollowUps} onChange={(v) => state.updateSettings({ suggestedFollowUps: v })} />
+        <SwitchRow title="Show reasoning steps" subtitle="Adds a short method note to replies" on={s.expandedThinking} onChange={(v) => state.updateSettings({ expandedThinking: v })} />
       </div>
-      <GroupLabel>Model</GroupLabel>
+      <GroupLabel>Reply depth</GroupLabel>
       <div className="card">
         <div className="row-between">
-          <div><div className="card-title">Answer quality</div><div className="card-sub">Upgraded uses more of your allowance</div></div>
-          <Segmented options={[{ value: 'standard', label: 'Standard' }, { value: 'upgraded', label: 'Upgraded' }]} value={s.aiModel} onChange={(v) => state.updateSettings({ aiModel: v })} />
+          <div><div className="card-title">Reply depth</div><div className="card-sub">Detailed replies use more of the weekly allowance</div></div>
+          <Segmented options={[{ value: 'standard', label: 'Standard' }, { value: 'upgraded', label: 'Detailed' }]} value={s.aiModel} onChange={(v) => state.updateSettings({ aiModel: v })} />
         </div>
       </div>
       <GroupLabel>Ghost retention</GroupLabel>
@@ -482,13 +490,13 @@ function CoachSettings() {
           </button>
         ))}
       </div>
-      <GroupLabel>Personality</GroupLabel>
+      <GroupLabel>Tone</GroupLabel>
       <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
         {(['supportive', 'direct', 'analytical', 'playful'] as const).map((p) => (
           <button key={p} className={`pill ${s.aiPersonality === p ? 'pill--dark' : 'pill--flat'}`} onClick={() => state.updateSettings({ aiPersonality: p })}>{p}</button>
         ))}
       </div>
-      <p className="caption mt-16" style={{ lineHeight: 1.5 }}>In this community build the coach runs a deterministic on-device responder grounded in your metrics. No data leaves the device.</p>
+      <p className="caption mt-16" style={{ lineHeight: 1.5 }}>In this build the coach runs a rule-based responder on this device and answers from your metrics. No data leaves the device.</p>
     </>
   );
 }
@@ -523,10 +531,10 @@ function Backup() {
 
   return (
     <>
-      <div className="credit-card" style={{ background: 'linear-gradient(135deg,#1b2430,#26352f)' }}>
+      <div className="credit-card">
         <div className="row-between">
           <div>
-            <div className="credit-card__label">On-device backup</div>
+            <div className="credit-card__label">Protected · on-device backup</div>
             <div className="credit-card__value" style={{ fontSize: 24 }}>
               {info.exists ? 'Backed up' : 'Not created yet'}
             </div>
@@ -538,7 +546,7 @@ function Backup() {
             <HardDrive size={22} />
           </span>
         </div>
-        <div className="credit-bar"><span style={{ width: info.exists ? '100%' : '8%', background: info.exists ? '#b7f06a' : '#ffc83d' }} /></div>
+        <div className="credit-bar"><span style={{ width: info.exists ? '100%' : '8%', background: info.exists ? '#f3ede1' : '#d3a04a' }} /></div>
         <div className="row-between mt-8" style={{ fontSize: 10.5, color: 'rgba(255,255,255,.55)' }}>
           <span>{info.exists ? `${info.sizeKb} KB snapshot` : 'No snapshot'}</span>
           <span>{state.dayOrder.length} days · {workoutCount} workouts</span>
@@ -584,7 +592,7 @@ function Backup() {
         />
       </div>
 
-      <GroupLabel>Why this matters</GroupLabel>
+      <GroupLabel>About local storage</GroupLabel>
       <div className="card card--flat" style={{ background: 'transparent' }}>
         <p className="caption" style={{ lineHeight: 1.6 }}>
           This first iteration is fully offline: there is no Bene account and no cloud. Your data lives in this browser or app container, so clearing site data
@@ -738,8 +746,8 @@ function About() {
   return (
     <>
       <div className="card" style={{ textAlign: 'center', padding: 26 }}>
-        <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--text)', color: 'var(--bg)', display: 'grid', placeItems: 'center', margin: '0 auto 14px' }}>
-          <Sparkles size={28} />
+        <div style={{ width: 64, height: 64, borderRadius: 12, background: 'var(--text)', color: 'var(--bg)', display: 'grid', placeItems: 'center', margin: '0 auto 14px' }}>
+          <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
         <div className="caption mt-4">Version 0.1.0 · clean-room build</div>

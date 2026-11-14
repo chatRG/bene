@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronRight, Dna, Dumbbell, FileText, HeartPulse, Info, Moon, MoreHorizontal, Share2, Sparkles, Upload, Activity } from 'lucide-react';
+import { ChevronRight, Dna, Dumbbell, FileText, HeartPulse, Info, Moon, MoreHorizontal, Share2, Upload, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
@@ -89,8 +89,8 @@ export function BiologyScreen() {
 
       <div className="bio-hero">
         <div className="row gap-6" style={{ alignItems: 'baseline' }}>
-          <span className="bio-age">{bio.status === 'scored' ? bio.age?.toFixed(1) : '—'}</span>
-          <span style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600 }}>yrs</span>
+          <span className="bio-age">{bio.status === 'scored' && bio.age != null ? Math.round(bio.age) : '—'}</span>
+          <span style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 400 }}>yrs</span>
         </div>
         {bio.status === 'scored' ? (
           <div className="bio-delta">
@@ -100,7 +100,8 @@ export function BiologyScreen() {
           <div className="bio-delta" style={{ color: 'var(--amber)' }}>Calibrating</div>
         )}
         <button className="bio-week-pill" onClick={() => setInfoOpen(true)}>
-          <span style={{ color: 'var(--teal)', fontWeight: 700 }}>▼ −0.2</span> from last week <ChevronRight size={13} className="chevron" />
+          <span className="meta-mono">Weekly estimate</span>
+          <ChevronRight size={13} className="chevron" />
         </button>
       </div>
 
@@ -108,32 +109,32 @@ export function BiologyScreen() {
         value={bio.age ?? bio.chronologicalAge}
         min={bio.chronologicalAge - 5}
         max={bio.chronologicalAge + 5}
-        color="var(--teal)"
+        color="var(--accent)"
         labels={[
-          (bio.chronologicalAge - 5).toFixed(1),
-          (bio.chronologicalAge + 5).toFixed(1),
-          bio.chronologicalAge.toFixed(1),
+          (bio.chronologicalAge - 5).toFixed(0),
+          (bio.chronologicalAge + 5).toFixed(0),
+          bio.chronologicalAge.toFixed(0),
         ]}
       />
 
       <div className="bio-update">
-        Chronological age {bio.chronologicalAge.toFixed(1)} · gauge spans ±5 years
+        Chronological age {bio.chronologicalAge.toFixed(0)} · gauge spans ±5 years
       </div>
       <div className="bio-update" style={{ marginTop: 2 }}>
         Next age update is in <strong>{Math.max(1, nextMondayDays(today))} days</strong> · weekly on Monday
       </div>
 
       <button className="bio-confidence" onClick={() => setInfoOpen(true)}>
-        <span className="bio-confidence__badge"><Sparkles size={16} /></span>
+        <span className="bio-confidence__badge"><Info size={16} /></span>
         <span className="grow" style={{ textAlign: 'left' }}>
-          <span className="card-title" style={{ color: 'var(--green-deep)' }}>{bio.confidence}% confidence</span>
+          <span className="card-title">Estimate · ±{Math.max(2, Math.round((100 - bio.confidence) / 10) + 1)} years</span>
           <span className="card-sub" style={{ display: 'block' }}>{bio.confidenceLabel}</span>
         </span>
         <ChevronRight size={17} className="chevron" />
       </button>
 
       <div className="section">
-        <SectionHead title="What's moving your age" action={<span className="caption">This week</span>} />
+        <SectionHead title="What shapes the estimate" action={<span className="caption">Last 28 days</span>} />
         <div className="col gap-8">
           {contributors.map((c) => {
             const good = c.years <= 0;
@@ -143,7 +144,7 @@ export function BiologyScreen() {
                 <span className={`bio-contributor__icon ${good ? '' : 'bio-contributor__icon--warn'}`}><Icon size={18} /></span>
                 <span className="grow">
                   <span className="bio-contributor__title" style={{ display: 'block' }}>{c.label}</span>
-                  <span className="bio-contributor__sub" style={{ display: 'block', color: good ? 'var(--teal)' : '#d98600' }}>
+                  <span className="bio-contributor__sub" style={{ display: 'block', color: good ? 'var(--good)' : 'var(--warn)' }}>
                     {Math.abs(c.years).toFixed(1)} years {good ? 'younger' : 'older'}
                   </span>
                 </span>
@@ -154,7 +155,7 @@ export function BiologyScreen() {
           })}
         </div>
         <p className="caption mt-10" style={{ lineHeight: 1.5 }}>
-          Contributors should add up to your total difference ({sumContributors(bio.contributors) >= 0 ? '+' : ''}{sumContributors(bio.contributors).toFixed(1)} yrs). Bloodwork markers add {bio.markerDelta.toFixed(1)} yrs.
+          Sleep, activity and fitness move the estimate; bloodwork contributes {bio.markerDelta >= 0 ? '+' : ''}{bio.markerDelta.toFixed(1)} years. Together they put the estimate {sumContributors(bio.contributors) >= 0 ? '+' : ''}{sumContributors(bio.contributors).toFixed(1)} years from your calendar age.
         </p>
       </div>
 
@@ -217,7 +218,7 @@ export function BiologyScreen() {
       </div>
 
       <div className="section">
-        <SectionHead title="Age Projection" action={<button className="caption" onClick={() => setProjectionOpen(true)}>Explore</button>} />
+        <SectionHead title="Age projection" action={<button className="caption" onClick={() => setProjectionOpen(true)}>Explore</button>} />
         <button className="card" style={{ width: '100%', textAlign: 'left' }} onClick={() => setProjectionOpen(true)}>
           <div className="row gap-12">
             <span className="bio-contributor__icon"><HeartPulse size={18} /></span>
@@ -232,7 +233,7 @@ export function BiologyScreen() {
 
       {infoOpen ? <BioInfo bio={bio} onClose={() => setInfoOpen(false)} /> : null}
       {projectionOpen ? (
-        <Sheet title="Age Projection" subtitle="If your current habits stay the same." onClose={() => setProjectionOpen(false)}>
+        <Sheet title="Age projection" subtitle="If your current habits stay the same" onClose={() => setProjectionOpen(false)}>
           <div className="chart-card" style={{ boxShadow: 'none', padding: 0 }}>
             <LineChart
               values={Array.from({ length: 11 }, (_, i) => Number(((bio.age ?? bio.chronologicalAge) + (bio.deltaYears / 10) * i).toFixed(1)))}
@@ -257,7 +258,7 @@ export function BiologyScreen() {
 
 function BioInfo({ bio, onClose }: { bio: ReturnType<typeof biologicalAge>; onClose: () => void }) {
   return (
-    <Sheet title="About Biological Age" subtitle={`Updated Monday · ${bio.confidence}% confidence`} onClose={onClose}>
+    <Sheet title="About Biological Age" subtitle={`Model estimate · ±${Math.max(2, Math.round((100 - bio.confidence) / 10) + 1)} years`} onClose={onClose}>
       <p className="body" style={{ lineHeight: 1.6 }}>
         Biological Age estimates how your body is ageing relative to your calendar age. It combines nine PhenoAge blood markers with sleep,
         activity and fitness signals from your wearable.
@@ -266,9 +267,9 @@ function BioInfo({ bio, onClose }: { bio: ReturnType<typeof biologicalAge>; onCl
       <div className="list-card" style={{ boxShadow: 'none' }}>
         <div className="list-row"><div className="list-icon"><Info size={16} /></div><div className="grow"><div className="list-title">Why it updates weekly</div><div className="list-sub">Blood markers are stable; lifestyle signals are averaged over the week.</div></div></div>
         <div className="list-row"><div className="list-icon"><HeartPulse size={16} /></div><div className="grow"><div className="list-title">What lowers confidence</div><div className="list-sub">New tracking, missing bloodwork, or gaps in wearable data.</div></div></div>
-        <div className="list-row"><div className="list-icon"><Sparkles size={16} /></div><div className="grow"><div className="list-title">Not a diagnosis</div><div className="list-sub">A wellness estimate — discuss health decisions with a clinician.</div></div></div>
+        <div className="list-row"><div className="list-icon"><Info size={16} /></div><div className="grow"><div className="list-title">Not a diagnosis</div><div className="list-sub">A wellness estimate — discuss health decisions with a clinician.</div></div></div>
       </div>
-      <p className="caption mt-16">This community build uses an independent, documented model. the reference app’s exact coefficients are not public.</p>
+      <p className="caption mt-16">This community build uses an independent, documented model. The reference app’s exact coefficients are not public.</p>
       <button className="btn btn--block mt-20" onClick={onClose}>Got it</button>
     </Sheet>
   );

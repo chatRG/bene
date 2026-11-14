@@ -169,10 +169,23 @@ export function recoveryScore(input: RecoveryInput): RecoveryResult {
 export function recoveryLabel(score: number): string {
   if (score >= 85) return 'Primed';
   if (score >= 67) return 'Ready';
-  if (score >= 34) return 'Recovered';
+  if (score >= 50) return 'Steady';
+  if (score >= 34) return 'Low';
   return 'Rest up';
 }
 
+/** One semantic colour for the score, used by Home and Recovery. */
+export function recoveryColor(score: number | null): string {
+  if (score == null) return 'var(--muted)';
+  if (score >= 67) return 'var(--recovery)';
+  if (score >= 34) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+/**
+ * The narrative is derived from the same inputs as the score, so it can never
+ * claim HRV is above baseline when it is below. Direction is computed, not assumed.
+ */
 export function recoveryNarrative(input: {
   score: number;
   hrv: number | null;
@@ -181,22 +194,36 @@ export function recoveryNarrative(input: {
   rhrBaseline: number;
   sleepScore: number | null;
 }): string {
-  const { score, hrv, hrvBaseline, rhr, sleepScore } = input;
-  if (score >= 67) {
-    return `Your recovery is trending up. ${hrv ? `HRV is ${Math.abs(Math.round(((hrv - hrvBaseline) / hrvBaseline) * 100))}% above` : 'HRV is above'} your usual baseline and resting heart rate is holding steady. This is a good day to push a little.`;
-  }
-  if (score >= 45) {
-    return `You're reasonably recovered, but not fully primed. ${sleepScore ? `Sleep scored ${sleepScore}%` : 'Sleep was solid'} and your overnight signals are close to baseline. Keep today's intensity moderate and see how you feel after the warm-up.`;
-  }
+  const { score, hrv, hrvBaseline, rhr, rhrBaseline, sleepScore } = input;
+
+  const hrvPct =
+    hrv != null && hrvBaseline > 0 ? Math.round(((hrv - hrvBaseline) / hrvBaseline) * 100) : null;
   const hrvText =
     hrv == null
-      ? 'HRV is missing'
-      : hrv < hrvBaseline * 0.9
-        ? `HRV is ${hrv.toFixed(1)} ms, below your usual ${hrvBaseline.toFixed(1)} ms`
-        : hrv > hrvBaseline * 1.05
-          ? `HRV is ${hrv.toFixed(1)} ms, above your usual ${hrvBaseline.toFixed(1)} ms`
-          : `HRV is ${hrv.toFixed(1)} ms, close to your usual ${hrvBaseline.toFixed(1)} ms`;
-  return `Your recovery is low today. ${hrvText}; resting HR is ${rhr?.toFixed(1) ?? '—'} bpm and sleep scored ${sleepScore ?? '—'}%. Today is a good day to scale back and prioritize rest.`;
+      ? 'Overnight HRV was not recorded'
+      : hrvPct == null || Math.abs(hrvPct) < 3
+        ? `HRV is ${hrv.toFixed(1)} ms, close to your ${hrvBaseline.toFixed(1)} ms baseline`
+        : `HRV is ${Math.abs(hrvPct)}% ${hrvPct > 0 ? 'above' : 'below'} your ${hrvBaseline.toFixed(1)} ms baseline`;
+
+  const rhrDelta = rhr != null ? Math.round((rhr - rhrBaseline) * 10) / 10 : null;
+  const rhrText =
+    rhr == null || rhrDelta == null
+      ? ''
+      : Math.abs(rhrDelta) < 1
+        ? `resting HR is steady at ${rhr.toFixed(0)} bpm`
+        : `resting HR is ${Math.abs(rhrDelta).toFixed(1)} bpm ${rhrDelta < 0 ? 'below' : 'above'} baseline`;
+
+  const sleepText = sleepScore != null ? ` Sleep scored ${sleepScore}%.` : '';
+  const signals = [hrvText, rhrText].filter(Boolean).join('; ');
+  const band = score >= 67 ? 'Recovery is in your upper range.' : score >= 45 ? 'Recovery is mid-range.' : 'Recovery is low today.';
+  const action =
+    score >= 67
+      ? 'A longer or harder session fits if the warm-up feels easy.'
+      : score >= 45
+        ? 'Keep today moderate and reassess after the warm-up.'
+        : 'Keep the day easy and protect tonight’s sleep.';
+
+  return `${band} ${signals}.${sleepText} ${action}`;
 }
 
 /** Short sleep needed estimate used by the sleep screen. */
