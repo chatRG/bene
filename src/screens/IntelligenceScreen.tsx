@@ -92,7 +92,7 @@ export function IntelligenceScreen() {
         <button className="icon-btn icon-btn--soft" onClick={() => setHistoryOpen(true)} aria-label="Chat history"><Menu size={19} /></button>
         <div className="row gap-6" style={{ alignItems: 'center' }}>
           <span className="chat-orb-small" style={{ width: 22, height: 22 }} />
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Bevel Intelligence</span>
+          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Bene Intelligence</span>
         </div>
         <button className="icon-btn icon-btn--soft" onClick={() => navigate('/')} aria-label="Close"><X size={19} /></button>
       </div>
@@ -158,7 +158,7 @@ export function IntelligenceScreen() {
         <textarea
           ref={textRef}
           rows={1}
-          placeholder="Ask Bevel anything"
+          placeholder="Ask Bene anything"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -246,18 +246,18 @@ export function IntelligenceScreen() {
 
           <button className="list-row list-row--plain mt-16" style={{ width: '100%', textAlign: 'left' }} onClick={() => { setHistoryOpen(false); setSettingsOpen(true); }}>
             <div className="list-icon"><Settings2 size={16} /></div>
-            <div className="grow"><div className="list-title">Bevel Intelligence settings</div><div className="list-sub">Model, ghost mode, personality, data</div></div>
+            <div className="grow"><div className="list-title">Bene Intelligence settings</div><div className="list-sub">Model, ghost mode, personality, data</div></div>
             <ChevronRight size={16} className="chevron" />
           </button>
         </Sheet>
       ) : null}
 
       {settingsOpen ? (
-        <Sheet title="Bevel Intelligence" subtitle="Your coach, your rules." onClose={() => setSettingsOpen(false)}>
+        <Sheet title="Bene Intelligence" subtitle="Your coach, your rules." onClose={() => setSettingsOpen(false)}>
           <div className="list-card" style={{ boxShadow: 'none' }}>
             <div className="list-row">
               <div className="list-icon"><Sparkles size={16} /></div>
-              <div className="grow"><div className="list-title">Bevel Intelligence</div><div className="list-sub">Grounded in your health data</div></div>
+              <div className="grow"><div className="list-title">Bene Intelligence</div><div className="list-sub">Grounded in your health data</div></div>
               <button className={`switch ${state.settings.aiEnabled ? 'switch--on' : ''}`} onClick={() => state.updateSettings({ aiEnabled: !state.settings.aiEnabled })} aria-label="Toggle AI" />
             </div>
             <div className="list-row">
@@ -304,7 +304,7 @@ export function IntelligenceScreen() {
               <button className="pill pill--sm pill--flat" onClick={() => { state.chats.forEach((c) => state.deleteChat(c.id)); showToast('All chats deleted'); }}>Delete</button>
             </div>
           </div>
-          <p className="caption mt-16">Bevel Intelligence cannot diagnose conditions, recommend medication doses, start workouts or change settings. It is not a doctor.</p>
+          <p className="caption mt-16">Bene Intelligence cannot diagnose conditions, recommend medication doses, start workouts or change settings. It is not a doctor.</p>
         </Sheet>
       ) : null}
 
@@ -354,7 +354,7 @@ export function IntelligenceScreen() {
 
       <div className="row" style={{ justifyContent: 'center', gap: 4, paddingBottom: 2 }}>
         <MoreHorizontal size={12} className="chevron" />
-        <span style={{ fontSize: 9.5, color: 'var(--muted-2)' }}>{fmt(new Date(), 'yyyy')} · Bevel Community · on-device demo</span>
+        <span style={{ fontSize: 9.5, color: 'var(--muted-2)' }}>{fmt(new Date(), 'yyyy')} · Bene · on-device demo</span>
       </div>
     </div>
   );

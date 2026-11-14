@@ -2,7 +2,7 @@
 
 ## Overview
 
-Bevel Community is a single TypeScript application rendered by React, packaged by Capacitor for iOS and Android and by Vite for the web/PWA.
+Bene is a single TypeScript application rendered by React, packaged by Capacitor for iOS and Android and by Vite for the web/PWA.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -74,8 +74,8 @@ This is why backup files contain raw data only: restoring a backup from last mon
 
 ## Persistence and schema
 
-- Store key: `bevel-community-v1`.
-- Snapshot key: `bevel-community-snapshot`.
+- Store key: `bene-v1` (migrates from `bevel-community-v1`).
+- Snapshot key: `bene-snapshot` (falls back to `bevel-community-snapshot`).
 - Settings include a schema-relevant `version` in the backup document, not in localStorage.
 - Dates are local `yyyy-MM-dd`; timestamps are ISO 8601.
 - The demo dataset is generated once and persisted. `resetDemo()` rebuilds it around the current date.
@@ -84,8 +84,8 @@ This is why backup files contain raw data only: restoring a backup from last mon
 
 `capacitor.config.ts` sets:
 
-- `appId: health.bevel.community`
-- `appName: Bevel`
+- `appId: health.bene.community`
+- `appName: Bene`
 - `webDir: dist`
 - mobile content mode and safe-area handling
 

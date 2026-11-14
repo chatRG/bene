@@ -41,7 +41,7 @@ const SECTION_TITLES: Record<string, string> = {
   notifications: 'Notifications',
   goals: 'Goals & units',
   calculations: 'Calculations',
-  coach: 'Bevel Intelligence',
+  coach: 'Bene Intelligence',
   privacy: 'Privacy & data',
   activity: 'Activity Status',
   language: 'Language',
@@ -70,13 +70,13 @@ export function SettingsScreen() {
           <ListRow icon={<Target size={16} />} title="Goals" subtitle={`Sleep ${Math.floor(s.sleepGoalMin / 60)}h ${s.sleepGoalMin % 60}m · ${s.calorieGoal} kcal`} onClick={() => navigate('/settings/goals')} />
           <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal" onClick={() => navigate('/settings/notifications')} />
           <ListRow icon={<Heart size={16} />} title="Activity Status" subtitle={s.activityStatus} onClick={() => navigate('/settings/activity')} />
-          <ListRow icon={<Sparkles size={16} />} title="Bevel Intelligence" subtitle="Model, persona, credits" onClick={() => navigate('/settings/coach')} />
+          <ListRow icon={<Sparkles size={16} />} title="Bene Intelligence" subtitle="Model, persona, credits" onClick={() => navigate('/settings/coach')} />
           <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
           <ListRow icon={<Shield size={16} />} title="Privacy & data" subtitle="Export, delete, permissions" onClick={() => navigate('/settings/privacy')} />
           <ListRow icon={<HardDrive size={16} />} title="Backup & Restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
           <ListRow icon={<Info size={16} />} title="About" subtitle="0.1.0 · open source" onClick={() => navigate('/settings/about')} />
         </div>
-        <div className="settings-footer">Bevel Community is an unofficial, local-first health app.<br />Not affiliated with Finerpoint, Inc.</div>
+        <div className="settings-footer">Bene is an unofficial, local-first health app.<br />Not affiliated with Finerpoint, Inc.</div>
       </div>
     );
   }
@@ -219,7 +219,7 @@ function Account() {
 
       <GroupLabel>Subscription</GroupLabel>
       <div className="list-card">
-        <ListRow icon={<Sparkles size={16} />} title="Bevel Pro" subtitle="Active · $99.99/year (demo)" value="Manage" onClick={() => navigate('/paywall')} />
+        <ListRow icon={<Sparkles size={16} />} title="Bene Pro" subtitle="Active · $99.99/year (demo)" value="Manage" onClick={() => navigate('/paywall')} />
         <ListRow icon={<FileText size={16} />} title="Restore purchases" subtitle="App Store / Play Store" onClick={() => showToast('Nothing to restore in this demo')} />
       </div>
       <p className="caption mt-12" style={{ lineHeight: 1.5 }}>Subscriptions are billed by the App Store or Play Store. This community build does not process payments.</p>
@@ -271,7 +271,7 @@ function DataSourceScreen() {
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
             <div className="list-row"><div className="grow"><div className="list-title">Data it would provide</div><div className="list-sub">{selected.detail}</div></div></div>
-            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">{selected.id === 'oura' ? 'Limited to 1 month in Bevel' : 'Up to 2 years'}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">{selected.id === 'oura' ? 'Limited to 1 month in Bene' : 'Up to 2 years'}</div></div></div>
           </div>
           <button
             className="btn btn--soft btn--block mt-20"
@@ -299,7 +299,7 @@ function Notifications() {
         <SwitchRow title="Strain check-in" subtitle="Late-afternoon target reminder" on={n.strain} onChange={(v) => state.updateNotifications({ strain: v })} />
         <SwitchRow title="Sleep reminders" subtitle="Wind-down and bedtime" on={n.sleep} onChange={(v) => state.updateNotifications({ sleep: v })} />
         <SwitchRow title="Journal reminders" subtitle="Per-tag reminders" on={n.journal} onChange={(v) => state.updateNotifications({ journal: v })} />
-        <SwitchRow title="Coach check-ins" subtitle="Bevel Intelligence nudges" on={n.intelligence} onChange={(v) => state.updateNotifications({ intelligence: v })} />
+        <SwitchRow title="Coach check-ins" subtitle="Bene Intelligence nudges" on={n.intelligence} onChange={(v) => state.updateNotifications({ intelligence: v })} />
         <SwitchRow title="Weekly digest" subtitle="Sunday evening review" on={n.weeklyDigest} onChange={(v) => state.updateNotifications({ weeklyDigest: v })} />
         <SwitchRow title="Bedtime alarm" subtitle="Smart alarm requires Apple Watch" on={n.bedtime} onChange={(v) => state.updateNotifications({ bedtime: v })} />
       </div>
@@ -396,7 +396,7 @@ function CoachSettings() {
   return (
     <>
       <div className="list-card">
-        <SwitchRow title="Bevel Intelligence" subtitle="Turn the coach on or off" on={s.aiEnabled} onChange={(v) => state.updateSettings({ aiEnabled: v })} />
+        <SwitchRow title="Bene Intelligence" subtitle="Turn the coach on or off" on={s.aiEnabled} onChange={(v) => state.updateSettings({ aiEnabled: v })} />
         <SwitchRow title="Ghost Mode by default" subtitle="New chats disappear after retention" on={s.ghostDefault} onChange={(v) => state.updateSettings({ ghostDefault: v })} />
         <SwitchRow title="Suggested follow-ups" subtitle="Show chips after each reply" on={s.suggestedFollowUps} onChange={(v) => state.updateSettings({ suggestedFollowUps: v })} />
         <SwitchRow title="Expanded thinking" subtitle="Beta" on={s.expandedThinking} onChange={(v) => state.updateSettings({ expandedThinking: v })} />
@@ -440,7 +440,7 @@ function Backup() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `bevel-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `bene-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -495,7 +495,7 @@ function Backup() {
         <ListRow
           icon={<Upload size={16} />}
           title="Restore from a file"
-          subtitle="Choose a Bevel backup .json"
+          subtitle="Choose a Bene backup .json"
           onClick={() => fileRef.current?.click()}
         />
         <input
@@ -521,7 +521,7 @@ function Backup() {
       <GroupLabel>Why this matters</GroupLabel>
       <div className="card card--flat" style={{ background: 'transparent' }}>
         <p className="caption" style={{ lineHeight: 1.6 }}>
-          This first iteration is fully offline: there is no Bevel account and no cloud. Your data lives in this browser or app container, so clearing site data
+          This first iteration is fully offline: there is no Bene account and no cloud. Your data lives in this browser or app container, so clearing site data
           or uninstalling the app removes it. A backup file is the portable copy — keep it in Files, iCloud Drive, Google Drive or any folder you trust.
         </p>
       </div>
@@ -587,7 +587,7 @@ function Privacy() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `bevel-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `bene-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('Export downloaded');
@@ -596,7 +596,7 @@ function Privacy() {
     <>
       <div className="insight-unlock">
         <Lock size={17} />
-        <span>All health data in this build lives in local storage. There is no Bevel account, no cloud sync and no analytics.</span>
+        <span>All health data in this build lives in local storage. There is no Bene account, no cloud sync and no analytics.</span>
       </div>
       <GroupLabel>Your data</GroupLabel>
       <div className="list-card">
@@ -675,7 +675,7 @@ function About() {
         <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--text)', color: 'var(--bg)', display: 'grid', placeItems: 'center', margin: '0 auto 14px' }}>
           <Sparkles size={28} />
         </div>
-        <div className="h2">Bevel Community</div>
+        <div className="h2">Bene</div>
         <div className="caption mt-4">Version 0.1.0 · clean-room build</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
@@ -689,7 +689,7 @@ function About() {
         <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => showToast('Add your repository URL before release')} />
       </div>
       <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
-        Bevel Community is an independent, unofficial clean-room implementation inspired by publicly documented Bevel behaviour. It is not affiliated with,
+        Bene is an independent, unofficial clean-room implementation inspired by publicly documented Bevel behaviour. It is not affiliated with,
         endorsed by, or connected to Finerpoint, Inc. “Bevel” is a trademark of its owner. Health estimates are for wellness only and are not medical advice.
       </p>
     </>

@@ -1,6 +1,6 @@
 # Renaming the app
 
-The app currently ships under the working name **Bevel Community**. Before a public release, change it in the places below. Use one consistent brand name and keep the trademark notice accurate.
+The app is now called **Bene** (renamed from the working name Bevel Community). This checklist documents the rename and how to change it again. Use one consistent brand name and keep the trademark notice accurate.
 
 ## 1. Decide scope
 
@@ -36,18 +36,18 @@ For iOS, re-open the workspace in Xcode; for Android, let Gradle sync. If the bu
 
 ## 3. UI strings
 
-Search for `Bevel` in `src/` and decide each occurrence:
+Search for `Bene` in `src/` and decide each occurrence:
 
 - **Brand mark / onboarding** — the product name.
-- **“Bevel Intelligence”** — the coach. Rename to `<Name> Intelligence` or simply **Coach**.
-- **“Bevel Pro”** — the subscription. Rename to `<Name> Pro`.
-- **Demo copy** — “Bevel backup”, “Bevel account” etc.
+- **“Bene Intelligence”** — the coach. Rename to `<Name> Intelligence` or simply **Coach**.
+- **“Bene Pro”** — the subscription. Rename to `<Name> Pro`.
+- **Demo copy** — “Bene backup”, “Bene account” etc.
 - **Settings / About / NOTICE** — keep the “not affiliated with Finerpoint” statement; add the new trademark owner if applicable.
 
 A quick audit:
 
 ```bash
-grep -rn "Bevel" src index.html public README.md docs NOTICE.md | grep -v node_modules
+grep -rn "Bene" src index.html public README.md docs NOTICE.md | grep -v node_modules
 ```
 
 Do not rename historical references in `NOTICE.md` that are required to describe the clean-room source; instead clarify that the product is now called `<New Name>`.

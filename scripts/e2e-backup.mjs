@@ -16,9 +16,9 @@ await page.reload({ waitUntil: 'networkidle' });
 await page.getByText('Explore with demo data').click();
 await page.waitForTimeout(800);
 
-const snapshot = await page.evaluate(() => localStorage.getItem('bevel-community-snapshot'));
+const snapshot = await page.evaluate(() => localStorage.getItem('bene-snapshot'));
 check('auto snapshot created', !!snapshot);
-const lastBackup = await page.evaluate(() => JSON.parse(localStorage.getItem('bevel-community-v1')).state.settings.lastBackupAt);
+const lastBackup = await page.evaluate(() => JSON.parse(localStorage.getItem('bene-v1')).state.settings.lastBackupAt);
 check('lastBackupAt recorded', !!lastBackup);
 
 await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
@@ -31,7 +31,7 @@ const dlPath = '/opt/data/cache/scratch/bevel/test-backup.json';
 await download.saveAs(dlPath);
 check('backup downloaded', fs.existsSync(dlPath) && fs.statSync(dlPath).size > 1000, `${Math.round(fs.statSync(dlPath).size / 1024)} KB`);
 const backupJson = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
-check('backup schema', backupJson.app === 'bevel-community' && backupJson.version === 1 && !!backupJson.data.days);
+check('backup schema', backupJson.app === 'bene' && backupJson.version === 1 && !!backupJson.data.days);
 
 await page.goto('http://localhost:5173/#/settings/general', { waitUntil: 'networkidle' });
 await page.getByText('Dark', { exact: true }).click();

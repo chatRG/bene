@@ -284,7 +284,7 @@ function AlarmSheet({
         </div>
       ) : null}
       <p className="caption mt-16" style={{ lineHeight: 1.5 }}>
-        Time to Fall Asleep is measured from when the Bevel alarm is armed to your first detected sleep stage. Apple's Clock alarm does not count.
+        Time to Fall Asleep is measured from when the Bene alarm is armed to your first detected sleep stage. Apple's Clock alarm does not count.
       </p>
       <button className="btn btn--block mt-20" onClick={() => onSave({ type, time, windowMin: 30, enabled: type !== 'none' })}>
         Save to Watch

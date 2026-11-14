@@ -169,8 +169,7 @@ export function recoveryScore(input: RecoveryInput): RecoveryResult {
 export function recoveryLabel(score: number): string {
   if (score >= 85) return 'Primed';
   if (score >= 67) return 'Ready';
-  if (score >= 50) return 'Moderate';
-  if (score >= 34) return 'Low';
+  if (score >= 34) return 'Recovered';
   return 'Rest up';
 }
 
