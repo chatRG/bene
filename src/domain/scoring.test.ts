@@ -14,7 +14,7 @@ import { createBackup, parseBackup } from './backup';
 const NOW = new Date('2026-11-14T13:20:00');
 
 describe('demo dataset', () => {
-  it('reproduces the reference dashboard values', () => {
+  it('matches the demo dashboard values', () => {
     const data = buildSeed(NOW);
     const today = dateKey(NOW);
     const d = deriveDay(data, today, NOW);
@@ -160,11 +160,5 @@ describe('backup', () => {
     expect(parseBackup('not json').ok).toBe(false);
     expect(parseBackup(JSON.stringify({ app: 'other' })).ok).toBe(false);
     expect(parseBackup(JSON.stringify({ app: 'bene', version: 1, data: {} })).ok).toBe(false);
-  });
-
-  it('accepts legacy bevel-community backups', () => {
-    const data = buildSeed(NOW);
-    const legacy = { ...createBackup(data), app: 'bevel-community' };
-    expect(parseBackup(JSON.stringify(legacy)).ok).toBe(true);
   });
 });

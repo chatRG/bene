@@ -165,7 +165,7 @@ export interface MealEntry {
   alcoholGrams: number;
   sodiumMg: number;
   addedSugarG: number;
-  source: 'bene' | 'bevel' | 'imported';
+  source: 'bene' | 'imported';
   emoji?: string;
   loggedVia?: 'search' | 'barcode' | 'photo' | 'describe' | 'recipe' | 'custom';
 }

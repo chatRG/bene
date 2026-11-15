@@ -141,7 +141,7 @@ export function TimelineScreen() {
 
       <div className="card card--flat mt-16" style={{ display: 'flex', gap: 10 }}>
         <Info size={16} className="chevron" />
-        <span className="caption" style={{ flex: 1 }}>Sleep comes from Apple Health and can’t be deleted or moved. Activities imported from other apps can’t have their date changed.</span>
+        <span className="caption" style={{ flex: 1 }}>Sleep is recorded by your tracker and can’t be deleted or moved. Activities imported from other apps can’t have their date changed.</span>
       </div>
 
       {addOpen ? (
@@ -212,7 +212,7 @@ export function TimelineScreen() {
 
           {addMode === 'sleep' ? (
             <div>
-              <div className="insight-unlock"><Moon size={18} /><span>Overnight sleep is imported from Apple Health. You can log a nap, but full overnight sleep from previous nights can’t be added retroactively.</span></div>
+              <div className="insight-unlock"><Moon size={18} /><span>Overnight sleep comes from your tracker. You can log a nap, but full overnight sleep from previous nights can’t be added retroactively.</span></div>
               <button
                 className="btn btn--block mt-16"
                 onClick={() => {

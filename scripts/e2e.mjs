@@ -1,4 +1,8 @@
 import { chromium } from 'playwright';
+import fs from 'node:fs';
+
+const SHOTS = '/opt/data/cache/scratch/bene/shots-app';
+fs.mkdirSync(SHOTS, { recursive: true });
 
 const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -25,7 +29,7 @@ await page.getByText('See a sample day').click();
 await page.waitForTimeout(600);
 
 check('home renders score trio', (await page.locator('.score-card').count()) === 1);
-check('recovery 41 visible', (await page.getByText('41%', { exact: true }).count()) > 0);
+check('recovery 41 visible', (await page.locator('.score-card__col').nth(1).getByText('41', { exact: true }).count()) > 0);
 
 await page.locator('.score-card__col').nth(1).click();
 await page.waitForTimeout(400);
@@ -108,7 +112,7 @@ await page.waitForTimeout(300);
 await page.getByText('Dark', { exact: true }).click();
 await page.waitForTimeout(300);
 check('dark theme applied', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark');
-await page.screenshot({ path: '/opt/data/cache/scratch/bevel/shots-app/settings-dark.png' });
+await page.screenshot({ path: `${SHOTS}/settings-dark.png` });
 await page.getByText('Light', { exact: true }).click();
 
 await page.goto('http://localhost:5173/#/', { waitUntil: 'networkidle' });

@@ -1,6 +1,9 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
+const SCRATCH = '/opt/data/cache/scratch/bene';
+fs.mkdirSync(SCRATCH, { recursive: true });
+
 const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, acceptDownloads: true });
@@ -27,7 +30,7 @@ check('backup screen shows protected', (await page.getByText('Protected').count(
 const downloadPromise = page.waitForEvent('download');
 await page.getByText('Create backup', { exact: true }).click();
 const download = await downloadPromise;
-const dlPath = '/opt/data/cache/scratch/bevel/test-backup.json';
+const dlPath = `${SCRATCH}/test-backup.json`;
 await download.saveAs(dlPath);
 check('backup downloaded', fs.existsSync(dlPath) && fs.statSync(dlPath).size > 1000, `${Math.round(fs.statSync(dlPath).size / 1024)} KB`);
 const backupJson = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
@@ -62,9 +65,9 @@ await page.waitForTimeout(700);
 check('import lands home', page.url().endsWith('#/'), page.url());
 
 // Invalid backup
-fs.writeFileSync('/opt/data/cache/scratch/bevel/invalid-backup.json', JSON.stringify({ app: 'nope', data: {} }));
+fs.writeFileSync(`${SCRATCH}/invalid-backup.json`, JSON.stringify({ app: 'nope', data: {} }));
 await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
-await page.locator('input[type=file]').setInputFiles('/opt/data/cache/scratch/bevel/invalid-backup.json');
+await page.locator('input[type=file]').setInputFiles(`${SCRATCH}/invalid-backup.json`);
 await page.waitForTimeout(300);
 await page.getByText('Restore this file', { exact: true }).click();
 await page.waitForTimeout(400);

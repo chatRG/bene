@@ -2,9 +2,9 @@
 
 ## What this app stores
 
-Bene stores health-related data locally: sleep stages, heart-rate samples, workouts, meals, journal entries, biomarkers, health-record metadata and chat history. On the web this is `localStorage`; in the native shells it is the WebView's local storage inside the app sandbox.
+Bene stores health-related data locally: sleep stages, heart-rate samples, workouts, meals, journal entries, biomarkers, health-record metadata and chat history. On the web, this data is in `localStorage`. In the native shells, it is in the WebView's local storage inside the app sandbox.
 
-Backups are plain JSON files created by the user and are not encrypted.
+Backups are plain JSON files that the user creates. They are not encrypted.
 
 ## Reporting a vulnerability
 
@@ -16,7 +16,7 @@ Please **do not** open a public issue for anything that could expose user data, 
 - unintended network transmission of health data,
 - native shell configuration that exposes app files.
 
-Contact the maintainers privately through the repository hosting provider's security advisory feature, or the contact listed in the repository profile. Include:
+Contact the maintainers privately through the security advisory feature of the repository hosting provider, or through the contact in the repository profile. Include:
 
 - affected version/commit,
 - platform,
@@ -28,15 +28,15 @@ You should receive an acknowledgement within a few days. Please give us a reason
 
 ## Out of scope
 
-- The accuracy of wellness scores; see `docs/SCORING.md` for limitations.
+- The accuracy of wellness scores. See `docs/SCORING.md` for limitations.
 - The absence of encryption in user-created backup files (documented).
-- Denial of service by importing an enormous backup in a local-only app (still welcome as a robustness report).
-- Issues in third-party dependencies that do not affect this app; report them upstream.
+- Denial of service by importing an enormous backup in a local-only app. We still welcome this as a robustness report.
+- Issues in third-party dependencies that do not affect this app. Report them upstream.
 
 ## Hardening notes
 
-- No `dangerouslySetInnerHTML` is used.
-- Chat and journal text are rendered as text nodes.
-- Backup import validates shape before mutating state.
-- The service worker only caches same-origin GET requests.
-- No analytics, telemetry or remote logging.
+- Bene does not use `dangerouslySetInnerHTML`.
+- Bene renders chat and journal text as text nodes.
+- Backup import validates the shape before it mutates state.
+- The service worker caches only same-origin GET requests.
+- Bene has no analytics, telemetry or remote logging.

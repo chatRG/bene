@@ -46,8 +46,8 @@ export function sleepNeedMinutes(input: {
 
 /**
  * Sleep score (0–100). Components and weights are an independent design built on the
- * vendor-published inputs (duration, stages, efficiency, continuity, HR dip) — see
- * docs/SCORING.md. The exact Bevel weights are not public.
+ * documented inputs (duration, stages, efficiency, continuity, HR dip) — see
+ * docs/SCORING.md.
  */
 export function sleepScore(
   sleep: SleepSession,

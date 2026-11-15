@@ -1,15 +1,15 @@
 # Scoring model
 
-This document describes the independent scoring model used by Bene. It is built from publicly documented inputs, directions of effect, ranges, calibration gates and a small number of published point values (notably the food-quality contributors and the deep-sleep target curve). The vendor does **not** publish its weights or curves, so nothing here claims to reproduce Bevel's private algorithm.
+This document describes the scoring model in Bene. The model uses documented inputs, directions of effect, ranges, calibration gates and a small number of published point values. The published point values include the food-quality contributors and the deep-sleep target curve. The weights and curves are our own. This document does not claim to reproduce a private algorithm.
 
-All scoring code lives in `src/domain/scoring/` and is pure: given the same inputs it returns the same output, with no clock or network access except where a date is passed explicitly.
+All scoring code is in `src/domain/scoring/`. The code is pure. It returns the same output for the same inputs. It has no clock or network access, except when a caller passes a date explicitly.
 
 ## Shared primitives
 
-- Personal baselines use the previous 28 days, excluding the scored day.
-- Robust z-scores use `(value − mean) / (1.253 × MAD)`, where MAD is the mean absolute deviation of the baseline. This is the EWMA-abs-dev spread used by NOOP's `RecoveryScorer`.
-- All scores are rounded only at the display boundary unless stated.
-- Time is stored in local wall-clock dates (`yyyy-MM-dd`), and timestamps as ISO strings.
+- Personal baselines use the previous 28 days and exclude the scored day.
+- Robust z-scores use `(value − mean) / (1.253 × MAD)`. MAD is the mean absolute deviation of the baseline. This is the EWMA-abs-dev spread used by NOOP's `RecoveryScorer`.
+- Bene rounds all scores only at the display boundary, unless stated.
+- Bene stores time in local wall-clock dates (`yyyy-MM-dd`). Timestamps are ISO strings.
 
 ## Heart-rate zones
 
@@ -24,9 +24,9 @@ Published table, percent of HR max:
 | 4 | 80–89 | Hard |
 | 5 | 90–100 | Maximum |
 
-Boundaries are inclusive at the lower bound, so exactly 60% is Z2. With the **HR reserve** method the same bands apply to `(HR − restingHR) / (maxHR − restingHR)`.
+The lower bound is inclusive. Thus exactly 60% is Z2. With the **HR reserve** method, the same bands apply to `(HR − restingHR) / (maxHR − restingHR)`.
 
-Max HR methods: `manual`, `lactate` (LTHR ÷ 0.85), or the Tanaka estimate `208 − 0.7 × age`. The vendor does not publish its Max HR derivation; this build makes the choice explicit in Settings.
+Max HR methods: `manual`, `lactate` (LTHR ÷ 0.85), or the Tanaka estimate `208 − 0.7 × age`. The method is an explicit choice in Settings.
 
 ## Sleep
 
@@ -34,7 +34,7 @@ Max HR methods: `manual`, `lactate` (LTHR ÷ 0.85), or the Tanaka estimate `208 
 
 `need = sleepGoal + clamp(recent7DayDebt × 0.22, −12, 75) + clamp((yesterdayStrain − 55) × 0.7, −20, 40) + ageAdjustment`
 
-The result is clamped to 6.5–10.5 hours. Debt is the sum of `(asleep − goal)` over the last seven nights; age adjustment is −15 min at 60+ and −5 min at 45–59.
+Bene clamps the sleep need to 6.5–10.5 hours. Debt is the sum of `(asleep − goal)` over the last seven nights. The age adjustment is −15 min at 60+ and −5 min at 45–59.
 
 ### Sleep score (0–100)
 
@@ -46,22 +46,22 @@ The result is clamped to 6.5–10.5 hours. Debt is the sum of `(asleep − goal)
 | Continuity | 0.10 | Penalises awake minutes and shortfall vs need |
 | HR dip | 0.05 | Full score when the overnight dip is 10–30%, tapering outside that band |
 
-Stages are Awake / REM / Core / Deep — no “Light” stage. A session needs at least 60 minutes asleep and in bed to be scored.
+Stages are Awake, REM, Core and Deep. There is no “Light” stage. A session needs at least 60 minutes asleep and in bed before Bene scores it.
 
 ### Sleep Bank
 
-Seven-day, recency-weighted sum of `(asleep − goal)` with weights `0.35, 0.25, 0.15, 0.10, 0.07, 0.05, 0.03`, normalised by the sum of available weights. Naps count.
+The Sleep Bank is a seven-day, recency-weighted sum of `(asleep − goal)` with weights `0.35, 0.25, 0.15, 0.10, 0.07, 0.05, 0.03`. Bene normalises the sum by the total of the available weights. Naps count.
 
 ## Recovery (1–100)
 
 **Hard gates**, in order:
 
-1. At least **two complete nights** with stages → otherwise `insufficient`.
-2. Overnight HRV present **inside the sleep window** → otherwise `insufficient`.
-3. Overnight RHR present → otherwise `insufficient`.
-4. At least five baseline nights and a scored sleep session → otherwise `calibrating`.
+1. At least **two complete nights** with stages. If not, the gate returns `insufficient`.
+2. Overnight HRV present **inside the sleep window**. If not, the gate returns `insufficient`.
+3. Overnight RHR present. If not, the gate returns `insufficient`.
+4. At least five baseline nights and a scored sleep session. If not, the gate returns `calibrating`.
 
-**Components and weights** (ported from NOOP's transparent `RecoveryScorer`; missing optional terms are dropped and the weights renormalised):
+**Components and weights** (ported from NOOP's transparent `RecoveryScorer`). Bene drops missing optional terms and renormalises the weights:
 
 | Component | Weight | Direction |
 |---|---|---|
@@ -71,45 +71,47 @@ Seven-day, recency-weighted sum of `(asleep − goal)` with weights `0.35, 0.25,
 | Temperature deviation | 0.05 | `−|deviation °C|` |
 | Respiratory rate z-score | 0.05 | lower/steady is better |
 
-`compositeZ = Σ(z × weight) / Σweight`, then `score = 100 / (1 + e^(−1.6 × (compositeZ + 0.20)))`, clamped 0–100. `compositeZ = 0` maps to 58, the population-average anchor. Daytime HRV is deliberately **not** used here; it feeds Stress instead.
+`compositeZ = Σ(z × weight) / Σweight`. Then `score = 100 / (1 + e^(−1.6 × (compositeZ + 0.20)))`, clamped 0–100. `compositeZ = 0` maps to 58, the population-average anchor. Bene deliberately does **not** use daytime HRV here. Daytime HRV feeds Stress instead.
 
-Display bands: `Primed ≥ 85`, `Ready ≥ 67`, `Steady ≥ 50`, `Low ≥ 34`, otherwise `Rest up`. The band uses a semantic colour; the score itself is an index out of 100, not a percentage.
+Display bands: `Primed ≥ 85`, `Ready ≥ 67`, `Steady ≥ 50`, `Low ≥ 34`, otherwise `Rest up`. The band uses a semantic colour. The score is an index out of 100, not a percentage.
 
 ## Strain (0–100+, never clamped)
 
 `TRIMP_workout = Σ zoneMinutes × [0, 1, 2, 3, 4, 5]` (Edwards weights on %HRR)
+
 `TRIMP_passive = Σ zoneWeight(HR) × sampleMinutes`, excluding samples inside logged workout windows
+
 `strain = 100 × ln(1 + TRIMP) / ln(7201)`
 
-The denominator is the Edwards daily ceiling (5 × 24 h = 7200), so a theoretical maximum day maps to 100. Strain may exceed 100% on very demanding days and is never clamped.
+The denominator is the Edwards daily ceiling (5 × 24 h = 7200). A theoretical maximum day thus maps to 100. Strain may exceed 100% on very demanding days and is never clamped.
 
 `targetStrain = clamp(24 + recovery × 0.65, 20, 95)`
 
-The displayed normal range is `target ± 16`. At recovery 41 this yields target ≈ 51 and a 35–67 band, matching the reference screen. If Activity Status is **Injured** or **On a Break**, the target is hidden; **Sick** reduces it.
+The displayed normal range is `target ± 16`. At recovery 41, this yields target ≈ 51 and a 35–67 band. Bene hides the target if Activity Status is **Injured** or **On a Break**. **Sick** reduces the target.
 
-## Stress & Energy Bank
+## Stress and Energy Bank
 
 `stressPoint = clamp(45 + (HR − restingHR − 12) × 1.15 + (daytimeHRVBaseline − daytimeHRV) × 0.9, 0, 100)`
 
-Stress is shown as high / low / average across the day. Energy Bank is `72 − mean(stress exposure) + sleep credit`, clamped 0–100, with labels Charged / Steady / Running low / Drained. Stress stays `calibrating` for the first 30 days of baseline.
+Bene displays stress as high / low / average across the day. Energy Bank is `72 − mean(stress exposure) + sleep credit`, clamped 0–100, with labels Charged / Steady / Running low / Drained. Stress stays `calibrating` for the first 30 days of baseline.
 
 ## Cardio load
 
 - Acute load: EWMA span 7 days over daily TRIMP.
 - Chronic load: EWMA span 42 days.
 - Ratio: acute ÷ chronic.
-- Status: `Calibrating` until **10 qualifying cardio days** in six weeks (a day qualifies with a workout ≥ 20 min). Then: `<0.75 Detraining`, `<1.05 Maintaining`, `<1.25 Productive`, `<1.45 Peaking`, `<1.70 Fatigued`, otherwise `Overtraining`.
-- Cardio focus groups Z1–Z2 / Z3 / Z4–Z5 into low aerobic / high aerobic / anaerobic percentages.
+- Status: `Calibrating` until **10 qualifying cardio days** in six weeks. A day qualifies with a workout ≥ 20 min. After that: `<0.75 Detraining`, `<1.05 Maintaining`, `<1.25 Productive`, `<1.45 Peaking`, `<1.70 Fatigued`, otherwise `Overtraining`.
+- Cardio focus groups Z1–Z2, Z3 and Z4–Z5 into low aerobic, high aerobic and anaerobic percentages.
 
 ## Muscle freshness
 
-Per muscle group, fatigue accrues from sets × reps × weight and RPE, decays with a 52-hour time constant. Freshness is `clamp(100 − fatigue, 0, 100)`.
+Per muscle group, fatigue accrues from sets × reps × weight and RPE. It decays with a 52-hour time constant. Freshness is `clamp(100 − fatigue, 0, 100)`.
 
-Bands: `Recovered ≥ 75`, `Fatigued 35–74`, `Depleted < 35`. Calibration needs **3 training days per muscle**. The vendor's published bands overlap at exactly 75%; this build resolves the overlap to **Recovered** (documented in a test).
+Bands: `Recovered ≥ 75`, `Fatigued 35–74`, `Depleted < 35`. Calibration needs **3 training days per muscle**. The documented bands overlap at exactly 75%. This build resolves the overlap to **Recovered** (documented in a test).
 
 ## Nutrition score (1–100)
 
-Food-quality contributors (published point model). Positive contributors earn pro-rata credit toward their target and cap at +10; negatives are step penalties.
+Food-quality contributors (published point model). Positive contributors earn pro-rata credit toward their target and cap at +10. Negative contributors are step penalties.
 
 | Contributor | Target | Points |
 |---|---|---|
@@ -127,7 +129,7 @@ Food-quality contributors (published point model). Positive contributors earn pr
 
 `score = clamp(50 + 0.75 × positivePoints + negativePoints, 1, 100)`
 
-If every meal was imported from another app, the score is **suppressed** rather than guessed.
+If every meal has an imported source, Bene **suppresses** the score. It does not guess.
 
 Macro percentages are energy shares: protein ×4, carbs ×4, fat ×9. Net energy is `intake − burn`.
 
@@ -135,14 +137,14 @@ Macro percentages are energy shares: protein ×4, carbs ×4, fat ×9. Net energy
 
 `biologicalAge = chronologicalAge + bloodworkDelta + sleepYears + activityYears + fitnessYears`
 
-- **Bloodwork delta:** nine PhenoAge-style markers, each contributing up to ±0.28 years per optimal-band width outside the band, clamped to ±5.
+- **Bloodwork delta:** nine PhenoAge-style markers. Each marker contributes up to ±0.28 years for each optimal-band width outside the band, clamped to ±5.
 - **Sleep years:** `((avgSleepScore − 95) / 6)`, clamped ±2.5/3.
 - **Activity years:** step shortfall × 0.93 + Zone 2–3 shortfall bonus, clamped.
 - **Fitness years:** comparison of estimated VO₂ max with an age/sex median, clamped ±3.5.
 
-Confidence: `30 + 4 × markersPresent + min(15, wearDays/2) + 4 if labs ≤ 120 days`, clamped 20–98. Updates are presented weekly on Monday; the score is hidden when fewer than seven markers or seven days of wearable data exist.
+Confidence: `30 + 4 × markersPresent + min(15, wearDays/2) + 4 if labs ≤ 120 days`, clamped 20–98. Bene presents updates each week on Monday. It hides the score when fewer than seven markers or fewer than seven days of wearable data exist.
 
-The contributors are designed to sum to the headline delta; the UI shows the equation so the number is auditable.
+We designed the contributors to sum to the headline delta. The UI displays the equation so the number is auditable.
 
 ## Calibration gates at a glance
 
@@ -157,12 +159,12 @@ The contributors are designed to sum to the headline delta; the UI shows the equ
 | Biological Age | ≥7 of 9 markers + 7 wearable days |
 | Nutrition | At least one non-imported meal |
 
-## Intentional differences from the vendor
+## Design choices and known differences
 
-- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see the source comments.
-- Max HR is explicit rather than implicit; strain uses Tanaka `208 − 0.7 × age` and %HRR zone weights.
-- Muscle-freshness’s 75% overlap is resolved to Recovered.
-- “Normal range” for strain is target ± 16 rather than an undisclosed distribution.
-- The offline coach is scripted from your metrics, not a language model.
+- Weights, curves and thresholds are our own. We chose them to satisfy the observable invariants (ranges, directions, gates, bands). We ported recovery and strain from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`). We did not invent them. See the source comments.
+- Max HR is explicit, not implicit. Strain uses Tanaka `208 − 0.7 × age` and %HRR zone weights.
+- Bene resolves the 75% overlap in muscle freshness to Recovered.
+- “Normal range” for strain is target ± 16, not an undisclosed distribution.
+- Bene scripts the offline coach from your metrics. It is not a language model.
 
-If you change a weight or threshold, update this document and add/adjust a test in `src/domain/scoring.test.ts`.
+If you change a weight or threshold, update this document and add or adjust a test in `src/domain/scoring.test.ts`.

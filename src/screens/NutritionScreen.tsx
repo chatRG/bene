@@ -374,7 +374,7 @@ export function NutritionScreen() {
       <div className="section">
         <div className="card card--flat" style={{ display: 'flex', gap: 10 }}>
           <ImageIcon size={17} className="chevron" />
-          <span className="caption" style={{ flex: 1 }}>Meals imported from Apple Health don’t produce a Nutrition Score because portion context is missing.</span>
+          <span className="caption" style={{ flex: 1 }}>Photo estimates are approximate; review the macros before saving.</span>
         </div>
       </div>
     </div>

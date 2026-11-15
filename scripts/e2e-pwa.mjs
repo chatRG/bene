@@ -1,4 +1,8 @@
 import { chromium } from 'playwright';
+import fs from 'node:fs';
+
+const SHOTS = '/opt/data/cache/scratch/bene/shots-app';
+fs.mkdirSync(SHOTS, { recursive: true });
 
 const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -34,7 +38,7 @@ const offlineText = await page.locator('body').innerText();
 console.log('offline home cards:', offlineHome);
 console.log('offline has recovery:', offlineText.includes('Recovery'));
 console.log('offline has date:', offlineText.includes('Today'));
-await page.screenshot({ path: '/opt/data/cache/scratch/bevel/shots-app/offline.png' });
+await page.screenshot({ path: `${SHOTS}/offline.png` });
 await context.setOffline(false);
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

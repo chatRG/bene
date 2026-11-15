@@ -251,7 +251,7 @@ export function WorkoutDetailScreen() {
         <div className="card card--flat" style={{ display: 'flex', gap: 10 }}>
           <Watch size={16} className="chevron" />
           <span className="caption" style={{ flex: 1 }}>
-            {w.imported ? 'Imported workouts can’t be edited or have their date changed.' : `Logged by ${w.source}. Source data is written to Apple Health.`}
+            {w.imported ? 'Imported workouts can’t be edited or have their date changed.' : `Logged by ${w.source}.`}
           </span>
         </div>
       </div>
