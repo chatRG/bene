@@ -10,8 +10,8 @@
 
 | What | Where |
 |---|---|
-| Live app state | `localStorage["bene-v1"]` (with one-time migration from `bevel-community-v1`) |
-| Daily snapshot | `localStorage["bene-snapshot"]` (falls back to `bevel-community-snapshot`) |
+| Live app state | `localStorage["bene-v1"]` |
+| Daily snapshot | `localStorage["bene-snapshot"]` |
 | Downloaded file | `bene-backup-YYYY-MM-DD.json` |
 
 Snapshots are a convenience, not a second account. Clearing site data or uninstalling the app removes both the live state and the snapshot.
@@ -46,7 +46,7 @@ Snapshots are a convenience, not a second account. Clearing site data or uninsta
 `parseBackup()` checks, in order:
 
 1. Valid JSON.
-2. `app === "bene"` — legacy `"bevel-community"` files are still accepted.
+2. `app === "bene"`.
 3. `version` is a number and not newer than the running build.
 4. `data.profile`, `data.days`, `data.dayOrder` exist and `dayOrder` is non-empty.
 5. `days` is an object with at least one day.

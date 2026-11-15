@@ -51,7 +51,7 @@ export const CONTRIBUTOR_DEFS = [
  * the published dead bands for sodium (1500–2300 mg) and added sugar (5–10%).
  */
 export function nutritionFor(meals: MealEntry[], excluded: string[] = [], burnCalories?: number | null): NutritionResult {
-  const ownMeals = meals.filter((m) => m.source === 'bene' || m.source === 'bevel');
+  const ownMeals = meals.filter((m) => m.source === 'bene');
   const totals = {
     calories: Math.round(sum(meals.map((m) => m.calories))),
     proteinG: Math.round(sum(meals.map((m) => m.proteinG))),

@@ -4,8 +4,6 @@
 
 Recovery, sleep, strain, training load, nutrition, journaling and biological age — built from a wearable-agnostic data model, with every score explained and every byte stored on your device.
 
-> **Unofficial project.** Bene is an independent, clean-room community build inspired by publicly documented behaviour and public App Store screenshots of *Bevel: AI Health Coach*. It is **not affiliated with, endorsed by, or connected to Finerpoint, Inc.** “Bevel” is a trademark of its owner. See [NOTICE.md](NOTICE.md).
-
 > **Licence.** Free for personal, research and other noncommercial use. Commercial use needs a separate paid licence — see [COMMERCIAL.md](COMMERCIAL.md).
 
 ![Home, Recovery, Sleep and Biology](docs/screenshots/hero.png)
@@ -30,11 +28,10 @@ This is the first iteration. It is intentionally complete enough to use every da
 | **Biology** | ✅ Biological Age with a ± year estimate, contributor breakdown, biomarkers, health-record uploads (local). |
 | **Coach** | ✅ Offline, scripted coach grounded in your metrics — no model calls. The UI is ready for a local or user-supplied model later. |
 | **Native shells** | ✅ Capacitor iOS and Android projects included. |
-| **Apple Health import** | ✅ Import `export.zip` / `export.xml` locally — sleep stages, overnight HRV/RHR, workouts, daily metrics and nutrition totals. Native HealthKit / Health Connect is the next milestone. |
 
 ## What's next
 
-- **Native health adapters.** HealthKit and Health Connect behind one Capacitor plugin, feeding the same `DayRecord` contract as the Apple Health XML importer. See [docs/HEALTH_SOURCES.md](docs/HEALTH_SOURCES.md).
+- **Native health adapters.** HealthKit and Health Connect behind one Capacitor plugin, feeding the same `DayRecord` contract the rest of the domain uses.
 - **Optional on-device coach.** A local model can phrase the numbers later, with the rule-based coach as the always-available fallback. No cloud model is in scope.
 - **Store builds.** The Capacitor projects are included; signing and packaging still happen in Xcode and Android Studio.
 
@@ -64,7 +61,7 @@ npm run dev          # http://localhost:5173
 First run opens a 3-step onboarding. Choose **See a sample day** to see the full 60-day dataset immediately, or enter your own name and start with an empty profile.
 
 ```bash
-npm test             # scoring, backup, import and offline-coach invariants (23 tests)
+npm test             # scoring, backup and offline-coach invariants
 npm run lint         # TypeScript project check
 npm run build        # production web build in dist/
 npm run preview      # serve the production build
@@ -79,7 +76,6 @@ npm run dev            # terminal 1
 npm run shots          # capture every screen at 430×932, assert no overflow
 npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
 npm run test:empty     # onboarding with no demo data
-npm run test:import    # Apple Health export import
 npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
 npm run test:pwa       # service worker + fully offline reload of the production build
 ```
@@ -116,7 +112,7 @@ The format is a plain JSON document (`app: "bene"`, `version: 1`). It is **not e
 
 ## Scoring, in one paragraph
 
-Every score is a pure function of your data with a published invariant list. Recovery requires two complete nights, sleep stages, overnight HRV and overnight RHR; it blends sleep score, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain uses logarithmic TRIMP load and can exceed 100%. Nutrition follows the 11 published food-quality contributors, including the sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness contributors, and only updates weekly. The vendor does not publish its weights, so this build uses an independent, documented model and keeps every weight in one place.
+Every score is a pure function of your data with a published invariant list. Recovery requires two complete nights, sleep stages, overnight HRV and overnight RHR; it blends sleep score, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain uses logarithmic TRIMP load and can exceed 100%. Nutrition follows the 11 published food-quality contributors, including the sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness contributors, and only updates weekly. Exact weights are not public, so this build uses an independent, documented model and keeps every weight in one place.
 
 Read [docs/SCORING.md](docs/SCORING.md) for formulas, gates, weights and the known gaps.
 
@@ -131,7 +127,7 @@ src/
   styles/            tokens + screen CSS
 ios/, android/       Capacitor native shells
 scripts/             Playwright visual + end-to-end checks
-docs/                scoring, architecture, backup, health-source notes
+docs/                scoring, architecture and backup notes
 ```
 
 - **UI:** React 19 + TypeScript + Vite, no chart library — charts are hand-built SVG for control and small bundles.
@@ -155,4 +151,4 @@ Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.
 
 ## License
 
-Source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, hobby, research and other noncommercial use is free. **Commercial use requires a separate paid licence** — see [COMMERCIAL.md](COMMERCIAL.md). “Bevel” and any third-party marks remain the property of their owners; see [NOTICE.md](NOTICE.md).
+Source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, hobby, research and other noncommercial use is free. **Commercial use requires a separate paid licence** — see [COMMERCIAL.md](COMMERCIAL.md). Third-party components and the NOOP formula attribution are listed in [NOTICE.md](NOTICE.md).

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use semantic versioning once the project leaves 0.x.
 
+## [Unreleased]
+
+### Removed
+
+- Local file-import feature end to end: parser, tests, fixture, E2E script, ZIP dependency, store action and the Settings import flow. Data Sources now lists adapters only, with no import path.
+- Legacy storage-key and backup-app migration shims for the pre-rename app id.
+- Research and decision documents that were never part of the product documentation.
+
 ## [0.1.0] — 2026-11-14
 
 First public iteration: offline-first, local-only, demo-data complete.
@@ -21,17 +29,16 @@ First public iteration: offline-first, local-only, demo-data complete.
 - Backup & restore: manual download, daily on-device snapshot, validated file import, rejection of foreign/newer/incomplete backups.
 - iOS and Android Capacitor shells with generated app icons and splash screens.
 - PWA manifest, installable icon set and offline service-worker shell.
-- Deterministic 60-day demo dataset that reproduces the reference screenshots (recovery 41%, sleep 74%, 2,304 kcal, −257 net, biological age 26).
-- 23 domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap, backup validation and deterministic coach replies.
-- Apple Health `export.zip` / `export.xml` import for sleep stages, overnight HRV/RHR, workouts and daily metrics.
-- Playwright screenshot, E2E, empty-state, import, backup and offline-PWA checks.
+- Deterministic 60-day demo dataset that gives every screen realistic values (recovery 41%, sleep 74%, 2,304 kcal, −257 net, biological age 26).
+- Domain tests covering gates, zones, nutrition points, biological-age contributors, muscle-freshness overlap, backup validation and deterministic coach replies.
+- Playwright screenshot, E2E, empty-state, backup and offline-PWA checks.
 - Unslop design pass: warm paper/ink system, one oxide accent, semantic recovery colour, a real product preview in onboarding, and no fake Pro or credits UI.
-- Documentation: architecture, scoring model, backup format, health-source roadmap, contributing, security, notice, code of conduct.
+- Documentation: architecture, scoring model, backup format, contributing, security, notice, code of conduct.
 
 ### Known limitations
 
-- HealthKit and Health Connect are not implemented; Apple Health XML import, demo data and manual logs are available.
+- HealthKit and Health Connect are not implemented; demo data and manual logs are available.
 - Backups are unencrypted JSON.
 - The coach is deterministic and offline; no language model is called.
 - Native binaries must be built with Xcode/Android Studio; the repository includes the projects, not pre-built packages.
-- Vendors' private score weights are unknown; this build uses the independent, documented model in `docs/SCORING.md`.
+- Exact score weights are not public; this build uses the independent, documented model in `docs/SCORING.md`.

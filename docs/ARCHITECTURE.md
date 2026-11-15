@@ -74,8 +74,8 @@ This is why backup files contain raw data only: restoring a backup from last mon
 
 ## Persistence and schema
 
-- Store key: `bene-v1` (migrates from `bevel-community-v1`).
-- Snapshot key: `bene-snapshot` (falls back to `bevel-community-snapshot`).
+- Store key: `bene-v1`.
+- Snapshot key: `bene-snapshot`.
 - Settings include a schema-relevant `version` in the backup document, not in localStorage.
 - Dates are local `yyyy-MM-dd`; timestamps are ISO 8601.
 - The demo dataset is generated once and persisted. `resetDemo()` rebuilds it around the current date.
@@ -89,7 +89,7 @@ This is why backup files contain raw data only: restoring a backup from last mon
 - `webDir: dist`
 - mobile content mode and safe-area handling
 
-`npx cap sync` copies `dist/` into both native shells. No native plugin is required for the current feature set; haptics, HealthKit and Health Connect are future adapters (see `docs/HEALTH_SOURCES.md`).
+`npx cap sync` copies `dist/` into both native shells. No native plugin is required for the current feature set; haptics, HealthKit and Health Connect are future adapters.
 
 ## Testing
 
@@ -97,7 +97,6 @@ This is why backup files contain raw data only: restoring a backup from last mon
 - `scripts/screenshots.mjs` drives Playwright at 430×932, captures the main screens into `docs/screenshots/`, and reports horizontal overflow or console errors.
 - `scripts/e2e.mjs` exercises navigation, scoring display, meal logging, journal sheets, coach replies, workout start/finish, theme switching and Home edit mode.
 - `scripts/e2e-empty.mjs` covers onboarding without demo data and the empty dashboard.
-- `scripts/e2e-import.mjs` covers the Apple Health export importer.
 - `scripts/e2e-backup.mjs` exercises snapshot creation, download, restore, file import, invalid-file rejection and tab visibility.
 - `scripts/e2e-pwa.mjs` checks the service worker and an offline reload of the production build.
 
