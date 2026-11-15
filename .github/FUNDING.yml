@@ -1,0 +1,26 @@
+# GitHub funding configuration.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+#
+# Uncomment the platform(s) you actually use and replace the placeholder values.
+# GitHub reads this file from the default branch. An empty file is valid but shows
+# no Sponsor button.
+
+# GitHub Sponsors — username or organization, or a list of both.
+# github: your-github-username
+# github: [your-github-username, your-org]
+
+# Other supported platforms.
+# patreon: your-patreon-handle
+# open_collective: your-collective-slug
+# ko_fi: your-kofi-handle
+# tidelift: npm/package-name
+# community_bridge: your-project-slug
+# liberapay: your-liberapay-handle
+# issuehunt: your-issuehunt-handle
+# lfx_crowdfunding: your-project-slug
+# polar: your-polar-handle
+# buy_me_a_coffee: your-bmc-handle
+# thanks_dev: your-thanks-dev-handle
+
+# Any other URL, for example a sponsorship page on your own site.
+# custom: ["https://example.com/sponsor"]
