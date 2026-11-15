@@ -98,7 +98,7 @@ npm run cap:android  # opens android/ in Android Studio
 ```
 
 - **iOS:** run `cd ios/App && pod install` once (CocoaPods), then open `ios/App/App.xcworkspace`, select a signing team, and run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. Deployment target and bundle id live in Xcode and `capacitor.config.ts`.
-- **Android:** open `android/`, let Gradle sync, run on a device or emulator. `minSdk` is the Capacitor default; `applicationId` is `health.bene.community`.
+- **Android:** open `android/`, let Gradle sync, run on a device or emulator. `minSdk` is 34 (Android 14+); `applicationId` is `health.bene.community`.
 - **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
 No native build is required for development — the web target is the fastest iteration loop and is what the automated screenshot suite uses.
