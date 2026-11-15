@@ -21,6 +21,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay, coachInsight } from '../domain/derive';
+import { clockLabel } from '../domain/time';
 import { recoveryColor } from '../domain/scoring/recovery';
 import { stageTotals } from '../domain/math';
 import { Ring, Sheet, SectionHead } from '../components/ui';
@@ -54,6 +55,10 @@ export function HomeScreen() {
   const state = useAppStore();
   const today = dateKey(new Date());
   const derived = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const weeklyZone2 = useMemo(
+    () => Math.round(state.dayOrder.slice(-7).reduce((total, day) => total + (state.days[day]?.workouts ?? []).reduce((sum, w) => sum + w.zoneMinutes[2] + w.zoneMinutes[3], 0), 0)),
+    [state.dayOrder, state.days],
+  );
   const insight = coachInsight(derived);
   const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -289,7 +294,7 @@ export function HomeScreen() {
                             <div className="list-title">{w.name}</div>
                             <div className="list-sub">{w.durationMin} min{w.distanceKm != null ? ` · ${w.distanceKm.toFixed(1)} km` : ''} · {w.calories} kcal</div>
                           </div>
-                          <span className="caption">{w.start.slice(11, 16)}</span>
+                          <span className="caption">{clockLabel(w.start)}</span>
                         </div>
                       ))}
                       {derived.record.meals.slice(0, 2).map((m) => (
@@ -390,7 +395,7 @@ export function HomeScreen() {
                       <div className="row gap-16" style={{ marginTop: 14 }}>
                         <div><div className="caption">Strain</div><strong className="mono-num">{Math.round(derived.strain.score)}%</strong></div>
                         <div><div className="caption">Target</div><strong className="mono-num">{derived.strain.target}%</strong></div>
-                        <div><div className="caption">Zone 2</div><strong className="mono-num">196m</strong></div>
+                        <div><div className="caption">Zone 2</div><strong className="mono-num">{weeklyZone2}m</strong></div>
                       </div>
                     </button>
                   </div>

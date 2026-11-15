@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
+import { dateAtTime } from '../domain/time';
 import { Sheet } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
@@ -262,8 +263,7 @@ function ActivityForm({ date, onDone }: { date: string; onDone: () => void }) {
       <button
         className="btn btn--block mt-20"
         onClick={() => {
-          const now = new Date();
-          const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+          const start = dateAtTime(date, format(new Date(), 'HH:mm')) ?? new Date();
           const isRun = kind === 'run' || kind === 'walk' || kind === 'cycle';
           const zone: [number, number, number, number, number, number] = isRun ? [4, 8, 12, 6, 1, 0] : [6, 10, 8, 3, 1, 0];
           state.logWorkout({

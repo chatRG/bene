@@ -1,11 +1,12 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
-const SCRATCH = '/opt/data/cache/scratch/bene';
+const BASE = process.env.BASE_URL || 'http://localhost:5173';
+
+const SCRATCH = process.env.SHOTS_DIR || 'shots-app';
 fs.mkdirSync(SCRATCH, { recursive: true });
 
-const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
-const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, acceptDownloads: true });
 const page = await context.newPage();
 const errors = [];
@@ -13,7 +14,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 const results = [];
 const check = (n, ok, d = '') => results.push(`${ok ? 'PASS' : 'FAIL'} ${n}${d ? ` — ${d}` : ''}`);
 
-await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}`, { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 await page.getByText('See a sample day').click();
@@ -24,7 +25,7 @@ check('auto snapshot created', !!snapshot);
 const lastBackup = await page.evaluate(() => JSON.parse(localStorage.getItem('bene-v1')).state.settings.lastBackupAt);
 check('lastBackupAt recorded', !!lastBackup);
 
-await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/backup`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 check('backup screen shows protected', (await page.getByText('Protected').count()) > 0);
 const downloadPromise = page.waitForEvent('download');
@@ -36,12 +37,12 @@ check('backup downloaded', fs.existsSync(dlPath) && fs.statSync(dlPath).size > 1
 const backupJson = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
 check('backup schema', backupJson.app === 'bene' && backupJson.version === 1 && !!backupJson.data.days);
 
-await page.goto('http://localhost:5173/#/settings/general', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/general`, { waitUntil: 'networkidle' });
 await page.getByText('Dark', { exact: true }).click();
 await page.waitForTimeout(300);
 check('theme dark before restore', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark');
 
-await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/backup`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(200);
 await page.getByText('Restore snapshot', { exact: true }).click();
 await page.waitForTimeout(300);
@@ -55,7 +56,7 @@ await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 await page.getByText('See a sample day').click();
 await page.waitForTimeout(500);
-await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/backup`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 await page.locator('input[type=file]').setInputFiles(dlPath);
 await page.waitForTimeout(400);
@@ -66,7 +67,7 @@ check('import lands home', page.url().endsWith('#/'), page.url());
 
 // Invalid backup
 fs.writeFileSync(`${SCRATCH}/invalid-backup.json`, JSON.stringify({ app: 'nope', data: {} }));
-await page.goto('http://localhost:5173/#/settings/backup', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/backup`, { waitUntil: 'networkidle' });
 await page.locator('input[type=file]').setInputFiles(`${SCRATCH}/invalid-backup.json`);
 await page.waitForTimeout(300);
 await page.getByText('Restore this file', { exact: true }).click();
@@ -74,11 +75,11 @@ await page.waitForTimeout(400);
 check('invalid backup rejected with toast', (await page.locator('.toast').count()) > 0);
 
 // Tab visibility removes the tab entirely
-await page.goto('http://localhost:5173/#/settings/general', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/settings/general`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 await page.locator('button[aria-label="Journal"]').click();
 await page.waitForTimeout(300);
-await page.goto('http://localhost:5173/#/', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 const navLabels = await page.locator('.nav-item').allTextContents();
 check('journal tab removed', !navLabels.some((l) => l.includes('Journal')), navLabels.join(','));
@@ -87,3 +88,4 @@ check('home journal card hidden', (await page.locator('.journal-quick').count())
 console.log(results.join('\n'));
 console.log('\nERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
+process.exitCode = results.some((r) => r.startsWith('FAIL')) || errors.length > 0 ? 1 : 0;

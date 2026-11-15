@@ -1,23 +1,19 @@
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowUpRight,
-  Bell,
   ChevronRight,
   Database,
   FileText,
   Gift,
-  Globe,
   HardDrive,
   Heart,
   Mail,
   MessageCircle,
   MessageSquare,
-  RefreshCw,
   Settings2,
   Shield,
   Trash2,
   User,
-  Watch,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { DetailHeader, ListRow } from '../components/ui';
@@ -63,15 +59,12 @@ export function ProfileScreen() {
       <div className="settings-group-label">Data & app</div>
       <div className="list-card">
         <ListRow icon={<Database size={16} />} title="Data sources" subtitle="No live adapters · sample data" onClick={() => navigate('/settings/data')} />
-        <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Goals, units, calculations, tabs" onClick={() => navigate('/settings/general')} />
-        <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Recovery, sleep, journal and coach" onClick={() => navigate('/settings/notifications')} />
-        <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
-        <ListRow icon={<Watch size={16} />} title="Apple Watch & widgets" subtitle="Complications, Smart Alarm, Live Sync" onClick={() => showToast('Manage widgets from the iOS app')} />
+        <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Goals, calculations, tabs" onClick={() => navigate('/settings/general')} />
       </div>
 
       <div className="settings-group-label">Local coach</div>
       <div className="list-card">
-        <ListRow icon={<MessageCircle size={16} />} title="Coach settings" subtitle="Tone, ghost mode, credits" onClick={() => navigate('/intelligence')} />
+        <ListRow icon={<MessageCircle size={16} />} title="Coach settings" subtitle="Tone and ghost mode" onClick={() => navigate('/intelligence')} />
         <ListRow icon={<FileText size={16} />} title="Health Records" subtitle={`${state.healthRecords.length} documents`} onClick={() => navigate('/records')} />
       </div>
 
@@ -79,7 +72,6 @@ export function ProfileScreen() {
       <div className="list-card">
         <ListRow icon={<Gift size={16} />} title="Invite a friend" subtitle="Share Bene with someone" onClick={() => showToast('Invite link copied')} right={<ArrowUpRight size={15} className="chevron" />} />
         <ListRow icon={<MessageSquare size={16} />} title="Report a bug" subtitle="Help improve the community build" onClick={() => showToast('Thanks — report noted')} />
-        <ListRow icon={<RefreshCw size={16} />} title="Clear cache & reload data" subtitle="Re-seeds the local demo dataset" onClick={() => { state.resetDemo(); showToast('Demo data reloaded'); }} />
         <ListRow icon={<Trash2 size={16} />} title="Delete all data" subtitle="Removes everything from this device" danger onClick={() => navigate('/settings/privacy')} />
       </div>
 

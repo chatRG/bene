@@ -1,5 +1,5 @@
 import type { MealEntry } from '../types';
-import { clamp, round, sum } from '../math';
+import { clamp, sum } from '../math';
 
 export interface Contributor {
   id: string;
@@ -126,23 +126,4 @@ export function nutritionFor(meals: MealEntry[], excluded: string[] = [], burnCa
     macroPercents,
     netEnergy: burnCalories != null ? totals.calories - Math.round(burnCalories) : null,
   };
-}
-
-export function remainingMacros(input: {
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  goals: { calories: number; proteinG: number; carbsG: number; fatG: number };
-}) {
-  return {
-    calories: Math.max(0, Math.round(input.goals.calories - input.calories)),
-    protein: Math.max(0, Math.round(input.goals.proteinG - input.proteinG)),
-    carbs: Math.max(0, Math.round(input.goals.carbsG - input.carbsG)),
-    fat: Math.max(0, Math.round(input.goals.fatG - input.fatG)),
-  };
-}
-
-export function foodMacroCalories(food: { proteinG: number; carbsG: number; fatG: number }): number {
-  return round(food.proteinG * 4 + food.carbsG * 4 + food.fatG * 9, 0);
 }

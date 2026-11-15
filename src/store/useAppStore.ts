@@ -12,7 +12,6 @@ import type {
   JournalTag,
   JournalValue,
   MealEntry,
-  NotificationSettings,
   Routine,
   UserProfile,
   Workout,
@@ -20,13 +19,12 @@ import type {
 import { buildSeed, emptyDay } from '../domain/seed';
 import { dateOf } from '../domain/derive';
 import { generateCoachReply, ghostExpiry } from '../domain/coach';
-import { backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
+import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
 
 export const STORE_KEY = 'bene-v1';
 
 interface AppActions {
   updateSettings: (patch: Partial<AppSettings>) => void;
-  updateNotifications: (patch: Partial<NotificationSettings>) => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
   completeOnboarding: (name: string, opts?: { sex?: UserProfile['sex']; birthDate?: string; goal?: UserProfile['goal']; demo?: boolean }) => void;
   ensureToday: () => void;
@@ -48,10 +46,8 @@ interface AppActions {
   renameChat: (threadId: string, title: string) => void;
   uploadRecord: (name: string, sizeKb: number, kind: HealthRecord['kind']) => void;
   removeRecord: (id: string) => void;
-  spendCredits: (n: number) => void;
-  buyCredits: (pack: 350 | 700 | 1400 | 3500) => void;
-  setPro: (pro: boolean) => void;
-  backupNow: () => string;
+  clearAll: () => void;
+  backupNow: () => { ok: boolean; at: string | null };
   restoreLatestBackup: () => { ok: boolean; error?: string };
   importBackupJson: (json: string) => { ok: boolean; error?: string };
   exportBackupJson: () => string;
@@ -62,10 +58,8 @@ export type AppStore = AppStateData & AppActions;
 
 const initial = buildSeed(new Date());
 
-const seedSleepFor = (date: string): DayRecord | undefined => initial.days[date];
-
 function withDay(state: AppStore, date: string): DayRecord {
-  return state.days[date] ?? seedSleepFor(date) ?? emptyDay(date);
+  return state.days[date] ?? emptyDay(date);
 }
 
 export const useAppStore = create<AppStore>()(
@@ -73,17 +67,7 @@ export const useAppStore = create<AppStore>()(
     (set, get) => ({
       ...initial,
 
-      updateSettings: (patch) =>
-        set((s) => {
-          const next = { ...s.settings, ...patch };
-          return {
-            settings: next,
-            profile: patch.units ? { ...s.profile, units: patch.units } : s.profile,
-          };
-        }),
-
-      updateNotifications: (patch) =>
-        set((s) => ({ settings: { ...s.settings, notifications: { ...s.settings.notifications, ...patch } } })),
+      updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 
       updateProfile: (patch) => set((s) => ({ profile: { ...s.profile, ...patch } })),
 
@@ -99,8 +83,6 @@ export const useAppStore = create<AppStore>()(
           };
           if (opts?.demo === false) {
             const today = dateOf(new Date());
-            const resets = new Date();
-            resets.setDate(resets.getDate() + 3);
             return {
               profile,
               settings: onboardedSettings,
@@ -111,7 +93,6 @@ export const useAppStore = create<AppStore>()(
               healthRecords: [],
               chats: [],
               routines: [],
-              credits: { weeklyAllowance: 700, weeklyUsed: 0, purchased: 0, resetsAt: resets.toISOString() },
               activityEvents: [],
               seededAt: new Date().toISOString(),
             };
@@ -123,9 +104,8 @@ export const useAppStore = create<AppStore>()(
         const today = dateOf(new Date());
         set((s) => {
           if (s.days[today]) return s;
-          const seed = buildSeed(new Date());
           return {
-            days: { ...s.days, [today]: seed.days[today] ?? emptyDay(today) },
+            days: { ...s.days, [today]: emptyDay(today) },
             dayOrder: [...s.dayOrder.filter((d) => d !== today), today],
           };
         });
@@ -247,7 +227,6 @@ export const useAppStore = create<AppStore>()(
           role: 'user',
           text,
           at: now.toISOString(),
-          credits: 1,
           attachmentName,
         };
         let reply: ChatMessage | null = null;
@@ -258,9 +237,8 @@ export const useAppStore = create<AppStore>()(
             role: 'assistant',
             text: generated.text,
             at: new Date(now.getTime() + 1000).toISOString(),
-            credits: generated.credits,
             followUps: state.settings.suggestedFollowUps ? generated.followUps : undefined,
-            pending: true,
+            pending: false,
           };
         }
         set((s) => ({
@@ -275,25 +253,7 @@ export const useAppStore = create<AppStore>()(
                 }
               : c,
           ),
-          credits: {
-            ...s.credits,
-            weeklyUsed: Math.min(s.credits.weeklyAllowance, s.credits.weeklyUsed + 1 + (reply?.credits ?? 0)),
-          },
         }));
-        if (reply) {
-          window.setTimeout(() => {
-            set((s) => ({
-              chats: s.chats.map((c) =>
-                c.id === threadId
-                  ? {
-                      ...c,
-                      messages: c.messages.map((m) => (m.id === reply!.id ? { ...m, pending: false } : m)),
-                    }
-                  : c,
-              ),
-            }));
-          }, 900);
-        }
       },
 
       deleteChat: (threadId) => set((s) => ({ chats: s.chats.filter((c) => c.id !== threadId) })),
@@ -309,36 +269,21 @@ export const useAppStore = create<AppStore>()(
           name,
           kind,
           uploadedAt: new Date().toISOString(),
-          status: 'analyzing',
+          status: 'ready',
           sizeKb,
           biomarkerCount: 0,
         };
         set((s) => ({ healthRecords: [record, ...s.healthRecords] }));
-        window.setTimeout(() => {
-          set((s) => ({
-            healthRecords: s.healthRecords.map((r) =>
-              r.id === id ? { ...r, status: 'ready', biomarkerCount: 9 } : r,
-            ),
-          }));
-        }, 2600);
       },
 
       removeRecord: (id) => set((s) => ({ healthRecords: s.healthRecords.filter((r) => r.id !== id) })),
 
-      spendCredits: (n) => set((s) => ({ credits: { ...s.credits, weeklyUsed: Math.min(s.credits.weeklyAllowance, s.credits.weeklyUsed + n) } })),
-
-      buyCredits: (pack) =>
-        set((s) => ({
-          credits: { ...s.credits, purchased: s.credits.purchased + pack },
-          settings: { ...s.settings, pro: true },
-        })),
-
-      setPro: (pro) => set((s) => ({ settings: { ...s.settings, pro } })),
-
       backupNow: () => {
-        const at = saveSnapshot(get());
-        set((s) => ({ settings: { ...s.settings, lastBackupAt: at } }));
-        return at;
+        const result = saveSnapshot(get());
+        if (result.ok && result.at) {
+          set((s) => ({ settings: { ...s.settings, lastBackupAt: result.at } }));
+        }
+        return result;
       },
 
       restoreLatestBackup: () => {
@@ -358,11 +303,29 @@ export const useAppStore = create<AppStore>()(
           ...parsed.data,
           settings: { ...s.settings, ...parsed.data.settings, onboarded: true },
         }));
-        saveSnapshot(get());
         return { ok: true };
       },
 
       exportBackupJson: () => backupJson(get()),
+
+      clearAll: () => {
+        localStorage.removeItem(SNAPSHOT_KEY);
+        const now = new Date().toISOString();
+        set({
+          profile: { ...initial.profile, name: '', email: '', birthDate: '', createdAt: now },
+          settings: { ...initial.settings, onboarded: false, demoMode: false, lastBackupAt: null },
+          days: {},
+          dayOrder: [],
+          journalTags: [],
+          journalEntries: [],
+          biomarkers: [],
+          healthRecords: [],
+          chats: [],
+          routines: [],
+          activityEvents: [],
+          seededAt: now,
+        });
+      },
 
       resetDemo: () => {
         const fresh = buildSeed(new Date());
@@ -386,7 +349,6 @@ export const useAppStore = create<AppStore>()(
           healthRecords,
           chats,
           routines,
-          credits,
           activityEvents,
           seededAt,
         } = state;
@@ -401,7 +363,6 @@ export const useAppStore = create<AppStore>()(
           healthRecords,
           chats,
           routines,
-          credits,
           activityEvents,
           seededAt,
         };

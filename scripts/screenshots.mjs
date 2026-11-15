@@ -1,11 +1,12 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
-const exe = '/opt/data/cache/playwright-browsers/chromium-1255/chrome-linux-arm64/chrome';
+const BASE = process.env.BASE_URL || 'http://localhost:5173';
+
 const out = 'docs/screenshots';
 fs.mkdirSync(out, { recursive: true });
 
-const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const context = await browser.newContext({
   viewport: { width: 430, height: 932 },
   deviceScaleFactor: 2,
@@ -20,7 +21,7 @@ page.on('console', (msg) => {
 });
 page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
 
-await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
+await page.goto(`${BASE}`, { waitUntil: 'networkidle' });
 await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
@@ -40,7 +41,7 @@ const routes = [
 ];
 
 for (const [name, route] of routes) {
-  await page.goto(`http://localhost:5173/#${route}`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/#${route}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/${name}.png` });
   const metrics = await page.evaluate(() => {

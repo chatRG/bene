@@ -55,7 +55,20 @@ export function SleepScreen() {
   const startLabel = new Date(sleep.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const bankHours = Math.floor(Math.abs(d.sleepBankMin) / 60);
   const bankMins = Math.abs(d.sleepBankMin) % 60;
-  const consistency = 78;
+  const consistency = (() => {
+    const starts = state.dayOrder
+      .slice(-14)
+      .map((date) => state.days[date]?.sleep?.start)
+      .filter((start): start is string => !!start)
+      .map((start) => {
+        const d = new Date(start);
+        return d.getHours() * 60 + d.getMinutes();
+      });
+    if (starts.length < 3) return null;
+    const mean = starts.reduce((a, b) => a + b, 0) / starts.length;
+    const mad = starts.reduce((a, b) => a + Math.abs(b - mean), 0) / starts.length;
+    return Math.round(Math.max(0, Math.min(100, 100 - mad / 2)));
+  })();
 
   const hist = state.dayOrder.slice(-14).map((date) => {
     const rec = state.days[date];
@@ -170,7 +183,7 @@ export function SleepScreen() {
                   <div className="card-sub">Within 30 min most nights</div>
                 </div>
               </div>
-              <strong className="mono-num" style={{ fontSize: 22 }}>{consistency}%</strong>
+              <strong className="mono-num" style={{ fontSize: 22 }}>{consistency == null ? '—' : `${consistency}%`}</strong>
             </div>
             <div className="row gap-3 mt-12">
               {Array.from({ length: 14 }, (_, i) => (

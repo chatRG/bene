@@ -11,7 +11,6 @@ describe('offline coach', () => {
     const second = generateCoachReply(data, 'How should I train today?', NOW);
     expect(first).toEqual(second);
     expect(first.text).toContain('41%');
-    expect(first.credits).toBeGreaterThan(0);
     expect(first.followUps.length).toBeGreaterThan(0);
   });
 

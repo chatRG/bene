@@ -28,9 +28,9 @@ export function BiologyScreen() {
   const [projectionOpen, setProjectionOpen] = useState(false);
 
   const bio = useMemo(() => {
-    const chronologicalAge = ageFromBirthDate(state.profile.birthDate, today);
+    const chronologicalAge = ageFromBirthDate(state.profile.birthDate, today) ?? 30;
     const days = state.dayOrder.slice(-35).map((d) => state.days[d]);
-    const vo2 = vo2MaxFromDays(days, state.profile.sex) ?? 52;
+    const vo2 = vo2MaxFromDays(days);
     const lastLab = state.biomarkers.length
       ? Math.round((new Date(`${today}T12:00:00`).getTime() - new Date(`${state.biomarkers[0].recordedAt}T12:00:00`).getTime()) / 86400000)
       : null;
