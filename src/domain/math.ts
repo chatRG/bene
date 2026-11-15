@@ -1,4 +1,4 @@
-import type { Biomarker, DayRecord, MuscleGroup, Sex, SleepSession, StageTotals, Workout } from './types';
+import type { Biomarker, MuscleGroup, SleepSession, StageTotals } from './types';
 
 export const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -32,34 +32,33 @@ export function stageTotals(sleep: SleepSession): StageTotals {
   return t;
 }
 
-export function minutesToLabel(min: number): string {
-  const m = Math.max(0, Math.round(min));
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  if (h === 0) return `${r}m`;
-  return `${h}h ${r}m`;
+/** Parses a real `YYYY-MM-DD` calendar date, rejecting rollovers such as 2020-02-30. */
+function parseIsoDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '');
+  if (!match) return null;
+  const d = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== Number(match[1]) || d.getMonth() + 1 !== Number(match[2]) || d.getDate() !== Number(match[3])) {
+    return null;
+  }
+  return d;
 }
 
-export function ageFromBirthDate(birthDate: string, onDate: string): number {
-  const b = new Date(`${birthDate}T12:00:00`);
-  const d = new Date(`${onDate}T12:00:00`);
+/**
+ * Chronological age on `onDate`, or `null` when the birth date is empty,
+ * malformed, not a real calendar date, or still in the future. Callers must
+ * skip age-dependent terms when this is `null` rather than falling back to a
+ * guess — a cleared Settings field must not poison a score with NaN.
+ */
+export function ageFromBirthDate(birthDate: string, onDate: string): number | null {
+  const b = parseIsoDate(birthDate);
+  const d = parseIsoDate(onDate);
+  if (!b || !d || b.getTime() > d.getTime()) return null;
   let age = d.getFullYear() - b.getFullYear();
   const beforeBirthday = d.getMonth() < b.getMonth() || (d.getMonth() === b.getMonth() && d.getDate() < b.getDate());
   if (beforeBirthday) age -= 1;
   const yearFraction = (d.getTime() - new Date(`${d.getFullYear()}-${String(b.getMonth() + 1).padStart(2, '0')}-${String(b.getDate()).padStart(2, '0')}T12:00:00`).getTime()) / (365.25 * 86400000);
   return age + Math.max(0, Math.min(1, yearFraction));
-}
-
-export function workoutsOn(days: Record<string, DayRecord>, date: string): Workout[] {
-  return days[date]?.workouts ?? [];
-}
-
-export function allWorkouts(days: Record<string, DayRecord>, order: string[], daysBack = 42, beforeDate?: string): Workout[] {
-  const cutoff = beforeDate ? order.indexOf(beforeDate) : order.length;
-  const start = Math.max(0, cutoff - daysBack);
-  const out: Workout[] = [];
-  for (let i = start; i < cutoff; i++) out.push(...(days[order[i]]?.workouts ?? []));
-  return out;
 }
 
 export const MUSCLE_LABELS: Record<MuscleGroup, string> = {
@@ -105,8 +104,4 @@ export function phenoMarkers(biomarkers: Biomarker[]): Partial<Record<PhenoMarke
     if (PHENO_MARKERS.some((p) => p.key === key)) out[key] = m.value;
   }
   return out;
-}
-
-export function sexFromProfile(sex: Sex): Sex {
-  return sex;
 }

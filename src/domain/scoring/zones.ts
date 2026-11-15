@@ -1,5 +1,3 @@
-import type { HeartRateSample } from '../types';
-import { clamp } from '../math';
 
 export type ZoneMethod = 'maxHr' | 'hrReserve' | 'lactate' | 'manual';
 
@@ -47,36 +45,7 @@ export function zoneIndex(bpm: number, config: ZoneConfig): number {
   return 5;
 }
 
-export function zoneMinutesFromSamples(samples: HeartRateSample[], config: ZoneConfig, bucketMin = 5): [number, number, number, number, number, number] {
-  const minutes: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
-  for (const s of samples) {
-    minutes[zoneIndex(s.bpm, config)] += bucketMin;
-  }
-  return minutes;
-}
-
-/** Zone percentages for a distribution bar. */
-export function zonePercents(minutes: number[]): number[] {
-  const total = minutes.reduce((a, b) => a + b, 0) || 1;
-  return minutes.map((m) => (m / total) * 100);
-}
-
 /** Edwards zone weights on %HRR: Z1=1 … Z5=5; zone 0 (rest) contributes zero. */
 export function workoutTrimp(zoneMinutes: number[]): number {
   return zoneMinutes.reduce((acc, m, i) => acc + m * Math.min(5, Math.max(0, i)), 0);
-}
-
-/** Kim et al. style normalization used for display range labels. */
-export function zoneRangeLabel(config: ZoneConfig, zone: number): string {
-  const max = maxHrFor(config);
-  const base = config.method === 'hrReserve' ? config.restingHr : 0;
-  const span = config.method === 'hrReserve' ? max - base : max;
-  const low = base + (span * (zone === 1 ? 50 : zone === 2 ? 60 : zone === 3 ? 70 : zone === 4 ? 80 : 90)) / 100;
-  const high = base + (span * (zone === 1 ? 59 : zone === 2 ? 69 : zone === 3 ? 79 : zone === 4 ? 89 : 100)) / 100;
-  return `${Math.round(low)}–${Math.round(high)} bpm`;
-}
-
-export function heartRateRecovery(peakHr: number | null, twoMinLaterHr: number | null): number | null {
-  if (peakHr == null || twoMinLaterHr == null) return null;
-  return clamp(Math.round(peakHr - twoMinLaterHr), 0, 100);
 }

@@ -1,4 +1,4 @@
-import type { Biomarker, DayRecord, Sex, UserProfile } from '../types';
+import type { Biomarker, DayRecord, UserProfile } from '../types';
 import { clamp, mean, phenoMarkers, round, sum } from '../math';
 import { stageTotals } from '../math';
 
@@ -7,6 +7,8 @@ export interface AgeContributor {
   label: string;
   years: number; // negative = younger
   detail: string;
+  /** False when the term falls back to the age median because no measurement exists. */
+  measured?: boolean;
 }
 
 export interface BiologicalAgeResult {
@@ -88,7 +90,7 @@ export function lifestyleYears(days: DayRecord[], chronologicalAge: number, vo2m
   const contributorDetails = {
     sleep: `${Math.round(avgSleep)} sleep score avg`,
     activity: `${Math.round(avgSteps).toLocaleString()} steps/day · ${Math.round(weeklyZone2)} min Zone 2–3/wk`,
-    fitness: vo2max ? `VO₂ max ${Math.round(vo2max)}` : 'VO₂ max not measured',
+    fitness: vo2max != null ? `VO₂ max ${Math.round(vo2max)}` : 'No VO₂ max measured',
     bloodwork: '9 PhenoAge markers',
   };
   return {
@@ -142,7 +144,7 @@ export function biologicalAge(input: {
     contributors: [
       { key: 'sleep', label: 'Sleep', years: life.sleepYears, detail: life.details.sleep },
       { key: 'activity', label: 'Activity', years: life.activityYears, detail: life.details.activity },
-      { key: 'fitness', label: 'Fitness', years: life.fitnessYears, detail: life.details.fitness },
+      { key: 'fitness', label: 'Fitness', years: life.fitnessYears, detail: life.details.fitness, measured: input.vo2max != null },
       { key: 'bloodwork', label: 'Bloodwork', years: markerDelta, detail: life.details.bloodwork },
     ],
     nextUpdateDays: nextMonday,
@@ -158,13 +160,6 @@ export function nextMondayDays(today: string): number {
   return days;
 }
 
-export function ageProjection(age: number, delta: number, yearsAhead = 10): { year: number; age: number }[] {
-  return Array.from({ length: yearsAhead + 1 }, (_, i) => ({
-    year: new Date().getFullYear() + i,
-    age: round(age + (delta / 10) * i, 1),
-  }));
-}
-
 export function biomarkerStatus(b: Biomarker): 'optimal' | 'borderline' | 'out' {
   if (b.value >= b.optimalLow && b.value <= b.optimalHigh) return 'optimal';
   const span = Math.max(0.001, b.optimalHigh - b.optimalLow);
@@ -172,30 +167,30 @@ export function biomarkerStatus(b: Biomarker): 'optimal' | 'borderline' | 'out' 
   return distance <= span * 0.25 ? 'borderline' : 'out';
 }
 
-export function biomarkerSummary(biomarkers: Biomarker[]) {
-  const byCategory = new Map<string, Biomarker[]>();
-  for (const b of biomarkers) {
-    const list = byCategory.get(b.category) ?? [];
-    list.push(b);
-    byCategory.set(b.category, list);
-  }
-  return [...byCategory.entries()].map(([category, items]) => ({
-    category,
-    items,
-    optimalCount: items.filter((b) => biomarkerStatus(b) === 'optimal').length,
-  }));
-}
-
 export function sumContributors(contributors: AgeContributor[]): number {
   return round(sum(contributors.map((c) => c.years)), 1);
 }
 
-export function vo2MaxFromDays(days: DayRecord[], sex: Sex): number | null {
-  const runs = days.flatMap((d) => d.workouts).filter((w) => w.kind === 'run' && w.durationMin >= 20);
-  if (runs.length < 3) return null;
-  const avgPace = mean(runs.slice(-6).map((w) => (w.distanceKm ? w.durationMin / w.distanceKm : 0)).filter(Boolean));
-  if (!avgPace) return null;
-  // Uth–Sørensen style estimate, adjusted lightly for sex.
-  const base = 15.3 * (600 / (avgPace * 60 + 60)) * 3.5;
-  return clamp(round(base * (sex === 'female' ? 0.92 : 1), 1), 25, 75);
+/**
+ * Uth–Sørensen: VO₂ max ≈ 15.3 × HRmax / HRrest.
+ * Needs a measured peak heart rate (workouts) and a measured resting heart rate
+ * (overnight sleep). With no measured pair there is no estimate — the caller
+ * must fall back to the population median rather than invent a value.
+ */
+export function vo2MaxFromDays(days: DayRecord[]): number | null {
+  const restingSamples = days
+    .map((d) => d.sleep?.rhrBpm)
+    .filter((bpm): bpm is number => bpm != null && Number.isFinite(bpm) && bpm > 0)
+    .slice(-14);
+  const maxHrSamples = days
+    .flatMap((d) => d.workouts)
+    .map((w) => w.maxHr)
+    .filter((bpm): bpm is number => bpm != null && Number.isFinite(bpm) && bpm > 0);
+  if (restingSamples.length === 0 || maxHrSamples.length === 0) return null;
+
+  const estimate = 15.3 * (Math.max(...maxHrSamples) / mean(restingSamples));
+  // Outside this range the pair is not a usable measurement (e.g. HRmax from a
+  // wrist sensor that never saw a hard effort). Do not clamp it into looking valid.
+  if (!Number.isFinite(estimate) || estimate < 15 || estimate > 90) return null;
+  return round(estimate, 1);
 }

@@ -7,6 +7,7 @@ import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
 import { daytimeAverageHr, strainSeriesForDay } from '../domain/scoring/strain';
 import { zoneConfigFor } from '../domain/derive';
+import { clockLabel } from '../domain/time';
 import { LineChart, Sparkline } from '../components/charts';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
@@ -23,10 +24,10 @@ export function StrainScreen() {
 
   const config = zoneConfigFor(state, today);
   const series = strainSeriesForDay(d.record.metrics.hrSamples, d.record.workouts, Math.round(d.baselineRhr || 55), config).map((p) => p.value);
-  const fallback = Array.from({ length: 24 }, (_, i) => Math.round((d.strain.score * (0.25 + (i / 23) * 0.75)) * 10) / 10);
-  const values = series.length > 4 ? series : fallback;
-  const avg = values.reduce((a, b) => a + b, 0) / Math.max(1, values.length);
-  const avgHr = daytimeAverageHr(d.record.metrics.hrSamples) ?? 71;
+  const hasHr = series.length > 4;
+  const values = hasHr ? series : [];
+  const avg = hasHr ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const avgHr = daytimeAverageHr(d.record.metrics.hrSamples);
   const hiddenTarget = state.settings.activityStatus === 'injured' || state.settings.activityStatus === 'break';
   const statusNote = state.settings.activityStatus === 'injured'
     ? 'Target Strain is hidden while you are injured. Strain calculations are limited.'
@@ -92,7 +93,7 @@ export function StrainScreen() {
       </div>
 
       {tab === 'strain' ? (
-        <div className="chart-wrap" style={{ marginTop: 8 }}>
+        hasHr ? <div className="chart-wrap" style={{ marginTop: 8 }}>
           <LineChart
             values={values}
             yMax={100}
@@ -104,7 +105,7 @@ export function StrainScreen() {
             band={[d.strain.normLow, d.strain.normHigh]}
             xLabels={['12 AM', 'Now']}
           />
-        </div>
+        </div> : <div className="card card--flat mt-12"><div className="caption">No heart-rate samples for this day.</div></div>
       ) : null}
 
       {tab === 'exercise' ? (
@@ -116,7 +117,7 @@ export function StrainScreen() {
                   <span className="list-icon" style={{ background: 'rgba(255,122,51,.12)', color: 'var(--orange)' }}><Flame size={16} /></span>
                   <div>
                     <div className="card-title">{w.name}</div>
-                    <div className="card-sub">{w.start.slice(11, 16)} · {w.avgHr} bpm avg</div>
+                    <div className="card-sub">{clockLabel(w.start)} · {w.avgHr ?? '—'} bpm avg</div>
                   </div>
                 </div>
                 <strong>{w.durationMin} min</strong>
@@ -181,8 +182,8 @@ export function StrainScreen() {
             <div className="list-icon" style={{ background: 'rgba(255,90,95,.1)', color: 'var(--red)' }}><Heart size={18} /></div>
             <div className="strain-card__main">
               <div className="strain-card__label">Daytime HR</div>
-              <div className="strain-card__value"><strong>{avgHr}</strong><span>bpm</span></div>
-              <div className="normal-check"><span style={{ width: 7, height: 7, borderRadius: 9, background: 'var(--green)', display: 'inline-block' }} /> Normal range</div>
+              <div className="strain-card__value"><strong>{avgHr ?? '—'}</strong><span>bpm</span></div>
+              {avgHr == null ? <div className="caption">No heart-rate samples</div> : <div className="normal-check"><span style={{ width: 7, height: 7, borderRadius: 9, background: 'var(--green)', display: 'inline-block' }} /> Normal range</div>}
             </div>
             <Sparkline values={d.record.metrics.hrSamples.filter((s) => s.minute >= 360).map((s) => s.bpm)} width={92} height={44} color="var(--orange)" />
           </div>
@@ -194,7 +195,7 @@ export function StrainScreen() {
               <div className="strain-card__value"><strong>{d.record.metrics.totalCalories.toLocaleString()}</strong><span>kcal</span></div>
               <div className="caption" style={{ marginTop: 3 }}>{d.record.metrics.activeCalories} active kcal</div>
             </div>
-            <Sparkline values={Array.from({ length: 12 }, (_, i) => 40 + Math.sin(i / 2) * 12 + i * 2)} width={92} height={44} color="var(--orange)" />
+
           </div>
         </div>
       </div>

@@ -64,7 +64,7 @@ export function IntelligenceScreen() {
     }
     let threadId = id;
     if (!threadId) {
-      threadId = state.createChatThread(false);
+      threadId = state.createChatThread(state.settings.ghostDefault);
       navigate(`/chat/${threadId}`);
     }
     state.sendChatMessage(threadId, message);

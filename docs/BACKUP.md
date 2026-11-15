@@ -27,7 +27,7 @@ The document has this shape. The example lists a subset of the settings and of `
   "exportedAt": "2026-11-14T14:00:00.000Z",
   "data": {
     "profile": { "name": "string", "email": "string", "birthDate": "string" },
-    "settings": { "theme": "system", "units": "imperial" },
+    "settings": { "theme": "system" },
     "days": { "2026-11-14": { "sleep": {}, "metrics": {}, "workouts": [], "meals": [], "journal": [] } },
     "dayOrder": ["2026-09-16", "2026-11-14"],
     "journalTags": [],
@@ -36,7 +36,6 @@ The document has this shape. The example lists a subset of the settings and of `
     "healthRecords": [],
     "chats": [],
     "routines": [],
-    "credits": {},
     "activityEvents": [],
     "seededAt": "string"
   }
@@ -57,7 +56,7 @@ On any failure, `parseBackup()` returns a human-readable error and displays it i
 
 ## Restore semantics
 
-- Bene replaces profile, settings, days, journal, biomarkers, records, chats, routines, credits and activity events.
+- Bene replaces profile, settings, days, journal, biomarkers, records, chats, routines and activity events.
 - Bene forces `settings.onboarded = true`, so the user lands in the app and not in onboarding.
 - Bene writes a fresh snapshot of the restored state.
 - Bene does **not** merge. Version 1 has no partial restore.

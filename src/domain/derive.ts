@@ -26,7 +26,7 @@ export interface DayDerived {
 }
 
 export function zoneConfigFor(data: AppStateData, date: string) {
-  const age = ageFromBirthDate(data.profile.birthDate, date);
+  const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
   return {
     method: data.settings.hrZoneMethod,
     age,
@@ -71,7 +71,7 @@ export function recentStrains(data: AppStateData, date: string, daysBack = 28): 
 
 export function sleepNeedFor(data: AppStateData, date: string): number {
   const idx = data.dayOrder.indexOf(date);
-  const age = ageFromBirthDate(data.profile.birthDate, date);
+  const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
   const prior = data.dayOrder.slice(Math.max(0, idx - 7), idx);
   let debt = 0;
   for (const d of prior) {
@@ -117,7 +117,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
   const idx = data.dayOrder.indexOf(date);
   const isToday = date === dateOf(now);
   const nowMinute = isToday ? now.getHours() * 60 + now.getMinutes() : 1440;
-  const age = ageFromBirthDate(data.profile.birthDate, date);
+  const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
   const needMin = sleepNeedFor(data, date);
   const session = record.sleep;
   const score = session ? sleepScore(session, { age, sex: data.profile.sex, needMin }) : null;
@@ -143,6 +143,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     recovery: recovery.score,
     recentStrainAvg: mean(recent.slice(-14)),
     recentStrainRange: recent,
+    activityStatus: data.settings.activityStatus,
     age,
     maxHr: Math.round(208 - 0.7 * age),
     nowMinute: isToday ? nowMinute : 1440,

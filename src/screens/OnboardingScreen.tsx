@@ -13,7 +13,6 @@ export function OnboardingScreen() {
   const [sex, setSex] = useState<Sex>('male');
   const [birthDate, setBirthDate] = useState('1998-01-20');
   const [goal, setGoal] = useState<'recovery' | 'performance' | 'sleep' | 'fatloss' | 'general'>('performance');
-  const [notifications, setNotifications] = useState(true);
 
   const finish = (demo: boolean) => {
     state.completeOnboarding(name, { sex, birthDate, goal, demo });
@@ -86,21 +85,11 @@ export function OnboardingScreen() {
 
         {step === 1 ? (
           <div className="fade-up">
-            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Stay in the loop</h1>
-            <p className="onboarding__sub">Bene works from your manual logs today. Native health sync is planned for a later build.</p>
-            <div className="col gap-8 mt-24">
-              <button className={`status-option ${notifications ? 'status-option--active' : ''}`} onClick={() => setNotifications((v) => !v)}>
-                <span className="status-option__icon"><Shield size={18} /></span>
-                <span className="grow">
-                  <span className="list-title">Notifications</span>
-                  <span className="list-sub">Morning report, wind-down, journal</span>
-                </span>
-                <span className={`switch ${notifications ? 'switch--on' : ''}`} />
-              </button>
-            </div>
-            <div className="insight-unlock mt-16">
+            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Nothing to connect</h1>
+            <p className="onboarding__sub">Bene works from your manual logs. There is no account, no cloud and no background service to enable.</p>
+            <div className="insight-unlock mt-24">
               <Shield size={17} />
-              <span>Everything stays on this device. You can revoke access at any time in system settings.</span>
+              <span>Everything stays on this device. Native health sync is planned for a later build.</span>
             </div>
           </div>
         ) : null}

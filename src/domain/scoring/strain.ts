@@ -1,7 +1,7 @@
-import type { DayRecord, HeartRateSample, Workout } from '../types';
+import type { ActivityStatus, HeartRateSample, Workout } from '../types';
 import { clamp, mean } from '../math';
 import type { ZoneConfig } from './zones';
-import { estimatedMaxHr, workoutTrimp, zoneIndex } from './zones';
+import { estimatedMaxHr, workoutTrimp } from './zones';
 
 export interface StrainResult {
   score: number;
@@ -61,10 +61,16 @@ export function passiveTrimp(
 
 /** Documented direction: better recovery raises the target. The mapping is a
  *  transparent community model (the weights are not published); it lands
- *  recovery 41 at a target of ~51. */
-export function targetStrain(recovery: number | null, _recentAverage = 50): number {
-  const target = recovery == null ? 50 : 24 + recovery * 0.65;
-  return Math.round(clamp(target, 20, 95));
+ *  recovery 41 at a target of ~51. Activity Status Sick removes a fixed 10
+ *  points, which is what the Strain screen and docs/SCORING.md promise. */
+export function targetStrain(
+  recovery: number | null,
+  _recentAverage = 50,
+  activityStatus: ActivityStatus = 'active',
+): number {
+  const base = recovery == null ? 50 : 24 + recovery * 0.65;
+  const adjusted = activityStatus === 'sick' ? base - 10 : base;
+  return Math.round(clamp(adjusted, 20, 95));
 }
 
 function workoutStartMinute(w: Workout): number {
@@ -86,6 +92,7 @@ export function computeStrain(input: {
   recovery: number | null;
   recentStrainAvg: number;
   recentStrainRange: number[];
+  activityStatus?: ActivityStatus;
   age?: number;
   maxHr?: number;
   nowMinute?: number;
@@ -103,7 +110,7 @@ export function computeStrain(input: {
   }
   const total = active + passive;
   const score = strainFromTrimp(total);
-  const target = targetStrain(input.recovery, input.recentStrainAvg);
+  const target = targetStrain(input.recovery, input.recentStrainAvg, input.activityStatus);
   const normLow = Math.round(clamp(target - 16, 10, 95));
   const normHigh = Math.round(clamp(target + 16, 25, 110));
   const rounded = Math.round(score * 10) / 10;
@@ -118,10 +125,6 @@ export function computeStrain(input: {
     status,
     label: status === 'below' ? 'Below normal range' : status === 'above' ? 'Above normal range' : 'Normal range',
   };
-}
-
-export function exerciseDurationMin(workouts: Workout[]): number {
-  return workouts.reduce((acc, w) => acc + w.durationMin, 0);
 }
 
 export function strainSeriesForDay(
@@ -157,25 +160,4 @@ export function strainSeriesForDay(
 export function daytimeAverageHr(samples: HeartRateSample[], fromMinute = 6 * 60, toMinute = 22 * 60): number | null {
   const xs = samples.filter((s) => s.minute >= fromMinute && s.minute <= toMinute).map((s) => s.bpm);
   return xs.length ? Math.round(mean(xs)) : null;
-}
-
-export function hrZoneDistribution(workouts: Workout[], samples: HeartRateSample[], config: ZoneConfig): number[] {
-  const mins = [0, 0, 0, 0, 0, 0];
-  for (const w of workouts) w.zoneMinutes.forEach((m, i) => (mins[i] += m));
-  if (!workouts.length) {
-    for (const s of samples) mins[zoneIndex(s.bpm, config)] += 5;
-  }
-  return mins;
-}
-
-export function dayStrainForRecords(days: Record<string, DayRecord>, order: string[], _config: ZoneConfig, uptoIndex: number): number[] {
-  const out: number[] = [];
-  for (let i = Math.max(0, uptoIndex - 28); i < uptoIndex; i++) {
-    const d = days[order[i]];
-    if (!d) continue;
-    const active = d.workouts.reduce((a, w) => a + workoutTrimp(w.zoneMinutes), 0);
-    const passive = passiveTrimp(d.metrics.hrSamples, 55, 1440, 190, 10);
-    out.push(Math.round(strainFromTrimp(active + passive)));
-  }
-  return out;
 }

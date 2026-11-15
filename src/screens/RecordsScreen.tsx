@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { AlertCircle, Camera, Check, ChevronLeft, FileText, Image, Info, Upload, X } from 'lucide-react';
+import { AlertCircle, Camera, ChevronLeft, FileText, Image, Info, Upload, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
@@ -35,7 +35,7 @@ export function RecordsScreen() {
       state.uploadRecord(file.name, Math.round(file.size / 1024), file.type.startsWith('image') ? 'image' : 'document');
     }
     setUploadOpen(false);
-    showToast('Uploaded — analyzing now');
+    showToast('Stored for reference — no analysis in this build');
   };
 
   return (
@@ -53,7 +53,7 @@ export function RecordsScreen() {
           <span className="bio-contributor__icon"><FileText size={18} /></span>
           <div className="grow">
             <div className="card-title">Why upload records?</div>
-            <div className="card-sub">Recent bloodwork improves Biological Age confidence and lets your coach see the full picture.</div>
+            <div className="card-sub">Files stay on this device. This build stores them for reference and does not read lab values.</div>
           </div>
         </div>
       </div>
@@ -68,11 +68,7 @@ export function RecordsScreen() {
                 <div className="list-title">{r.name}</div>
                 <div className="list-sub">{format(new Date(r.uploadedAt), 'MMM d, yyyy')} · {r.sizeKb} KB</div>
               </div>
-              {r.status === 'analyzing' ? (
-                <span className="pill pill--sm pill--orange">Analyzing…</span>
-              ) : (
-                <span className="pill pill--sm pill--green"><Check size={10} /> {r.biomarkerCount} markers</span>
-              )}
+              <span className="pill pill--sm pill--flat">Stored</span>
             </button>
           ))}
           {state.healthRecords.length === 0 ? <div className="empty" style={{ padding: 22 }}>No records yet.</div> : null}
@@ -116,19 +112,11 @@ export function RecordsScreen() {
         <Sheet title={selected.name} subtitle={`Uploaded ${format(new Date(selected.uploadedAt), 'MMM d, yyyy')}`} onClose={() => setSelected(null)}>
           <div className="row gap-10">
             <span className={`pill ${selected.status === 'ready' ? 'pill--green' : 'pill--orange'}`}>
-              {selected.status === 'ready' ? `${selected.biomarkerCount} biomarkers extracted` : 'Analyzing documents…'}
+              Stored for reference — no analysis in this build
             </span>
             <span className="caption">{selected.sizeKb} KB</span>
           </div>
-          <div className="list-card mt-16" style={{ boxShadow: 'none' }}>
-            {state.biomarkers.slice(0, 6).map((b) => (
-              <div className="list-row" key={b.id}>
-                <div className="grow"><div className="list-title">{b.name}</div><div className="list-sub">Optimal {b.optimalLow}–{b.optimalHigh} {b.unit}</div></div>
-                <div className="list-value">{b.value} {b.unit}</div>
-              </div>
-            ))}
-          </div>
-          <p className="caption mt-12">These values were extracted from the document and can’t be edited here. Re-upload to correct a missed biomarker.</p>
+          <p className="caption mt-12">This build stores the file for reference. It does not read or extract biomarker values.</p>
           <button className="btn btn--block mt-16" onClick={() => setSelected(null)}>Done</button>
         </Sheet>
       ) : null}

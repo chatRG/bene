@@ -1,5 +1,5 @@
 import type { SleepSession } from '../types';
-import { clamp, mean, stageTotals } from '../math';
+import { clamp, mean } from '../math';
 
 /**
  * Personal baseline. Spread is the mean absolute deviation (MAD), matching
@@ -224,16 +224,4 @@ export function recoveryNarrative(input: {
         : 'Keep the day easy and protect tonight’s sleep.';
 
   return `${band} ${signals}.${sleepText} ${action}`;
-}
-
-/** Short sleep needed estimate used by the sleep screen. */
-export function sleepStageSummary(sleep: SleepSession) {
-  const t = stageTotals(sleep);
-  return {
-    awake: t.awakeMin,
-    rem: t.remMin,
-    core: t.coreMin,
-    deep: t.deepMin,
-    asleep: t.asleepMin,
-  };
 }
