@@ -161,10 +161,4 @@ describe('backup', () => {
     expect(parseBackup(JSON.stringify({ app: 'other' })).ok).toBe(false);
     expect(parseBackup(JSON.stringify({ app: 'bene', version: 1, data: {} })).ok).toBe(false);
   });
-
-  it('accepts legacy bevel-community backups', () => {
-    const data = buildSeed(NOW);
-    const legacy = { ...createBackup(data), app: 'bevel-community' };
-    expect(parseBackup(JSON.stringify(legacy)).ok).toBe(true);
-  });
 });

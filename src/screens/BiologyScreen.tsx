@@ -269,7 +269,7 @@ function BioInfo({ bio, onClose }: { bio: ReturnType<typeof biologicalAge>; onCl
         <div className="list-row"><div className="list-icon"><HeartPulse size={16} /></div><div className="grow"><div className="list-title">What lowers confidence</div><div className="list-sub">New tracking, missing bloodwork, or gaps in wearable data.</div></div></div>
         <div className="list-row"><div className="list-icon"><Info size={16} /></div><div className="grow"><div className="list-title">Not a diagnosis</div><div className="list-sub">A wellness estimate — discuss health decisions with a clinician.</div></div></div>
       </div>
-      <p className="caption mt-16">This community build uses an independent, documented model. The reference app’s exact coefficients are not public.</p>
+      <p className="caption mt-16">This build uses an independent, documented model. Exact coefficients are not public.</p>
       <button className="btn btn--block mt-20" onClick={onClose}>Got it</button>
     </Sheet>
   );

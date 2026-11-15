@@ -1,6 +1,6 @@
 # Scoring model
 
-This document describes the independent scoring model used by Bene. It is built from publicly documented inputs, directions of effect, ranges, calibration gates and a small number of published point values (notably the food-quality contributors and the deep-sleep target curve). The vendor does **not** publish its weights or curves, so nothing here claims to reproduce Bevel's private algorithm.
+This document describes the scoring model used by Bene. It is built from documented inputs, directions of effect, ranges, calibration gates and a small number of published point values (notably the food-quality contributors and the deep-sleep target curve). Weights and curves are our own; nothing here claims to reproduce a private algorithm.
 
 All scoring code lives in `src/domain/scoring/` and is pure: given the same inputs it returns the same output, with no clock or network access except where a date is passed explicitly.
 
@@ -26,7 +26,7 @@ Published table, percent of HR max:
 
 Boundaries are inclusive at the lower bound, so exactly 60% is Z2. With the **HR reserve** method the same bands apply to `(HR − restingHR) / (maxHR − restingHR)`.
 
-Max HR methods: `manual`, `lactate` (LTHR ÷ 0.85), or the Tanaka estimate `208 − 0.7 × age`. The vendor does not publish its Max HR derivation; this build makes the choice explicit in Settings.
+Max HR methods: `manual`, `lactate` (LTHR ÷ 0.85), or the Tanaka estimate `208 − 0.7 × age`. The method is an explicit choice in Settings.
 
 ## Sleep
 
@@ -85,7 +85,7 @@ The denominator is the Edwards daily ceiling (5 × 24 h = 7200), so a theoretica
 
 `targetStrain = clamp(24 + recovery × 0.65, 20, 95)`
 
-The displayed normal range is `target ± 16`. At recovery 41 this yields target ≈ 51 and a 35–67 band, matching the reference screen. If Activity Status is **Injured** or **On a Break**, the target is hidden; **Sick** reduces it.
+The displayed normal range is `target ± 16`. At recovery 41 this yields target ≈ 51 and a 35–67 band. If Activity Status is **Injured** or **On a Break**, the target is hidden; **Sick** reduces it.
 
 ## Stress & Energy Bank
 
@@ -105,7 +105,7 @@ Stress is shown as high / low / average across the day. Energy Bank is `72 − m
 
 Per muscle group, fatigue accrues from sets × reps × weight and RPE, decays with a 52-hour time constant. Freshness is `clamp(100 − fatigue, 0, 100)`.
 
-Bands: `Recovered ≥ 75`, `Fatigued 35–74`, `Depleted < 35`. Calibration needs **3 training days per muscle**. The vendor's published bands overlap at exactly 75%; this build resolves the overlap to **Recovered** (documented in a test).
+Bands: `Recovered ≥ 75`, `Fatigued 35–74`, `Depleted < 35`. Calibration needs **3 training days per muscle**. The documented bands overlap at exactly 75%; this build resolves the overlap to **Recovered** (documented in a test).
 
 ## Nutrition score (1–100)
 
@@ -157,9 +157,9 @@ The contributors are designed to sum to the headline delta; the UI shows the equ
 | Biological Age | ≥7 of 9 markers + 7 wearable days |
 | Nutrition | At least one non-imported meal |
 
-## Intentional differences from the vendor
+## Design choices and known differences
 
-- Weights, curves and thresholds not published by Bevel are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see the source comments.
+- Weights, curves and thresholds are our own, chosen to satisfy the observable invariants (ranges, directions, gates, bands). Recovery and strain are ported from the transparent, MIT-licensed NOOP implementations (`ryanbr/noop`) rather than invented; see the source comments.
 - Max HR is explicit rather than implicit; strain uses Tanaka `208 − 0.7 × age` and %HRR zone weights.
 - Muscle-freshness’s 75% overlap is resolved to Recovered.
 - “Normal range” for strain is target ± 16 rather than an undisclosed distribution.

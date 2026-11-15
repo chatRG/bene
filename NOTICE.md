@@ -1,23 +1,5 @@
 # Notice and attribution
 
-## Unofficial status
-
-Bene is an independent, clean-room project. It is not affiliated with, endorsed by, sponsored by, or connected to Finerpoint, Inc., Starlight Tech LLC, or the Bevel app.
-
-“Bevel”, “Bevel: AI Health Coach”, and associated logos are trademarks of their respective owners. This repository does not include any Bevel application code, binaries, assets, fonts, or proprietary content. The UI is an original implementation inspired by publicly visible product behaviour and App Store screenshots.
-
-## Clean-room sources
-
-The behavioural specification used to design this build was assembled from public material:
-
-- Bevel's public help centre (feature documentation, settings paths, error states).
-- Bevel's public methodology blog (score inputs, ranges, the deep-sleep target curve, food-quality contributor points).
-- Public App Store listing screenshots and metadata.
-- Public App Store reviews for edge-case behaviour.
-- The public NOOP project (MIT). Its transparent RecoveryScorer and StrainScorer formulas are the basis for Bene's recovery and strain implementations, rewritten in TypeScript. See `docs/SCORING.md`.
-
-No private API, binary, or proprietary algorithm is used. The NOOP project is MIT-licensed; its copyright notice is reproduced in the repository history and its formulas are attributed here. Where the vendor does not publish weights or thresholds, this project uses an independent model documented in [docs/SCORING.md](docs/SCORING.md).
-
 ## Third-party software
 
 | Package | License | Use |
@@ -34,17 +16,12 @@ No private API, binary, or proprietary algorithm is used. The NOOP project is MI
 
 See each package's license for full text. The Inter font is distributed under the SIL Open Font License.
 
-## Licence
+## Scoring attribution
 
-Bene is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-Noncommercial use is free; commercial use requires a separate paid licence — see
-[COMMERCIAL.md](COMMERCIAL.md). This notice covers attribution for third-party work;
-it does not grant rights beyond the licence.
+Bene's recovery and strain implementations are a TypeScript rewrite of the transparent
+`RecoveryScorer` and `StrainScorer` formulas from the NOOP project (`ryanbr/noop`), which is
+MIT-licensed. The formulas are documented in [docs/SCORING.md](docs/SCORING.md).
 
 ## Health disclaimer
 
 This application produces wellness estimates. It is not a medical device, does not diagnose or treat any condition, and must not be used to make medication or treatment decisions. If you feel unwell, contact a qualified clinician.
-
-## Privacy
-
-The app contains no analytics, telemetry, advertising SDKs, or network calls. All data stays in the local app container; backups are user-initiated files. Demo data is synthetic.

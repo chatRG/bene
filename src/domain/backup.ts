@@ -1,10 +1,8 @@
 import type { AppStateData } from './types';
 
 export const BACKUP_APP = 'bene';
-export const LEGACY_BACKUP_APP = 'bevel-community';
 export const BACKUP_VERSION = 1;
 export const SNAPSHOT_KEY = 'bene-snapshot';
-export const LEGACY_SNAPSHOT_KEY = 'bevel-community-snapshot';
 
 export type BackupPayload = Omit<AppStateData, never>;
 
@@ -56,7 +54,7 @@ export function parseBackup(raw: string): ParseResult {
   }
   if (!parsed || typeof parsed !== 'object') return { ok: false, error: 'Backup file is empty or unreadable.' };
   const obj = parsed as Partial<BackupFile> & { data?: unknown };
-  if (obj.app !== BACKUP_APP && obj.app !== LEGACY_BACKUP_APP) return { ok: false, error: 'This isn’t a Bene backup.' };
+  if (obj.app !== BACKUP_APP) return { ok: false, error: 'This isn’t a Bene backup.' };
   if (typeof obj.version !== 'number' || obj.version > BACKUP_VERSION) {
     return { ok: false, error: 'This backup was created by a newer version of the app.' };
   }
@@ -82,13 +80,13 @@ export function saveSnapshot(state: AppStateData): string {
 }
 
 export function readSnapshot(): ParseResult {
-  const raw = localStorage.getItem(SNAPSHOT_KEY) ?? localStorage.getItem(LEGACY_SNAPSHOT_KEY);
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
   if (!raw) return { ok: false, error: 'No on-device backup yet.' };
   return parseBackup(raw);
 }
 
 export function snapshotInfo(): { exists: boolean; exportedAt: string | null; sizeKb: number } {
-  const raw = localStorage.getItem(SNAPSHOT_KEY) ?? localStorage.getItem(LEGACY_SNAPSHOT_KEY);
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
   if (!raw) return { exists: false, exportedAt: null, sizeKb: 0 };
   try {
     const parsed = JSON.parse(raw) as BackupFile;

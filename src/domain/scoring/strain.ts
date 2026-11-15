@@ -60,8 +60,8 @@ export function passiveTrimp(
 }
 
 /** Documented direction: better recovery raises the target. The mapping is a
- *  transparent community model (Bevel does not publish its weights); it lands
- *  recovery 41 at a target of ~51, matching the reference normal range 34–67. */
+ *  transparent community model (the weights are not published); it lands
+ *  recovery 41 at a target of ~51. */
 export function targetStrain(recovery: number | null, _recentAverage = 50): number {
   const target = recovery == null ? 50 : 24 + recovery * 0.65;
   return Math.round(clamp(target, 20, 95));
