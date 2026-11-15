@@ -14,7 +14,7 @@ import { createBackup, parseBackup } from './backup';
 const NOW = new Date('2026-11-14T13:20:00');
 
 describe('demo dataset', () => {
-  it('reproduces the reference dashboard values', () => {
+  it('matches the demo dashboard values', () => {
     const data = buildSeed(NOW);
     const today = dateKey(NOW);
     const d = deriveDay(data, today, NOW);

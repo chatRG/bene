@@ -2,14 +2,6 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use semantic versioning once the project leaves 0.x.
 
-## [Unreleased]
-
-### Removed
-
-- Local file-import feature end to end: parser, tests, fixture, E2E script, ZIP dependency, store action and the Settings import flow. Data Sources now lists adapters only, with no import path.
-- Legacy storage-key and backup-app migration shims for the pre-rename app id.
-- Research and decision documents that were never part of the product documentation.
-
 ## [0.1.0] — 2026-11-14
 
 First public iteration: offline-first, local-only, demo-data complete.

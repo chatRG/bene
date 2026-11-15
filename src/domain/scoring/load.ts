@@ -123,7 +123,7 @@ export interface MuscleFreshness {
   trainingDays: number;
 }
 
-/** Documented bands, with the vendor's 75% overlap resolved to Recovered. */
+/** Documented bands, with the 75% overlap resolved to Recovered. */
 export function freshnessBand(pct: number, trainingDays: number): MuscleFreshness['band'] {
   if (trainingDays < 3) return 'Calibrating';
   if (pct >= 75) return 'Recovered';
