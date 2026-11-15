@@ -406,7 +406,7 @@ export function buildSeed(now = new Date()): AppStateData {
     days[date] = { date, sleep, metrics, workouts, meals, journal: journalEntries.filter((j) => j.date === date) };
   }
 
-  // Today's nutrition must land exactly on the reference values (2,304 kcal, 26/42/32).
+  // Today's nutrition must land exactly on the demo values (2,304 kcal, 26/42/32).
   const todayMeals = days[today].meals;
   const totalP = todayMeals.reduce((a, m) => a + m.proteinG, 0);
   const totalC = todayMeals.reduce((a, m) => a + m.carbsG, 0);

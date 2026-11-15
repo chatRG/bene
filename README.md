@@ -1,42 +1,39 @@
 # Bene
 
-**An offline-first, source-available health coach for iOS, Android and the web.**
+**A health coach for iOS, Android and the web. It works offline. Its source is available.**
 
-Recovery, sleep, strain, training load, nutrition, journaling and biological age — built from a wearable-agnostic data model, with every score explained and every byte stored on your device.
+Bene calculates recovery, sleep, strain, training load, nutrition, journaling and biological age. It uses a data model that does not depend on one wearable brand. It explains each score. It stores all data on your device.
 
-> **Unofficial project.** Bene is an independent, clean-room community build inspired by publicly documented behaviour and public App Store screenshots of *Bevel: AI Health Coach*. It is **not affiliated with, endorsed by, or connected to Finerpoint, Inc.** “Bevel” is a trademark of its owner. See [NOTICE.md](NOTICE.md).
-
-> **Licence.** Free for personal, research and other noncommercial use. Commercial use needs a separate paid licence — see [COMMERCIAL.md](COMMERCIAL.md).
+> **Licence.** Bene is free for personal, research and other noncommercial use. Commercial use needs a separate paid licence. See [COMMERCIAL.md](COMMERCIAL.md).
 
 ![Home, Recovery, Sleep and Biology](docs/screenshots/hero.png)
 
 ## Why this exists
 
-Most health apps put the most valuable part of your data — the interpretation — behind a subscription and a cloud account. This project explores the opposite: a **local-first** coach that runs entirely on your device, keeps working on a plane, and lets you take your data with you as a single file.
+Most health apps put the interpretation of your data behind a subscription and a cloud account. Bene does not. Bene is a local-first coach. It runs on your device. It continues to work when the device has no network connection, for example on a plane. You can move your data to another device as one file.
 
-This is the first iteration. It is intentionally complete enough to use every day, and honest about what comes next.
+This is the first iteration. It has sufficient features for daily use. This document also describes what comes next.
 
 ## What works today
 
 | Area | Status |
 |---|---|
-| **Offline by default** | ✅ No accounts, no telemetry, no network calls. All state in local storage / the app container. |
-| **Backup & restore** | ✅ Download a single JSON backup, daily automatic on-device snapshot, validated restore from file. |
-| **Demo dataset** | ✅ Deterministic 60-day history (sleep stages, HR/HRV, workouts, meals, journal) so every screen has real numbers on first launch. |
-| **Recovery, Sleep, Strain** | ✅ Documented scoring model with calibration gates, personal baselines and explainable breakdowns. |
-| **Training** | ✅ Cardio/muscular load, muscle freshness, structured routines, live workout timer, workout logging. |
-| **Nutrition** | ✅ Calories, macros, net energy, 11 food-quality contributors, food search/custom foods. |
-| **Journal** | ✅ Yes/No, Yes/Neutral/No and numeric tags, pinned tags, correlation insights after 5+5 entries. |
-| **Biology** | ✅ Biological Age with a ± year estimate, contributor breakdown, biomarkers, health-record uploads (local). |
-| **Coach** | ✅ Offline, scripted coach grounded in your metrics — no model calls. The UI is ready for a local or user-supplied model later. |
-| **Native shells** | ✅ Capacitor iOS and Android projects included. |
-| **Apple Health import** | ✅ Import `export.zip` / `export.xml` locally — sleep stages, overnight HRV/RHR, workouts, daily metrics and nutrition totals. Native HealthKit / Health Connect is the next milestone. |
+| **Offline by default** | ✅ Bene has no accounts, no telemetry and no network calls. It keeps all state in local storage or the app container. |
+| **Backup and restore** | ✅ Bene downloads one JSON backup file. It makes an automatic on-device snapshot each day. It validates a restore from a file. |
+| **Demo dataset** | ✅ A deterministic 60-day history includes sleep stages, HR/HRV, workouts, meals and journal entries. Each screen has values at first run. |
+| **Recovery, Sleep, Strain** | ✅ A documented scoring model uses calibration gates and personal baselines. Each score has a breakdown. |
+| **Training** | ✅ Bene calculates cardio load and muscular load. It gives muscle freshness, structured routines, a live workout timer and workout logging. |
+| **Nutrition** | ✅ Bene tracks calories, macros and net energy. It has 11 food-quality contributors, food search and custom foods. |
+| **Journal** | ✅ Journal tags support Yes/No, Yes/Neutral/No and numeric values. You can pin tags. Bene displays correlation insights after 5+5 entries. |
+| **Biology** | ✅ Biological Age has a ± year estimate, a contributor breakdown, biomarkers and local health-record uploads. |
+| **Coach** | ✅ The coach works offline and uses scripts. It answers from your metrics and makes no model calls. The UI can use a local or user-supplied model later. |
+| **Native shells** | ✅ The repository includes Capacitor iOS and Android projects. |
 
 ## What's next
 
-- **Native health adapters.** HealthKit and Health Connect behind one Capacitor plugin, feeding the same `DayRecord` contract as the Apple Health XML importer. See [docs/HEALTH_SOURCES.md](docs/HEALTH_SOURCES.md).
-- **Optional on-device coach.** A local model can phrase the numbers later, with the rule-based coach as the always-available fallback. No cloud model is in scope.
-- **Store builds.** The Capacitor projects are included; signing and packaging still happen in Xcode and Android Studio.
+- **Native health adapters.** Bene will add adapters for native health stores. One Capacitor plugin will connect HealthKit and Health Connect. The plugin will supply the same `DayRecord` contract that the rest of the domain uses.
+- **Optional on-device coach.** A local model can phrase the numbers later. The rule-based coach remains the always-available fallback. No cloud model is in scope.
+- **Store builds.** The repository includes the Capacitor projects. You still sign and package in Xcode and Android Studio.
 
 ## Screens
 
@@ -61,34 +58,33 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-First run opens a 3-step onboarding. Choose **See a sample day** to see the full 60-day dataset immediately, or enter your own name and start with an empty profile.
+The first run opens a 3-step onboarding. Choose **See a sample day** to load the full 60-day dataset immediately. Or enter your name and start with an empty profile.
 
 ```bash
-npm test             # scoring, backup, import and offline-coach invariants (23 tests)
+npm test             # scoring, backup and offline-coach invariants
 npm run lint         # TypeScript project check
 npm run build        # production web build in dist/
 npm run preview      # serve the production build
 ```
 
-### Visual and end-to-end checks
+### Visual and end-to-end tests
 
-These use Playwright against a running dev server (install Chromium once with `npx playwright install chromium`):
+These tests use Playwright against a running dev server. Install Chromium one time with `npx playwright install chromium`.
 
 ```bash
 npm run dev            # terminal 1
 npm run shots          # capture every screen at 430×932, assert no overflow
 npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
 npm run test:empty     # onboarding with no demo data
-npm run test:import    # Apple Health export import
 npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
 npm run test:pwa       # service worker + fully offline reload of the production build
 ```
 
-`test:pwa` runs against `npm run preview` (port 4173) after `npm run build`; the others use the dev server on port 5173. The scripts live in `scripts/` and double as acceptance tests for the behaviours in `docs/`. Screenshots are written to `docs/screenshots/`; `npm run shots` is the visual review pass.
+`test:pwa` runs against `npm run preview` on port 4173 after `npm run build`. The other tests use the dev server on port 5173. The scripts are in `scripts/`. They also operate as acceptance tests for the behaviour in `docs/`. Screenshots go to `docs/screenshots/`. `npm run shots` is the visual review pass.
 
 ## iOS and Android
 
-The native projects are already generated with [Capacitor](https://capacitorjs.com). The same TypeScript/React UI runs inside a native shell.
+Capacitor generated the native projects. The same TypeScript/React UI runs in a native shell.
 
 ```bash
 npm run build
@@ -97,26 +93,26 @@ npm run cap:ios      # opens ios/App/App.xcworkspace in Xcode (macOS)
 npm run cap:android  # opens android/ in Android Studio
 ```
 
-- **iOS:** run `cd ios/App && pod install` once (CocoaPods), then open `ios/App/App.xcworkspace`, select a signing team, and run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. Deployment target and bundle id live in Xcode and `capacitor.config.ts`.
-- **Android:** open `android/`, let Gradle sync, run on a device or emulator. `minSdk` is 34 (Android 14+); `applicationId` is `health.bene.community`.
+- **iOS:** Run `cd ios/App && pod install` one time (CocoaPods). Then open `ios/App/App.xcworkspace`. Select a signing team. Run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. The deployment target and bundle id are in Xcode and `capacitor.config.ts`.
+- **Android:** Open `android/` and let Gradle sync. Run on a device or emulator. `minSdk` is 34 (Android 14+). `applicationId` is `health.bene.community`.
 - **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
-No native build is required for development — the web target is the fastest iteration loop and is what the automated screenshot suite uses.
+You do not need a native build for development. The web target has the shortest development loop. The automated screenshot suite uses the web target.
 
 ## Backups: the important part
 
-There is no server, so a backup file **is** your account.
+Bene has no server. A backup file **is** your account.
 
-- **Create backup** → writes a timestamped snapshot to the device and downloads `bene-backup-YYYY-MM-DD.json`.
-- **Daily automatic snapshot** → once per 24 hours, saved on-device.
-- **Restore** → validates the file/snapshot, then replaces the current data. Invalid, foreign or newer-version backups are rejected without touching your data.
+- **Create backup:** Bene writes a timestamped snapshot to the device and downloads `bene-backup-YYYY-MM-DD.json`.
+- **Daily automatic snapshot:** Bene saves a snapshot on the device one time each 24 hours.
+- **Restore:** Bene validates the file or snapshot, then replaces the current data. Bene rejects an invalid, foreign or newer-version backup without a change to your data.
 - Backups include profile, settings, every day of metrics, meals, workouts, journal entries, biomarkers, records, routines and chat history.
 
-The format is a plain JSON document (`app: "bene"`, `version: 1`). It is **not encrypted** — treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
+The format is a plain JSON document (`app: "bene"`, `version: 1`). It is **not encrypted**. Treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
 ## Scoring, in one paragraph
 
-Every score is a pure function of your data with a published invariant list. Recovery requires two complete nights, sleep stages, overnight HRV and overnight RHR; it blends sleep score, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain uses logarithmic TRIMP load and can exceed 100%. Nutrition follows the 11 published food-quality contributors, including the sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness contributors, and only updates weekly. The vendor does not publish its weights, so this build uses an independent, documented model and keeps every weight in one place.
+Each score is a pure function of your data and has a published list of invariants. Recovery needs two complete nights, sleep stages, overnight HRV and overnight RHR. It blends sleep score, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain uses logarithmic TRIMP load and can exceed 100%. Nutrition follows the 11 published food-quality contributors, including the sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness contributors. It updates only each week. The exact weights are not public. This build uses an independent, documented model and keeps all weights in one place.
 
 Read [docs/SCORING.md](docs/SCORING.md) for formulas, gates, weights and the known gaps.
 
@@ -131,28 +127,28 @@ src/
   styles/            tokens + screen CSS
 ios/, android/       Capacitor native shells
 scripts/             Playwright visual + end-to-end checks
-docs/                scoring, architecture, backup, health-source notes
+docs/                scoring, architecture and backup notes
 ```
 
-- **UI:** React 19 + TypeScript + Vite, no chart library — charts are hand-built SVG for control and small bundles.
-- **State:** Zustand with a persisted data slice; scoring is never stored, only derived.
-- **Native:** Capacitor 7; web assets are bundled into the app, so it works with the radio off.
-- **Design:** warm ivory canvas, white cards, Inter, large tabular numerals, one accent per metric. Dark mode included; the sleep detail is always night-themed.
+- **UI:** The UI uses React 19, TypeScript and Vite. It has no chart library. We hand-build the charts in SVG for control and small bundle size.
+- **State:** State uses Zustand with a persisted data slice. Bene never stores scoring data. It derives the scores.
+- **Native:** Native uses Capacitor 7. Capacitor bundles the web assets into the app. It works with the radio off.
+- **Design:** The design uses a warm ivory canvas, white cards, Inter, large tabular numerals and one accent for each metric. Bene includes dark mode. The sleep detail always uses the night theme.
 
 More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Privacy
 
-- No analytics, no crash reporting, no remote logging, no third-party scripts.
-- No network requests in the app source (`fetch`, `XMLHttpRequest`, `axios` are absent).
-- Health data stays in the app's local storage. Backups are user-initiated files.
-- The demo dataset is synthetic; names and values are fictional.
-- This is a wellness tool, not a medical device, and not a diagnosis.
+- Bene has no analytics, no crash reporting, no remote logging and no third-party scripts.
+- The app source has no network requests (`fetch`, `XMLHttpRequest`, `axios` are absent).
+- Health data stays in the local storage of the app. Backups are files that the user creates.
+- The demo dataset is synthetic. The names and values are fictional.
+- This is a wellness tool. It is not a medical device and it does not give a diagnosis.
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Scoring changes must include a test and a note in `docs/SCORING.md`. Please keep the app offline-first: no telemetry and no required network dependency.
+You can open issues and pull requests. Start with [CONTRIBUTING.md](CONTRIBUTING.md). A scoring change must include a test and a note in `docs/SCORING.md`. Keep the app offline-first. Do not add telemetry or a required network dependency.
 
 ## License
 
-Source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, hobby, research and other noncommercial use is free. **Commercial use requires a separate paid licence** — see [COMMERCIAL.md](COMMERCIAL.md). “Bevel” and any third-party marks remain the property of their owners; see [NOTICE.md](NOTICE.md).
+The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Personal, hobby, research and other noncommercial use is free. **Commercial use requires a separate paid licence.** See [COMMERCIAL.md](COMMERCIAL.md). Third-party components and the NOOP formula attribution are in [NOTICE.md](NOTICE.md).

@@ -204,7 +204,7 @@ export function RecoveryScreen() {
             })}
           </div>
           <p className="caption mt-12" style={{ lineHeight: 1.5 }}>
-            Personal baseline from your last {d.recovery.baselineNights} nights. The reference app never publishes exact weights, so this community build uses an independent,
+            Personal baseline from your last {d.recovery.baselineNights} nights. Exact weights are not public, so this build uses an independent,
             documented model (see docs/SCORING.md).
           </p>
         </div>

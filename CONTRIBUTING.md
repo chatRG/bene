@@ -1,14 +1,14 @@
 # Contributing
 
-Thanks for helping build a local-first health app. The project is intentionally small enough to understand in an afternoon, and we would like to keep it that way.
+Thank you for your help with this local-first health app. The project is small enough to understand in one afternoon. We want to keep it small.
 
 ## Ground rules
 
-1. **Offline first.** No telemetry, no required network calls, no accounts. A feature that needs a server must be optional and documented.
+1. **Offline first.** Bene does not use telemetry, required network calls or accounts. A feature that needs a server must be optional and documented.
 2. **One scoring implementation.** Scores live in `src/domain/scoring/` and run on every platform. Do not duplicate them in native code.
-3. **Explain the number.** Every score change needs a line in `docs/SCORING.md` and at least one invariant test.
-4. **Respect the data.** Health information is sensitive. Do not log it, upload it, or put it in fixtures that look like a real person.
-5. **Small PRs.** A screen or a score per PR beats a 4,000-line rewrite.
+3. **Explain the number.** Each score change needs a line in `docs/SCORING.md` and at least one invariant test.
+4. **Respect the data.** Health information is sensitive. Do not log it or upload it. Do not put it in fixtures that look like a real person.
+5. **Small PRs.** Keep pull requests small. One screen or one score for each pull request is better than a 4,000-line rewrite.
 
 ## Setup
 
@@ -27,27 +27,27 @@ npm run lint
 - [ ] `npm run shots` renders every screen without console errors or horizontal overflow.
 - [ ] New UI works in light and dark mode, at 375 px and 430 px widths.
 - [ ] No new network calls (`fetch`, `XMLHttpRequest`, analytics).
-- [ ] New score weights are documented in `docs/SCORING.md`.
-- [ ] Backup compatibility is preserved, or a migration is included.
+- [ ] Document new score weights in `docs/SCORING.md`.
+- [ ] Keep backup compatibility, or include a migration.
 
 ## Code style
 
-- TypeScript strict mode; avoid `any`.
-- Pure functions for domain logic; React only in `screens/` and `components/`.
-- CSS variables from `src/styles/base.css`; no hard-coded palette in components.
-- Prefer existing primitives (`Ring`, `Sheet`, `ListRow`, `LineChart`) over new ones.
-- Icons come from `lucide-react`; never rely on emoji glyphs for UI chrome (system fonts differ).
-- Dates: local `yyyy-MM-dd` keys, ISO timestamps, `date-fns` for formatting.
+- Use TypeScript strict mode. Avoid `any`.
+- Use pure functions for domain logic. Use React only in `screens/` and `components/`.
+- Use CSS variables from `src/styles/base.css`. Do not hard-code the palette in components.
+- Prefer the existing primitives (`Ring`, `Sheet`, `ListRow`, `LineChart`) to new ones.
+- Use icons from `lucide-react`. Do not use emoji glyphs for UI chrome, because system fonts differ.
+- Use local `yyyy-MM-dd` keys for dates and ISO timestamps. Use `date-fns` for formatting.
 
 ## Adding a feature
 
-1. Open an issue describing the behaviour and the visible state machine.
+1. Open an issue that describes the behaviour and the visible state machine.
 2. Add the data shape to `src/domain/types.ts`.
-3. Add the pure logic + tests.
+3. Add the pure logic and the tests.
 4. Wire the store action.
 5. Build the screen with existing components.
 6. Add a screenshot route in `scripts/screenshots.mjs`.
-7. Update the README feature table if user-visible.
+7. Update the README feature table if the change is user-visible.
 
 ## Reporting bugs
 
@@ -55,9 +55,9 @@ Include:
 
 - platform (web / iOS / Android) and version,
 - steps to reproduce,
-- expected vs actual,
-- whether it reproduces after `Reset demo data`,
-- a screenshot if visual.
+- expected and actual behaviour,
+- whether the bug reproduces after `Reset demo data`,
+- a screenshot if the bug is visual.
 
 Do not attach a real health backup. Reduce the case with the demo dataset or a synthetic fixture.
 
@@ -67,14 +67,11 @@ Please do not open a public issue for a vulnerability that could expose health d
 
 ## License
 
-Bene is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-Noncommercial use is free; commercial use needs a separate paid licence (see
-[COMMERCIAL.md](COMMERCIAL.md)).
+Bene is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). Noncommercial use is free. Commercial use needs a separate paid licence (see [COMMERCIAL.md](COMMERCIAL.md)).
 
 By contributing, you agree that:
 
-1. your contribution is licensed under the PolyForm Noncommercial License 1.0.0; and
-2. you grant the maintainer a perpetual, worldwide, irrevocable, royalty-free right
-   to relicense your contribution under any terms, including commercial terms.
+1. You license your contribution under the PolyForm Noncommercial License 1.0.0.
+2. You grant the maintainer a perpetual, worldwide, irrevocable, royalty-free right to relicense your contribution under any terms, including commercial terms.
 
-If you cannot grant those rights, open an issue before contributing.
+If you cannot grant those rights, open an issue before you contribute.

@@ -32,7 +32,6 @@ import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { snapshotInfo } from '../domain/backup';
-import { importAppleHealthFile, type AppleHealthImport } from '../domain/import/appleHealth';
 import type { ActivityStatus, ThemeMode, UnitSystem } from '../domain/types';
 
 const SECTION_TITLES: Record<string, string> = {
@@ -70,7 +69,7 @@ export function SettingsScreen() {
 
         <GroupLabel>Data and privacy</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="Apple Health import and adapters" onClick={() => navigate('/settings/data')} />
+          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="No live adapters · demo and manual logs" onClick={() => navigate('/settings/data')} />
           <ListRow icon={<Shield size={16} />} title="Privacy and permissions" subtitle="Export, delete, access" onClick={() => navigate('/settings/privacy')} />
           <ListRow icon={<HardDrive size={16} />} title="Backup and restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
         </div>
@@ -89,7 +88,7 @@ export function SettingsScreen() {
           <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.1.0 · Noncommercial" onClick={() => navigate('/settings/about')} />
         </div>
 
-        <div className="settings-footer">Bene is an unofficial, local-first health app.<br />Not affiliated with Finerpoint, Inc.</div>
+        <div className="settings-footer">Bene is a local-first health app.<br />Health estimates are wellness only, not medical advice.</div>
       </div>
     );
   }
@@ -234,7 +233,7 @@ function Account() {
 }
 
 const SOURCES = [
-  { id: 'apple', name: 'Apple Health', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Synthetic dataset · no HealthKit adapter in this build', note: 'This build does not link HealthKit. The dashboard uses a synthetic 60-day dataset; manual logs are real. See docs/HEALTH_SOURCES.md for the adapter plan.' },
+  { id: 'apple', name: 'Apple Health', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Synthetic dataset · no HealthKit adapter in this build', note: 'This build does not link HealthKit. The dashboard uses a synthetic 60-day dataset; manual logs are real.' },
   { id: 'oura', name: 'Oura', icon: <Moon size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Oura API connection', note: 'Oura data would arrive through Apple Health or a native bridge. Neither is included yet.' },
   { id: 'garmin', name: 'Garmin', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Garmin connection', note: 'Requires Garmin Connect → Apple Health or a native adapter.' },
   { id: 'strava', name: 'Strava', icon: <Zap size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Strava OAuth', note: 'Imported workouts are read-only by design; the integration is not built.' },
@@ -246,55 +245,15 @@ const SOURCES = [
 
 function DataSourceScreen() {
   const [selected, setSelected] = useState<(typeof SOURCES)[number] | null>(null);
-  const [pending, setPending] = useState<AppleHealthImport | null>(null);
-  const [importing, setImporting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const importHealth = useAppStore((s) => s.importAppleHealth);
-  const navigate = useNavigate();
-
-  const readFile = async (file: File | undefined) => {
-    if (!file) return;
-    setImporting(true);
-    try {
-      const result = await importAppleHealthFile(file);
-      setPending(result);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not read that export.');
-    } finally {
-      setImporting(false);
-    }
-  };
 
   return (
     <>
       <div className="insight-unlock mt-8">
         <Info size={17} />
         <span>
-          <strong>No live sensor connection is active yet.</strong> You can import an Apple Health export locally right now; HealthKit and Health
-          Connect adapters are the next milestone. Manual logs and backups are real.
+          <strong>No live sensor connection is active yet.</strong> The dashboard runs on a synthetic demo dataset; anything you log manually and
+          every backup you create are real and stay on this device.
         </span>
-      </div>
-      <GroupLabel>Import</GroupLabel>
-      <div className="list-card">
-        <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => fileRef.current?.click()} disabled={importing}>
-          <div className="list-icon"><Upload size={16} /></div>
-          <div className="grow">
-            <div className="list-title">{importing ? 'Reading export…' : 'Import Apple Health export'}</div>
-            <div className="list-sub">Choose export.zip or export.xml · stays on this device</div>
-          </div>
-          <span className="pill pill--sm pill--flat">Local</span>
-          <ChevronRight size={16} className="chevron" />
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".zip,.xml,application/zip,text/xml"
-          hidden
-          onChange={(e) => {
-            void readFile(e.target.files?.[0]);
-            e.currentTarget.value = '';
-          }}
-        />
       </div>
       <GroupLabel>Sources</GroupLabel>
       <div className="list-card">
@@ -324,38 +283,11 @@ function DataSourceScreen() {
             className="btn btn--soft btn--block mt-20"
             onClick={() => {
               setSelected(null);
-              showToast('Adapter not included — see docs/HEALTH_SOURCES.md');
+              showToast('Adapter not included in this build');
             }}
           >
             Adapter not included in this build
           </button>
-        </Sheet>
-      ) : null}
-      {pending ? (
-        <Sheet title="Apple Health import" subtitle="Review before replacing local data" onClose={() => setPending(null)}>
-          <div className="list-card" style={{ boxShadow: 'none' }}>
-            <div className="list-row"><div className="grow"><div className="list-title">Days</div></div><strong>{pending.summary.days}</strong></div>
-            <div className="list-row"><div className="grow"><div className="list-title">Sleep sessions</div></div><strong>{pending.summary.sleepSessions}</strong></div>
-            <div className="list-row"><div className="grow"><div className="list-title">Workouts</div></div><strong>{pending.summary.workouts}</strong></div>
-            <div className="list-row"><div className="grow"><div className="list-title">Nutrition days</div></div><strong>{pending.summary.meals}</strong></div>
-            <div className="list-row"><div className="grow"><div className="list-title">Date range</div></div><span className="list-value">{pending.summary.firstDate} → {pending.summary.lastDate}</span></div>
-          </div>
-          <p className="caption mt-12" style={{ lineHeight: 1.5 }}>
-            This replaces the current dashboard days with your Apple Health data. Profile, settings, journal tags, chats and backups are kept. Imported
-            meals do not produce a Nutrition Score because Apple does not include meal context.
-          </p>
-          <button
-            className="btn btn--block mt-16"
-            onClick={() => {
-              importHealth(pending.days, pending.dayOrder);
-              setPending(null);
-              showToast(`Imported ${pending.summary.days} days from Apple Health`);
-              navigate('/');
-            }}
-          >
-            Replace dashboard data
-          </button>
-          <button className="btn btn--soft btn--block mt-8" onClick={() => setPending(null)}>Cancel</button>
         </Sheet>
       ) : null}
     </>
@@ -458,7 +390,7 @@ function Calculations() {
         </div>
       </div>
       <p className="caption mt-12" style={{ lineHeight: 1.5 }}>
-        Max HR defaults to the Tanaka estimate (208 − 0.7 × age). Bevel does not publish how it derives Max HR, so this build makes the choice explicit.
+        Max HR defaults to the Tanaka estimate (208 − 0.7 × age). The method and the manual override are explicit here rather than implied.
       </p>
     </>
   );
@@ -750,7 +682,7 @@ function About() {
           <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
-        <div className="caption mt-4">Version 0.1.0 · clean-room build</div>
+        <div className="caption mt-4">Version 0.1.0 · local-first build</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           <span className="pill pill--sm pill--flat">Noncommercial</span>
@@ -763,8 +695,8 @@ function About() {
         <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => showToast('Add your repository URL before release')} />
       </div>
       <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
-        Bene is an independent, unofficial clean-room implementation inspired by publicly documented Bevel behaviour. It is not affiliated with,
-        endorsed by, or connected to Finerpoint, Inc. “Bevel” is a trademark of its owner. Health estimates are for wellness only and are not medical advice.
+        Bene is a local-first, source-available health app. Health estimates are for wellness only and are not medical advice. See NOTICE.md for
+        third-party attribution and the full health disclaimer.
       </p>
     </>
   );

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ArrowLeft, Check, ChevronRight, Heart, MessageCircle, Moon, Shield, Watch } from 'lucide-react';
+import { Activity, ArrowLeft, Check, ChevronRight, Heart, MessageCircle, Moon, Shield } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { BeneMark, Ring } from '../components/ui';
-import { showToast } from '../components/toast';
 import type { Sex } from '../domain/types';
 
 export function OnboardingScreen() {
@@ -14,7 +13,6 @@ export function OnboardingScreen() {
   const [sex, setSex] = useState<Sex>('male');
   const [birthDate, setBirthDate] = useState('1998-01-20');
   const [goal, setGoal] = useState<'recovery' | 'performance' | 'sleep' | 'fatloss' | 'general'>('performance');
-  const [healthGranted, setHealthGranted] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
   const finish = (demo: boolean) => {
@@ -88,17 +86,9 @@ export function OnboardingScreen() {
 
         {step === 1 ? (
           <div className="fade-up">
-            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Connect your health data</h1>
-            <p className="onboarding__sub">Bene reads what your watch or ring already records. No wearable? Manual logs work too.</p>
+            <h1 className="onboarding__title" style={{ fontSize: 32 }}>Stay in the loop</h1>
+            <p className="onboarding__sub">Bene works from your manual logs today. Native health sync is planned for a later build.</p>
             <div className="col gap-8 mt-24">
-              <button className={`status-option ${healthGranted ? 'status-option--active' : ''}`} onClick={() => setHealthGranted((v) => !v)}>
-                <span className="status-option__icon"><Watch size={18} /></span>
-                <span className="grow">
-                  <span className="list-title">Apple Health / Health Connect</span>
-                  <span className="list-sub">Sleep, heart rate, HRV, workouts, nutrition</span>
-                </span>
-                <span className={`switch ${healthGranted ? 'switch--on' : ''}`} />
-              </button>
               <button className={`status-option ${notifications ? 'status-option--active' : ''}`} onClick={() => setNotifications((v) => !v)}>
                 <span className="status-option__icon"><Shield size={18} /></span>
                 <span className="grow">
@@ -167,7 +157,7 @@ export function OnboardingScreen() {
           </>
         ) : step === 1 ? (
           <>
-            <button className="btn btn--block" onClick={() => { setStep(2); showToast(healthGranted ? 'Health access granted' : 'You can connect later'); }}>
+            <button className="btn btn--block" onClick={() => setStep(2)}>
               Continue <ChevronRight size={17} />
             </button>
             <button className="onboarding__link" onClick={() => setStep(2)}>Not now</button>

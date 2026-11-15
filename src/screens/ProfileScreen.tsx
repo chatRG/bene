@@ -84,8 +84,8 @@ export function ProfileScreen() {
       </div>
 
       <div className="settings-footer">
-        Bene 0.1.0 · Unofficial clean-room build<br />
-        Not affiliated with Finerpoint, Inc. Health estimates are not medical advice.
+        Bene 0.1.0 · Local-first build<br />
+        Health estimates are not medical advice.
       </div>
       <div className="row gap-6" style={{ justifyContent: 'center' }}>
         <span className="pill pill--sm pill--flat"><Shield size={11} /> On-device</span>
