@@ -71,9 +71,28 @@
   --r-control: 10px;
   --r-chip: 6px;
 
-  --nav-h: 60px;
+  --nav-h: 75px;
   --app-w: 520px;
   --gutter: 20px;
+
+  /* Floating glass navigation */
+  --nav-inset: 12px;
+  --nav-fill-hi: rgba(255, 253, 247, 0.97);
+  --nav-fill: rgba(247, 242, 233, 0.95);
+  --nav-fill-lo: rgba(236, 230, 217, 0.93);
+  --nav-edge: rgba(255, 255, 255, 0.95);
+  --nav-edge-lo: rgba(28, 26, 22, 0.12);
+  --nav-inner-rim: rgba(255, 255, 255, 0.72);
+  --nav-sheen: rgba(255, 255, 255, 0.85);
+  --nav-ink: #5b5447;
+  --nav-ink-active: #1c1a16;
+  --nav-active-hi: rgba(255, 255, 255, 0.98);
+  --nav-active-lo: rgba(248, 243, 233, 0.92);
+  --nav-active-edge: rgba(255, 255, 255, 0.92);
+  --nav-active-edge-lo: rgba(28, 26, 22, 0.1);
+  --nav-shadow: 0 18px 40px -16px rgba(38, 32, 24, 0.32), 0 4px 14px -6px rgba(38, 32, 24, 0.14);
+  --nav-solid: #f7f3ea;
+  --nav-active-solid: #fffdf8;
 
   --font: 'Inter Variable', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     Roboto, sans-serif;
@@ -121,6 +140,24 @@
 
   --shadow: none;
   --shadow-soft: none;
+
+  /* Floating glass navigation — smoked charcoal over the warm dark shell */
+  --nav-fill-hi: rgba(56, 50, 40, 0.95);
+  --nav-fill: rgba(33, 29, 22, 0.95);
+  --nav-fill-lo: rgba(20, 17, 13, 0.97);
+  --nav-edge: rgba(255, 250, 241, 0.24);
+  --nav-edge-lo: rgba(255, 250, 241, 0.06);
+  --nav-inner-rim: rgba(255, 250, 241, 0.18);
+  --nav-sheen: rgba(255, 250, 241, 0.2);
+  --nav-ink: #c7bdac;
+  --nav-ink-active: #fbf7ef;
+  --nav-active-hi: rgba(255, 250, 241, 0.26);
+  --nav-active-lo: rgba(255, 250, 241, 0.11);
+  --nav-active-edge: rgba(255, 250, 241, 0.36);
+  --nav-active-edge-lo: rgba(0, 0, 0, 0.25);
+  --nav-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.78), 0 3px 12px -4px rgba(0, 0, 0, 0.45);
+  --nav-solid: #241f18;
+  --nav-active-solid: #3a332a;
 }
 
 * {
@@ -755,38 +792,61 @@ ul {
 
 .navbar {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: var(--app-w);
-  padding: 8px 12px calc(6px + env(safe-area-inset-bottom));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: calc(100% - (var(--nav-inset) * 2));
+  max-width: calc(var(--app-w) - (var(--nav-inset) * 2));
+  padding: 5px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  background: var(--card);
-  border-top: 1px solid var(--hairline);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--nav-edge);
+  background:
+    radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
+    linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 var(--nav-sheen),
+    inset 0 -1px 0 var(--nav-edge-lo),
+    var(--nav-shadow);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  backdrop-filter: blur(26px) saturate(180%);
   z-index: 40;
+  isolation: isolate;
+}
+
+.navbar::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  border: 1px solid var(--nav-inner-rim);
+  pointer-events: none;
 }
 
 .nav-item {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 6px 0 4px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0;
-  border-radius: 8px;
-  transition: color 0.14s var(--ease);
-}
-
-.nav-item--active {
-  color: var(--text);
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--nav-ink);
+  font-size: 11.5px;
   font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.005em;
+  transition: color 0.16s var(--ease), background-color 0.16s var(--ease),
+    box-shadow 0.16s var(--ease), border-color 0.16s var(--ease);
 }
 
 .nav-item__icon {
@@ -798,16 +858,57 @@ ul {
   color: inherit;
 }
 
-.nav-item--active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  width: 16px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-  transform: translateX(-50%);
+.nav-item__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item--active {
+  color: var(--nav-ink-active);
+  font-weight: 600;
+  border-color: var(--nav-active-edge);
+  background:
+    radial-gradient(130% 150% at 28% -30%, var(--nav-active-hi) 0%, transparent 62%),
+    linear-gradient(180deg, var(--nav-active-hi) 0%, var(--nav-active-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 var(--nav-active-edge),
+    inset 0 -1px 0 var(--nav-active-edge-lo),
+    0 3px 10px -3px rgba(0, 0, 0, 0.22),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item--active .nav-item__icon svg {
+  stroke-width: 2;
+}
+
+@media (hover: hover) {
+  .nav-item:not(.nav-item--active):hover {
+    color: var(--text-2);
+  }
+}
+
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .navbar {
+    background: var(--nav-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .nav-item--active {
+    background: var(--nav-active-solid);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .navbar {
+    background: var(--nav-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .nav-item--active {
+    background: var(--nav-active-solid);
+  }
 }
 
 /* ---------------- Sheets / modals ---------------- */

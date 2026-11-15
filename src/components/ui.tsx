@@ -93,7 +93,7 @@ export function TabBar() {
     { to: '/intelligence', label: 'Coach', icon: <MessageCircle size={20} strokeWidth={1.5} />, end: false },
   ];
   return (
-    <nav className="navbar" aria-label="Primary" style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}>
+    <nav className="navbar" aria-label="Primary">
       {items.map((item) => (
         <NavLink
           key={item.to}
@@ -102,7 +102,7 @@ export function TabBar() {
           className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
         >
           <span className="nav-item__icon">{item.icon}</span>
-          {item.label}
+          <span className="nav-item__label">{item.label}</span>
         </NavLink>
       ))}
     </nav>
