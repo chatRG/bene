@@ -4,7 +4,6 @@ import { format } from 'date-fns';
 import { Calendar, Check, ChevronLeft, ChevronRight, Clock, Dumbbell, Flame, Footprints, MoreHorizontal, Play, Snowflake, Timer, Watch, Zap } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
-import { Sparkline } from '../components/charts';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
 import type { Workout } from '../domain/types';
@@ -210,7 +209,7 @@ export function WorkoutDetailScreen() {
 
       <div className="chart-card mt-12">
         <div className="chart-card__head"><span className="chart-card__title">Heart rate</span><span className="caption">Avg {w.avgHr ?? '—'} · Max {w.maxHr ?? '—'} bpm</span></div>
-        <Sparkline values={w.zoneMinutes.map((m, i) => 90 + m * 3 + i * 4)} width={320} height={70} color="var(--red)" />
+        <div className="caption mt-8">No heart-rate samples stored for this workout.</div>
       </div>
 
       <div className="section">

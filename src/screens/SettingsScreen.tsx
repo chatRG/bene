@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
-  Bell,
   Check,
   ChevronRight,
   Database,
@@ -32,19 +31,17 @@ import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { snapshotInfo } from '../domain/backup';
-import type { ActivityStatus, ThemeMode, UnitSystem } from '../domain/types';
+import type { ActivityStatus, ThemeMode } from '../domain/types';
 
 const SECTION_TITLES: Record<string, string> = {
   general: 'Customization',
   account: 'Account',
   data: 'Data sources',
-  notifications: 'Notifications',
-  goals: 'Goals and units',
+  goals: 'Goals',
   calculations: 'Calculations',
   coach: 'Local coach',
   privacy: 'Privacy and data',
   activity: 'Activity status',
-  language: 'Language',
   about: 'About',
   backup: 'Backup and restore',
 };
@@ -63,7 +60,7 @@ export function SettingsScreen() {
 
         <GroupLabel>You</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<User size={16} />} title="Profile and plan" subtitle="Name, body metrics, subscription" onClick={() => navigate('/settings/account')} />
+          <ListRow icon={<User size={16} />} title="Profile" subtitle="Name, body metrics" onClick={() => navigate('/settings/account')} />
           <ListRow icon={<Heart size={16} />} title="Activity status" subtitle={s.activityStatus === 'active' ? 'Active' : s.activityStatus === 'break' ? 'On a break' : s.activityStatus[0].toUpperCase() + s.activityStatus.slice(1)} onClick={() => navigate('/settings/activity')} />
         </div>
 
@@ -76,11 +73,9 @@ export function SettingsScreen() {
 
         <GroupLabel>Preferences</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, units, calculations" onClick={() => navigate('/settings/general')} />
+          <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, calculations" onClick={() => navigate('/settings/general')} />
           <ListRow icon={<Target size={16} />} title="Goals" subtitle={`Sleep ${Math.floor(s.sleepGoalMin / 60)}h ${s.sleepGoalMin % 60}m · ${s.calorieGoal} kcal`} onClick={() => navigate('/settings/goals')} />
-          <ListRow icon={<Bell size={16} />} title="Notifications" subtitle="Morning report and reminders" onClick={() => navigate('/settings/notifications')} />
           <ListRow icon={<MessageCircle size={16} />} title="Local coach" subtitle="Rule-based, on this device" onClick={() => navigate('/settings/coach')} />
-          <ListRow icon={<Globe size={16} />} title="Language" subtitle="English (US)" onClick={() => navigate('/settings/language')} />
         </div>
 
         <GroupLabel>App</GroupLabel>
@@ -99,14 +94,12 @@ export function SettingsScreen() {
       {section === 'general' ? <General /> : null}
       {section === 'account' ? <Account /> : null}
       {section === 'data' ? <DataSourceScreen /> : null}
-      {section === 'notifications' ? <Notifications /> : null}
       {section === 'goals' ? <Goals /> : null}
       {section === 'calculations' ? <Calculations /> : null}
       {section === 'coach' ? <CoachSettings /> : null}
       {section === 'privacy' ? <Privacy /> : null}
       {section === 'backup' ? <Backup /> : null}
       {section === 'activity' ? <ActivitySettings /> : null}
-      {section === 'language' ? <Language /> : null}
       {section === 'about' ? <About /> : null}
       <div style={{ height: 30 }} />
     </div>
@@ -143,15 +136,6 @@ function General() {
             options={[{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
             value={s.theme}
             onChange={(v) => state.updateSettings({ theme: v })}
-          />
-        </div>
-        <div className="divider" />
-        <div className="row-between">
-          <span className="card-title">Units</span>
-          <Segmented<UnitSystem>
-            options={[{ value: 'metric', label: 'Metric' }, { value: 'imperial', label: 'Imperial' }]}
-            value={s.units}
-            onChange={(v) => state.updateSettings({ units: v })}
           />
         </div>
       </div>
@@ -216,7 +200,18 @@ function Account() {
         </div>
         <div className="list-row">
           <div className="grow"><div className="list-title">Birth date</div><div className="list-sub">Used for zones and Biological Age</div></div>
-          <input className="text-input" style={{ width: 150, minHeight: 38 }} type="date" value={state.profile.birthDate} onChange={(e) => state.updateProfile({ birthDate: e.target.value })} />
+          <input
+            className="text-input"
+            style={{ width: 150, minHeight: 38 }}
+            type="date"
+            value={state.profile.birthDate}
+            onChange={(e) => {
+              // An empty or invalid date would make every age-based score NaN.
+              // Ignore the clear and keep the last valid date.
+              if (!e.target.value || Number.isNaN(new Date(`${e.target.value}T12:00:00`).getTime())) return;
+              state.updateProfile({ birthDate: e.target.value });
+            }}
+          />
         </div>
         <div className="list-row">
           <div className="grow"><div className="list-title">Height</div></div>
@@ -290,26 +285,6 @@ function DataSourceScreen() {
           </button>
         </Sheet>
       ) : null}
-    </>
-  );
-}
-
-function Notifications() {
-  const state = useAppStore();
-  const n = state.settings.notifications;
-  return (
-    <>
-      <div className="list-card">
-        <SwitchRow title="Morning report" subtitle="Recovery, sleep and today's target" on={n.morningReport} onChange={(v) => state.updateNotifications({ morningReport: v })} />
-        <SwitchRow title="Recovery alerts" subtitle="When recovery drops below 35%" on={n.recovery} onChange={(v) => state.updateNotifications({ recovery: v })} />
-        <SwitchRow title="Strain check-in" subtitle="Late-afternoon target reminder" on={n.strain} onChange={(v) => state.updateNotifications({ strain: v })} />
-        <SwitchRow title="Sleep reminders" subtitle="Wind-down and bedtime" on={n.sleep} onChange={(v) => state.updateNotifications({ sleep: v })} />
-        <SwitchRow title="Journal reminders" subtitle="Per-tag reminders" on={n.journal} onChange={(v) => state.updateNotifications({ journal: v })} />
-        <SwitchRow title="Coach check-ins" subtitle="Bene Intelligence nudges" on={n.intelligence} onChange={(v) => state.updateNotifications({ intelligence: v })} />
-        <SwitchRow title="Weekly digest" subtitle="Sunday evening review" on={n.weeklyDigest} onChange={(v) => state.updateNotifications({ weeklyDigest: v })} />
-        <SwitchRow title="Bedtime alarm" subtitle="Smart alarm requires Apple Watch" on={n.bedtime} onChange={(v) => state.updateNotifications({ bedtime: v })} />
-      </div>
-      <p className="caption mt-12" style={{ lineHeight: 1.5 }}>Notifications are local. Times use your device timezone and respect Focus modes.</p>
     </>
   );
 }
@@ -452,10 +427,10 @@ function Backup() {
   };
 
   const createBackup = () => {
-    state.backupNow();
+    const result = state.backupNow();
     download(state.exportBackupJson());
     setInfo(snapshotInfo());
-    showToast('Backup created and downloaded');
+    showToast(result.ok ? 'Backup created and downloaded' : 'Backup downloaded, but the on-device snapshot failed — storage may be full');
   };
 
   const workoutCount = Object.values(state.days).reduce((a, d) => a + d.workouts.length, 0);
@@ -587,6 +562,7 @@ function Backup() {
 
 function Privacy() {
   const state = useAppStore();
+  const navigate = useNavigate();
   const [confirm, setConfirm] = useState(false);
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -610,16 +586,10 @@ function Privacy() {
         <ListRow icon={<FileText size={16} />} title="Download health records" subtitle={`${state.healthRecords.length} files`} onClick={() => showToast('Records are local PDFs/images')} />
         <ListRow icon={<Trash2 size={16} />} title="Delete all data" subtitle="Cannot be undone" danger onClick={() => setConfirm(true)} />
       </div>
-      <GroupLabel>Permissions</GroupLabel>
-      <div className="list-card">
-        <SwitchRow title="Health & fitness access" subtitle="Sleep, HR, HRV, workouts, nutrition" on onChange={() => showToast('Managed in system settings on device')} />
-        <SwitchRow title="Notifications" subtitle="Local only" on onChange={() => showToast('Managed in system settings')} />
-        <SwitchRow title="Analytics" subtitle="Always off in the community build" on={false} onChange={() => showToast('Analytics are disabled')} />
-      </div>
       {confirm ? (
-        <Sheet title="Delete all data?" subtitle="This removes the local dataset and resets the demo." onClose={() => setConfirm(false)}>
-          <p className="body">Your profile, 60 days of health data, meals, workouts, chats and records will be removed from this device. This cannot be undone.</p>
-          <button className="btn btn--block mt-20" style={{ background: 'var(--red)', color: '#fff' }} onClick={() => { state.resetDemo(); setConfirm(false); showToast('All data reset'); }}>Delete everything</button>
+        <Sheet title="Delete all data?" subtitle="This removes everything from this device." onClose={() => setConfirm(false)}>
+          <p className="body">Your profile, health data, meals, workouts, chats and records will be removed from this device. This cannot be undone.</p>
+          <button className="btn btn--block mt-20" style={{ background: 'var(--red)', color: '#fff' }} onClick={() => { state.clearAll(); setConfirm(false); navigate('/onboarding'); showToast('All data deleted'); }}>Delete everything</button>
           <button className="btn btn--soft btn--block mt-8" onClick={() => setConfirm(false)}>Cancel</button>
         </Sheet>
       ) : null}
@@ -652,24 +622,6 @@ function ActivitySettings() {
       <input className="text-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional context for your coach" />
       <button className="btn btn--block mt-20" onClick={() => { state.setActivityStatus(status, null, note); showToast('Activity status saved'); }}>Save</button>
       <p className="caption mt-12" style={{ lineHeight: 1.5 }}>Sick status may be set automatically by the sickness detector when overnight signals deviate sharply. Expiry returns you to Active.</p>
-    </>
-  );
-}
-
-function Language() {
-  const languages = ['English (US)', 'Deutsch', 'Español', 'Français', 'Italiano', 'Nederlands', 'Polski', 'Português', 'Русский', 'Tiếng Việt', '日本語', '简体中文', '繁體中文'];
-  const [selected, setSelected] = useState('English (US)');
-  return (
-    <>
-      <div className="list-card">
-        {languages.map((lang) => (
-          <button key={lang} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => { setSelected(lang); showToast('Language saved · restart to apply'); }}>
-            <div className="grow"><div className="list-title">{lang}</div></div>
-            {selected === lang ? <Check size={18} style={{ color: 'var(--green-deep)' }} /> : null}
-          </button>
-        ))}
-      </div>
-      <p className="caption mt-12">Some changes may require restarting the app to take full effect.</p>
     </>
   );
 }

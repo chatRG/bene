@@ -30,7 +30,6 @@ export function createBackup(state: AppStateData): BackupFile {
       healthRecords: state.healthRecords,
       chats: state.chats,
       routines: state.routines,
-      credits: state.credits,
       activityEvents: state.activityEvents,
       seededAt: state.seededAt,
     },
@@ -45,6 +44,33 @@ export type ParseResult =
   | { ok: true; data: BackupPayload; exportedAt: string }
   | { ok: false; error: string };
 
+const DAY_FIELDS = ['sleep', 'metrics', 'workouts', 'meals', 'journal'] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasOwn(obj: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+/**
+ * A day is usable only when every slice the app reads is present and shaped
+ * the way the store expects. A day missing `workouts`, for example, crashes
+ * every screen that maps over it.
+ */
+function isDayRecord(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (!DAY_FIELDS.every((field) => hasOwn(value, field))) return false;
+  if (value.sleep !== null && !isRecord(value.sleep)) return false;
+  return (
+    isRecord(value.metrics) &&
+    Array.isArray(value.workouts) &&
+    Array.isArray(value.meals) &&
+    Array.isArray(value.journal)
+  );
+}
+
 export function parseBackup(raw: string): ParseResult {
   let parsed: unknown;
   try {
@@ -54,29 +80,52 @@ export function parseBackup(raw: string): ParseResult {
   }
   if (!parsed || typeof parsed !== 'object') return { ok: false, error: 'Backup file is empty or unreadable.' };
   const obj = parsed as Partial<BackupFile> & { data?: unknown };
-  if (obj.app !== BACKUP_APP) return { ok: false, error: 'This isn’t a Bene backup.' };
+  if (obj.app !== BACKUP_APP) {
+    return { ok: false, error: 'This isn’t a Bene backup.' };
+  }
   if (typeof obj.version !== 'number' || obj.version > BACKUP_VERSION) {
     return { ok: false, error: 'This backup was created by a newer version of the app.' };
   }
   const data = obj.data as BackupPayload | undefined;
-  if (!data || typeof data !== 'object' || !data.profile || !data.days || !Array.isArray(data.dayOrder)) {
+  if (!isRecord(data) || !isRecord(data.profile) || !isRecord(data.days) || !Array.isArray(data.dayOrder)) {
     return { ok: false, error: 'Backup is missing required health data.' };
   }
-  if (typeof data.days !== 'object' || data.dayOrder.length === 0) {
+  if (data.dayOrder.length === 0 || Object.keys(data.days).length === 0) {
     return { ok: false, error: 'Backup contains no days of data.' };
+  }
+  const days = data.days as Record<string, unknown>;
+  for (const date of data.dayOrder) {
+    if (typeof date !== 'string' || !hasOwn(days, date)) {
+      return { ok: false, error: `Backup lists a day it does not contain (${String(date)}).` };
+    }
+    if (!isDayRecord(days[date])) {
+      return { ok: false, error: `Backup has an incomplete day of data (${date}).` };
+    }
   }
   return { ok: true, data, exportedAt: obj.exportedAt ?? new Date().toISOString() };
 }
 
-export function saveSnapshot(state: AppStateData): string {
-  const file = createBackup(state);
+export interface SnapshotResult {
+  ok: boolean;
+  /** Timestamp written to the snapshot, or null when nothing was saved. */
+  at: string | null;
+}
+
+/**
+ * Writes the on-device undo copy. Reports failure instead of pretending a
+ * full quota still produced a backup — the caller must not advance
+ * `lastBackupAt` unless `ok` is true.
+ */
+export function saveSnapshot(state: AppStateData): SnapshotResult {
   const at = new Date().toISOString();
   try {
+    const file = createBackup(state);
     localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ ...file, exportedAt: at }));
+    return { ok: true, at };
   } catch {
-    // Storage can be full; the downloadable file is the source of truth.
+    // Quota errors, disabled storage and serialisation failures all land here.
+    return { ok: false, at: null };
   }
-  return at;
 }
 
 export function readSnapshot(): ParseResult {

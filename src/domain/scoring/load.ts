@@ -44,12 +44,6 @@ export function stressSummary(
   };
 }
 
-export function buildStressSamples(hr: { minute: number; bpm: number }[], restingHr: number, daytimeHrv: number | null, hrvBaseline: number) {
-  return hr
-    .filter((s) => s.minute >= 6 * 60 && s.minute <= 23 * 60)
-    .map((s) => ({ minute: s.minute, score: stressFromHr(s.bpm, restingHr, daytimeHrv, hrvBaseline) }));
-}
-
 export type CardioStatus =
   | 'Calibrating'
   | 'Detraining'

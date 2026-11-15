@@ -85,9 +85,7 @@ Display bands: `Primed ≥ 85`, `Ready ≥ 67`, `Steady ≥ 50`, `Low ≥ 34`, o
 
 The denominator is the Edwards daily ceiling (5 × 24 h = 7200). A theoretical maximum day thus maps to 100. Strain may exceed 100% on very demanding days and is never clamped.
 
-`targetStrain = clamp(24 + recovery × 0.65, 20, 95)`
-
-The displayed normal range is `target ± 16`. At recovery 41, this yields target ≈ 51 and a 35–67 band. Bene hides the target if Activity Status is **Injured** or **On a Break**. **Sick** reduces the target.
+`targetStrain = clamp(24 + recovery × 0.65 − sickPenalty, 20, 95)`, where `sickPenalty` is 0 and 10 points while Activity Status is **Sick**. The displayed normal range is `target ± 16`. At recovery 41, this yields target ≈ 51 and a 35–67 band. Bene hides the target if Activity Status is **Injured** or **On a Break**. **Sick** reduces the target by 10 points.
 
 ## Stress and Energy Bank
 

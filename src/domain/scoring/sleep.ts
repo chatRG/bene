@@ -31,7 +31,8 @@ export function remTargetPct(): number {
 }
 
 export function sleepNeedMinutes(input: {
-  age: number;
+  /** Chronological age, or null when the birth date is unknown. */
+  age: number | null;
   sex: Sex;
   recentDebtMin: number;
   yesterdayStrain: number;
@@ -40,7 +41,8 @@ export function sleepNeedMinutes(input: {
   const base = input.sleepGoalMin;
   const debtRepayment = clamp(input.recentDebtMin * 0.22, -12, 75);
   const strainTopUp = clamp((input.yesterdayStrain - 55) * 0.7, -20, 40);
-  const ageAdjust = input.age >= 60 ? -15 : input.age >= 45 ? -5 : 0;
+  // The age adjustment is skipped, not guessed, when age is unknown.
+  const ageAdjust = input.age == null ? 0 : input.age >= 60 ? -15 : input.age >= 45 ? -5 : 0;
   return Math.round(clamp(base + debtRepayment + strainTopUp + ageAdjust, 390, 630));
 }
 
@@ -51,7 +53,7 @@ export function sleepNeedMinutes(input: {
  */
 export function sleepScore(
   sleep: SleepSession,
-  opts: { age: number; sex: Sex; needMin: number },
+  opts: { age: number | null; sex: Sex; needMin: number },
 ): SleepScoreResult {
   const totals = stageTotals(sleep);
   const empty: SleepScoreResult = {
@@ -79,12 +81,15 @@ export function sleepScore(
   const ratio = totals.asleepMin / opts.needMin;
   const durationScore = clamp(100 * (1 - Math.max(0, 1 - ratio) * 1.6), 0, 100);
 
-  const deepTarget = deepSleepTargetPct(opts.age, opts.sex);
+  // The deep-sleep target is age-specific. With no birth date it is skipped
+  // rather than replaced by a made-up age: the stage score then rests on REM
+  // alone instead of granting credit against an invented target.
+  const deepScore =
+    opts.age == null ? null : clamp(100 - Math.abs(deepPct - deepSleepTargetPct(opts.age, opts.sex)) * 9, 0, 100);
   const remTarget = remTargetPct();
-  const deepScore = clamp(100 - Math.abs(deepPct - deepTarget) * 9, 0, 100);
   const remScore = clamp(100 - Math.abs(remPct - remTarget) * 6, 0, 100);
   const stageBalance = Math.abs(deepPct + remPct + (100 - deepPct - remPct)) > 0 ? 1 : 1;
-  const stageScore = clamp((deepScore * 0.55 + remScore * 0.45) * stageBalance, 0, 100);
+  const stageScore = clamp((deepScore == null ? remScore : deepScore * 0.55 + remScore * 0.45) * stageBalance, 0, 100);
 
   const efficiencyScore = clamp((efficiency - 60) * 2.5, 0, 100);
   const continuityScore = clamp(100 - totals.awakeMin * 0.75 - Math.max(0, (opts.needMin - totals.asleepMin) * 0.05), 0, 100);

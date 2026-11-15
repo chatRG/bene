@@ -16,7 +16,6 @@ import type {
   UserProfile,
   Workout,
 } from './types';
-import { stageTotals } from './math';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -450,22 +449,20 @@ export function buildSeed(now = new Date()): AppStateData {
       pinned: true,
       model: 'standard',
       messages: [
-        { id: 'm1', role: 'user', text: 'How should I train today? My recovery looks low.', at: at(now, 8, 12), credits: 1 },
+        { id: 'm1', role: 'user', text: 'How should I train today? My recovery looks low.', at: at(now, 8, 12) },
         {
           id: 'm2',
           role: 'assistant',
           text: "Your recovery is 41% this morning. Overnight HRV was 57.5 ms against a 55.3 ms baseline, resting heart rate is up to 59.2 bpm, and sleep scored 74%. The elevated resting HR and the mediocre sleep are doing the damage — HRV itself is close to your usual range.\n\nI'd swap the tempo run for 30–40 minutes of easy Zone 2, or take a full rest day. Keep tomorrow flexible too; one down day now tends to cost less than a week of pushing through.",
           at: at(now, 8, 13),
-          credits: 4,
           followUps: ['Build me an easy Zone 2 session', 'Why is my HRV low?', 'Plan the rest of my week'],
         },
-        { id: 'm3', role: 'user', text: 'Makes sense. Can I still lift upper body?', at: at(now, 8, 15), credits: 1 },
+        { id: 'm3', role: 'user', text: 'Makes sense. Can I still lift upper body?', at: at(now, 8, 15) },
         {
           id: 'm4',
           role: 'assistant',
           text: 'Yes — a short upper-body session is reasonable, but keep it to 2–3 sets per exercise at RPE 7 or below. Avoid training to failure today. Your chest and shoulders are still carrying some fatigue from Monday, so prioritize back and arms if you want the most useful session.',
           at: at(now, 8, 16),
-          credits: 4,
         },
       ],
     },
@@ -478,13 +475,12 @@ export function buildSeed(now = new Date()): AppStateData {
       pinned: false,
       model: 'upgraded',
       messages: [
-        { id: 'm5', role: 'user', text: 'Build me a 6-week 10K plan around my current training.', at: at(now, -3, 19, 30), credits: 1 },
+        { id: 'm5', role: 'user', text: 'Build me a 6-week 10K plan around my current training.', at: at(now, -3, 19, 30) },
         {
           id: 'm6',
           role: 'assistant',
           text: "I've built a 6-week plan that keeps your Monday/Thursday strength sessions and adds two quality runs plus a long run. Weekly volume starts at 24 km and peaks at 38 km.\n\nYour recent tempo pace (8:55/mi) suggests a 10K goal around 52 minutes. I'll adapt the plan each week using your recovery score — if recovery drops below 40%, quality sessions move to Zone 2 automatically.",
           at: at(now, -3, 19, 41),
-          credits: 14,
           followUps: ['Show week 1', 'Add it to my calendar', 'Make it a 5K plan instead'],
         },
       ],
@@ -527,7 +523,6 @@ export function buildSeed(now = new Date()): AppStateData {
 
   const settings: AppSettings = {
     theme: 'system',
-    units: 'imperial',
     onboarded: false,
     demoMode: true,
     activeTabs: { fitness: true, journal: true, biology: true },
@@ -543,7 +538,6 @@ export function buildSeed(now = new Date()): AppStateData {
     hrZoneMethod: 'maxHr',
     manualMaxHr: 190,
     lactateThresholdHr: 168,
-    notifications: { morningReport: true, recovery: true, strain: false, sleep: true, journal: true, intelligence: true, weeklyDigest: true, bedtime: true },
     aiPersonality: 'supportive',
     aiEnabled: true,
     ghostDefault: false,
@@ -551,7 +545,6 @@ export function buildSeed(now = new Date()): AppStateData {
     aiModel: 'standard',
     expandedThinking: false,
     suggestedFollowUps: true,
-    pro: true,
     excludedContributors: [],
     nutritionUnits: 'percent',
     activityStatus: 'active',
@@ -569,7 +562,6 @@ export function buildSeed(now = new Date()): AppStateData {
     heightCm: 180,
     weightKg: 76.4,
     goal: 'performance',
-    units: 'imperial',
     createdAt: at(now, 7, 30),
   };
 
@@ -587,7 +579,6 @@ export function buildSeed(now = new Date()): AppStateData {
     ],
     chats,
     routines,
-    credits: { weeklyAllowance: 700, weeklyUsed: 210, purchased: 0, resetsAt: at(now, 3, 9) },
     activityEvents: [{ id: 'act-1', status: 'active', until: null, at: at(now, -20, 8), note: 'Feeling good' }],
     seededAt: at(now, 7, 30),
   };
@@ -617,8 +608,4 @@ export function emptyDay(date: string): DayRecord {
     meals: [],
     journal: [],
   };
-}
-
-export function sleepTotalsFor(sleep: SleepSession) {
-  return stageTotals(sleep);
 }

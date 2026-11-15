@@ -17,14 +17,19 @@ export function FitnessScreen() {
   const now = new Date();
   const d = useMemo(() => deriveDay(state, today, now), [state, today]);
   const config = zoneConfigFor(state, today);
-  const load = useMemo(() => computeCardioLoad(state.dayOrder.flatMap((date) => state.days[date].workouts), state.days, state.dayOrder, state.dayOrder.length - 1, config), [state, config]);
-  const muscles = useMemo(() => muscleFreshness(state.dayOrder.flatMap((date) => state.days[date].workouts), now, state.dayOrder), [state, now]);
-  const strength = muscleLoadStatus(state.dayOrder.flatMap((date) => state.days[date].workouts), state.days, state.dayOrder, state.dayOrder.length - 1);
-  const weekWorkouts = state.dayOrder.slice(-7).flatMap((date) => state.days[date].workouts);
+  // dayOrder can reference a date that has no day record (e.g. a damaged backup); treat it as an empty day.
+  const allWorkouts = useMemo(
+    () => state.dayOrder.flatMap((date) => state.days[date]?.workouts ?? []),
+    [state.dayOrder, state.days],
+  );
+  const load = useMemo(() => computeCardioLoad(allWorkouts, state.days, state.dayOrder, state.dayOrder.length - 1, config), [allWorkouts, state.days, state.dayOrder, config]);
+  const muscles = useMemo(() => muscleFreshness(allWorkouts, now, state.dayOrder), [allWorkouts, now, state.dayOrder]);
+  const strength = muscleLoadStatus(allWorkouts, state.days, state.dayOrder, state.dayOrder.length - 1);
+  const weekWorkouts = state.dayOrder.slice(-7).flatMap((date) => state.days[date]?.workouts ?? []);
   const weekMinutes = weekWorkouts.reduce((a, w) => a + w.durationMin, 0);
   const priorWeekMinutes = state.dayOrder
     .slice(-14, -7)
-    .flatMap((date) => state.days[date].workouts)
+    .flatMap((date) => state.days[date]?.workouts ?? [])
     .reduce((a, w) => a + w.durationMin, 0);
   const recent = [...state.dayOrder.slice(-8)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
   const nextRoutine = state.routines.find((r) => r.scheduledDates.some((x) => x >= today)) ?? state.routines[0];
@@ -79,18 +84,36 @@ export function FitnessScreen() {
           title="Next up"
           action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/intelligence')}>Ask the coach</button>}
         />
-        <button className="card" style={{ width: '100%', textAlign: 'left', padding: 16 }} onClick={() => navigate(`/workout/${nextRoutine.id}`)}>
-          <div className="row gap-12">
-            <div className="list-icon" style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(0,168,143,.12)', color: 'var(--teal)' }}>
-              {nextRoutine.kind === 'run' ? <Footprints size={22} /> : <Dumbbell size={22} />}
+        {nextRoutine ? (
+          <button className="card" style={{ width: '100%', textAlign: 'left', padding: 16 }} onClick={() => navigate(`/workout/${nextRoutine.id}`)}>
+            <div className="row gap-12">
+              <div className="list-icon" style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(0,168,143,.12)', color: 'var(--teal)' }}>
+                {nextRoutine.kind === 'run' ? <Footprints size={22} /> : <Dumbbell size={22} />}
+              </div>
+              <div className="grow">
+                <div className="card-title" style={{ fontSize: 16 }}>{nextRoutine.name}</div>
+                <div className="card-sub">
+                  {nextRoutine.subtitle} · {nextRoutine.durationMin} min
+                  {nextRoutine.scheduledDates[0] ? ` · ${format(new Date(`${nextRoutine.scheduledDates[0]}T12:00:00`), 'EEE, MMM d')}` : ''}
+                </div>
+              </div>
+              <span className="pill pill--sm pill--dark"><Play size={11} fill="currentColor" /> Start</span>
             </div>
-            <div className="grow">
-              <div className="card-title" style={{ fontSize: 16 }}>{nextRoutine.name}</div>
-              <div className="card-sub">{nextRoutine.subtitle} · {nextRoutine.durationMin} min · {format(new Date(`${nextRoutine.scheduledDates[0]}T12:00:00`), 'EEE, MMM d')}</div>
+          </button>
+        ) : (
+          <button className="card" style={{ width: '100%', textAlign: 'left', padding: 16 }} onClick={() => navigate('/intelligence')}>
+            <div className="row gap-12">
+              <div className="list-icon" style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(0,168,143,.12)', color: 'var(--teal)' }}>
+                <Dumbbell size={22} />
+              </div>
+              <div className="grow">
+                <div className="card-title" style={{ fontSize: 16 }}>No routines yet</div>
+                <div className="card-sub">Describe a goal and Bene will build your first session.</div>
+              </div>
+              <span className="pill pill--sm pill--flat">Build</span>
             </div>
-            <span className="pill pill--sm pill--dark"><Play size={11} fill="currentColor" /> Start</span>
-          </div>
-        </button>
+          </button>
+        )}
       </div>
 
       <div className="section">

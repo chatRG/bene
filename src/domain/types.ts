@@ -18,7 +18,6 @@ export interface UserProfile {
   heightCm: number;
   weightKg: number;
   goal: 'recovery' | 'performance' | 'sleep' | 'fatloss' | 'general';
-  units: UnitSystem;
   createdAt: ISODateTime;
 }
 
@@ -248,7 +247,6 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   at: ISODateTime;
-  credits?: number;
   attachmentName?: string;
   followUps?: string[];
   pending?: boolean;
@@ -303,20 +301,8 @@ export interface Routine {
   skippedDates: ISODate[];
 }
 
-export interface NotificationSettings {
-  morningReport: boolean;
-  recovery: boolean;
-  strain: boolean;
-  sleep: boolean;
-  journal: boolean;
-  intelligence: boolean;
-  weeklyDigest: boolean;
-  bedtime: boolean;
-}
-
 export interface AppSettings {
   theme: ThemeMode;
-  units: UnitSystem;
   onboarded: boolean;
   demoMode: boolean;
   activeTabs: { fitness: boolean; journal: boolean; biology: boolean };
@@ -332,7 +318,6 @@ export interface AppSettings {
   hrZoneMethod: 'maxHr' | 'hrReserve' | 'lactate' | 'manual';
   manualMaxHr: number;
   lactateThresholdHr: number;
-  notifications: NotificationSettings;
   aiPersonality: 'supportive' | 'direct' | 'analytical' | 'playful';
   aiEnabled: boolean;
   ghostDefault: boolean;
@@ -340,7 +325,6 @@ export interface AppSettings {
   aiModel: 'standard' | 'upgraded';
   expandedThinking: boolean;
   suggestedFollowUps: boolean;
-  pro: boolean;
   excludedContributors: string[];
   nutritionUnits: 'g' | 'percent';
   activityStatus: ActivityStatus;
@@ -367,13 +351,6 @@ export interface Insight {
   minSamples?: number;
 }
 
-export interface Credits {
-  weeklyAllowance: number;
-  weeklyUsed: number;
-  purchased: number;
-  resetsAt: ISODateTime;
-}
-
 export interface AppStateData {
   profile: UserProfile;
   settings: AppSettings;
@@ -385,7 +362,6 @@ export interface AppStateData {
   healthRecords: HealthRecord[];
   chats: ChatThread[];
   routines: Routine[];
-  credits: Credits;
   activityEvents: ActivityStatusEvent[];
   seededAt: ISODateTime;
 }

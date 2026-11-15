@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, Dna, Dumbbell, House, MessageCircle, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
@@ -249,14 +249,6 @@ export function Avatar({ name, size }: { name: string; size?: 'lg' }) {
   return <div className={`avatar ${size === 'lg' ? 'avatar--lg' : ''}`}>{initials || 'B'}</div>;
 }
 
-export function ProgressBar({ value, color, height = 7 }: { value: number; color: string; height?: number }) {
-  return (
-    <div className="bar" style={{ height }}>
-      <div className="bar__fill" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: color }} />
-    </div>
-  );
-}
-
 /** The product mark: a measured value on an axis, drawn flat in one colour. */
 export function BeneMark({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
@@ -283,50 +275,5 @@ export function EmptyState({ icon, title, body, action }: { icon: ReactNode; tit
       <p style={{ fontSize: 13.5, marginTop: 6, maxWidth: 300, marginInline: 'auto' }}>{body}</p>
       {action ? <div style={{ marginTop: 16 }}>{action}</div> : null}
     </div>
-  );
-}
-
-export function MetricTile({
-  label,
-  value,
-  unit,
-  color,
-  icon,
-  delta,
-  style,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  color?: string;
-  icon?: ReactNode;
-  delta?: ReactNode;
-  style?: CSSProperties;
-}) {
-  return (
-    <div className="card card--tight" style={style}>
-      <div className="row gap-6 caption">
-        {icon}
-        {label}
-      </div>
-      <div className="row gap-6" style={{ alignItems: 'baseline', marginTop: 6 }}>
-        <span className="mono-num" style={{ fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', color }}>
-          {value}
-        </span>
-        {unit ? <span className="caption" style={{ fontWeight: 600 }}>{unit}</span> : null}
-        {delta ? <span style={{ marginLeft: 'auto' }}>{delta}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-export function TrendTag({ value, suffix = '%', better = 'down' }: { value: number; suffix?: string; better?: 'up' | 'down' }) {
-  const good = better === 'down' ? value <= 0 : value >= 0;
-  return (
-    <span className="pill pill--sm" style={{ background: good ? 'rgba(75,201,58,.12)' : 'rgba(255,122,51,.13)', color: good ? 'var(--green-deep)' : '#c05613' }}>
-      {value > 0 ? '+' : ''}
-      {value.toFixed(1)}
-      {suffix}
-    </span>
   );
 }

@@ -3,10 +3,10 @@ import { buildSeed, dateKey } from './seed';
 import { deriveDay } from './derive';
 import { nutritionFor } from './scoring/nutrition';
 import { zoneIndex } from './scoring/zones';
-import { biologicalAge, sumContributors } from './scoring/biology';
+import { biologicalAge, lifestyleYears, sumContributors, vo2MaxFromDays } from './scoring/biology';
 import { ageFromBirthDate, stageTotals } from './math';
 import { freshnessBand } from './scoring/load';
-import { strainFromTrimp } from './scoring/strain';
+import { strainFromTrimp, targetStrain } from './scoring/strain';
 import { recoveryScore } from './scoring/recovery';
 import { sleepScore } from './scoring/sleep';
 import { createBackup, parseBackup } from './backup';
@@ -51,7 +51,7 @@ describe('demo dataset', () => {
   it('biological age contributors add up to the headline delta', () => {
     const data = buildSeed(NOW);
     const today = dateKey(NOW);
-    const age = ageFromBirthDate(data.profile.birthDate, today);
+    const age = ageFromBirthDate(data.profile.birthDate, today) ?? 30;
     const bio = biologicalAge({
       profile: data.profile,
       chronologicalAge: age,
@@ -141,6 +141,24 @@ describe('published invariants', () => {
     const data = buildSeed(NOW);
     const meals = data.days[dateKey(NOW)].meals.map((m) => ({ ...m, source: 'imported' as const }));
     expect(nutritionFor(meals, [], 2500).status).toBe('suppressed');
+  });
+});
+
+describe('audit regressions', () => {
+  it('returns null for an empty or impossible birth date', () => {
+    expect(ageFromBirthDate('', '2026-11-14')).toBeNull();
+    expect(ageFromBirthDate('2020-02-30', '2026-11-14')).toBeNull();
+  });
+
+  it('lowers the strain target when the user is sick', () => {
+    expect(targetStrain(41, 50, 'active')).toBe(51);
+    expect(targetStrain(41, 50, 'sick')).toBe(41);
+  });
+
+  it('does not invent a VO2 max or a fitness-age credit without measurements', () => {
+    expect(vo2MaxFromDays([])).toBeNull();
+    const noData = lifestyleYears([], 30, null);
+    expect(noData.fitnessYears).toBeGreaterThan(-3.5);
   });
 });
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Apple, ArrowRight, Barcode, Camera, ChevronRight, Flame, Image as ImageIcon, Info, PencilLine, Plus, Search, Share2, Utensils } from 'lucide-react';
+import { Apple, Barcode, ChevronRight, Flame, Image as ImageIcon, Info, Plus, Search, Share2, Utensils } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
@@ -53,7 +53,7 @@ export function NutritionScreen() {
   const [logOpen, setLogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [contribOpen, setContribOpen] = useState(false);
-  const [method, setMethod] = useState<'home' | 'search' | 'describe' | 'photo' | 'barcode' | 'custom'>('home');
+  const [method, setMethod] = useState<'home' | 'search' | 'barcode' | 'custom'>('home');
   const [query, setQuery] = useState('');
   const [units, setUnits] = useState<'g' | 'percent'>(state.settings.nutritionUnits === 'g' ? 'g' : 'percent');
 
@@ -247,7 +247,7 @@ export function NutritionScreen() {
 
       {logOpen ? (
         <Sheet
-          title={method === 'home' ? 'Log food' : method === 'search' ? 'Search foods' : method === 'describe' ? 'Describe your meal' : method === 'photo' ? 'Snap a meal' : method === 'barcode' ? 'Scan a barcode' : 'Custom food'}
+          title={method === 'home' ? 'Log food' : method === 'search' ? 'Search foods' : method === 'barcode' ? 'Scan a barcode' : 'Custom food'}
           subtitle={method === 'home' ? 'Every way you already log, in one place.' : undefined}
           onClose={() => { setLogOpen(false); setMethod('home'); }}
         >
@@ -255,8 +255,6 @@ export function NutritionScreen() {
             <div className="col gap-8">
               {[
                 ['search', 'Search foods', 'Database, recipes and My Foods', <Search size={18} />],
-                ['describe', 'Describe a meal', '“Chicken bowl with rice and avocado”', <PencilLine size={18} />],
-                ['photo', 'Take a photo', 'Estimate portions from an image', <Camera size={18} />],
                 ['barcode', 'Scan barcode', 'Packaged foods and supplements', <Barcode size={18} />],
                 ['custom', 'Create custom food', 'Enter your own nutrition facts', <Plus size={18} />],
               ].map(([id, title, sub, icon]) => (
@@ -266,7 +264,7 @@ export function NutritionScreen() {
                   <ChevronRight size={16} className="chevron" />
                 </button>
               ))}
-              <div className="insight-unlock mt-8"><Info size={16} /><span>Photo and description estimates run on this device. Review the portion before saving.</span></div>
+              <div className="insight-unlock mt-8"><Info size={16} /><span>Search the local food list or enter your own nutrition facts.</span></div>
             </div>
           ) : null}
 
@@ -284,28 +282,6 @@ export function NutritionScreen() {
                 {filtered.length === 0 ? <div className="empty">No foods match “{query}”.</div> : null}
               </div>
             </>
-          ) : null}
-
-          {method === 'describe' || method === 'photo' ? (
-            <div>
-              {method === 'photo' ? (
-                <div className="card" style={{ textAlign: 'center', padding: 30, background: 'var(--field)', boxShadow: 'none' }}>
-                  <Camera size={28} style={{ marginBottom: 8 }} />
-                  <div className="card-title">Camera preview</div>
-                  <div className="card-sub">In the native app this opens the camera. Here, use the estimate below.</div>
-                </div>
-              ) : (
-                <textarea className="text-input" style={{ minHeight: 90, paddingTop: 14, resize: 'none' }} placeholder="e.g. grilled salmon, 1 cup rice, broccoli" defaultValue="Salmon bowl with rice and broccoli" />
-              )}
-              <button
-                className="btn btn--block mt-16"
-                onClick={() => {
-                  addFood({ ...FOODS[2], name: method === 'photo' ? 'Photo meal estimate' : 'Salmon bowl', calories: 620, proteinG: 42, carbsG: 58, fatG: 22, vegGrams: 90, wholeGrainServings: 0.6 }, 1);
-                }}
-              >
-                <ArrowRight size={16} /> Estimate and log
-              </button>
-            </div>
           ) : null}
 
           {method === 'barcode' ? (

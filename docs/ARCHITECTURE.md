@@ -32,7 +32,7 @@ The app has no API client, no authentication and no background sync. “Sync” 
 
 The domain layer is pure TypeScript. It has no React code. It uses the DOM only in `backup.ts` (localStorage snapshot helpers) and `seed.ts` (date construction).
 
-- `types.ts` holds the data model: profile, settings, day records, sleep sessions, workouts, meals, journal, biomarkers, chats, routines and credits.
+- `types.ts` holds the data model: profile, settings, day records, sleep sessions, workouts, meals, journal, biomarkers, chats and routines.
 - `scoring/` holds one file for each score family: `zones`, `sleep`, `recovery`, `strain`, `load`, `nutrition` and `biology`.
 - `derive.ts` composes each day's values (baselines, score gates, nutrition, stress, sleep bank) from the raw store. Screens call it. Bene never stores its output.
 - `seed.ts` builds the deterministic 60-day demo dataset around the run date.
