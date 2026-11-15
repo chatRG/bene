@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use semantic versioning once the project leaves 0.x.
 
+## [0.1.1] — 2026-11-15
+
+Documentation and repository cleanup. No scoring or data-model changes.
+
+### Changed
+
+- Rewrote the technical documentation in ASD-STE100 style.
+- Removed legacy vendor framing and local file-import references from the repository.
+
 ## [0.1.0] — 2026-11-14
 
 First public iteration: offline-first, local-only, demo-data complete.
@@ -33,4 +42,4 @@ First public iteration: offline-first, local-only, demo-data complete.
 - Backups are unencrypted JSON.
 - The coach is deterministic and offline; no language model is called.
 - Native binaries must be built with Xcode/Android Studio; the repository includes the projects, not pre-built packages.
-- Exact score weights are not public; this build uses the independent, documented model in `docs/SCORING.md`.
+- Score weights are documented in `docs/SCORING.md`.
