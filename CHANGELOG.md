@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use semantic versioning once the project leaves 0.x.
 
+## [0.1.2] — 2026-11-15
+
+### Fixed
+
+- Real accounts no longer inherit demo health data when a day is created.
+- The Fitness tab no longer crashes for accounts with no routines.
+- Delete all data clears the device instead of restoring the demo.
+- Backup validation rejects empty or incomplete days before any data is replaced.
+- Snapshot failures are reported instead of being shown as successful backups.
+- Biological Age no longer gives an unconditional fitness credit.
+- Empty birth dates no longer poison scores with NaN.
+- Ghost mode, chat replies, workout times and sick-day targets now match the UI.
+- Removed invented screen values, fake record analysis and hardcoded meal logging.
+- Removed dead credits/Pro state and inert notification, language and units controls.
+- Browser tests now run in CI and fail the build on errors.
+
 ## [0.1.1] — 2026-11-15
 
 Documentation and repository cleanup. No scoring or data-model changes.
