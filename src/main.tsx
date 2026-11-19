@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@fontsource-variable/inter';
 import './styles/base.css';
 import './styles/screens.css';
 import App from './App';

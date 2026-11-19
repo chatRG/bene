@@ -9,12 +9,12 @@
 | Zustand | MIT | persisted state |
 | date-fns | MIT | date formatting |
 | lucide-react | ISC | icon set |
-| Inter (via Fontsource) | OFL-1.1 | UI typeface |
+| Allo | OFL-1.1 | UI typeface |
 | Capacitor | MIT | iOS/Android shells |
 | Vite / Vitest / TypeScript | MIT / Apache-2.0 | build and tests |
 | Playwright | Apache-2.0 | local visual/E2E checks (dev only) |
 
-See each package's license for full text. The Inter font is distributed under the SIL Open Font License.
+See each package's license for full text. The Allo font is distributed under the SIL Open Font License. The full licence text is in `src/assets/fonts/OFL.txt`.
 
 ## Scoring attribution
 

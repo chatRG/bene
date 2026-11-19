@@ -642,7 +642,7 @@ function About() {
       </div>
       <div className="list-card mt-16">
         <ListRow icon={<Info size={16} />} title="Scoring methodology" subtitle="docs/SCORING.md in the repository" onClick={() => showToast('Open docs/SCORING.md in the repo')} />
-        <ListRow icon={<FileText size={16} />} title="Third-party licenses" subtitle="React, Capacitor, Inter, Lucide" onClick={() => showToast('See NOTICE.md for attribution')} />
+        <ListRow icon={<FileText size={16} />} title="Third-party licenses" subtitle="React, Capacitor, Allo, Lucide" onClick={() => showToast('See NOTICE.md for attribution')} />
         <ListRow icon={<Smartphone size={16} />} title="Native builds" subtitle="iOS and Android via Capacitor" onClick={() => showToast('Run npm run cap:ios / cap:android')} />
         <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => showToast('Add your repository URL before release')} />
       </div>
