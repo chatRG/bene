@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use semantic versioning once the project leaves 0.x.
 
+## [0.1.3] — 2026-11-21
+
+### Changed
+
+- New product mark, **Threshold**: a circular opening cut clean through a square field. It replaces the lowercase `b` that came from the Allo letterform.
+- The mark is ink and cream only. The logo carries no accent colour.
+- The mark now appears on the web icons, the favicon, the Android launcher (legacy, round and adaptive layers for all six densities), the iOS app icon and the in-app header.
+- Small sizes use a cut with a larger hole, because the hole closed up below 32 px.
+- The README header is a reversed lockup that follows the reader's colour scheme.
+
 ## [0.1.2] — 2026-11-15
 
 ### Fixed
