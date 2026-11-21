@@ -76,7 +76,7 @@ export function ProfileScreen() {
       </div>
 
       <div className="settings-footer">
-        Bene 0.1.2 · Local-first build<br />
+        Bene 0.1.3 · Local-first build<br />
         Health estimates are not medical advice.
       </div>
       <div className="row gap-6" style={{ justifyContent: 'center' }}>
