@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+<title id="t">Bene</title>
+<rect width="512" height="512" fill="#1C1A16"/>
+<g transform="translate(64 64) scale(1.5)">
+<path fill="#F7F1E7" fill-rule="evenodd" d="M60 28h136a32 32 0 0 1 32 32v136a32 32 0 0 1-32 32H60a32 32 0 0 1-32-32V60a32 32 0 0 1 32-32Zm68 66a62 62 0 0 0 0 124 62 62 0 0 0 0-124Z"/>
+</g>
+</svg>

@@ -1,6 +1,6 @@
 /* Bene offline shell. No analytics, no network calls except app assets. */
-const CACHE = 'bene-v1';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'bene-v2';
+const CORE = ['./', './index.html', './manifest.webmanifest', './favicon.svg', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

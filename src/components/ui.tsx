@@ -249,20 +249,23 @@ export function Avatar({ name, size }: { name: string; size?: 'lg' }) {
   return <div className={`avatar ${size === 'lg' ? 'avatar--lg' : ''}`}>{initials || 'B'}</div>;
 }
 
-/** The product mark: a measured value on an axis, drawn flat in one colour. */
+/** The product mark: a circular opening cut clean through a square field. */
 export function BeneMark({ size = 20, className = '' }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 20 20"
+      viewBox="0 0 256 256"
       className={className}
       aria-hidden
       fill="none"
+      preserveAspectRatio="xMidYMid meet"
     >
-      <path d="M4 16h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M10 4v12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="10" cy="8" r="2" fill="currentColor" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M64 32h128a32 32 0 0 1 32 32v128a32 32 0 0 1-32 32H64a32 32 0 0 1-32-32V64a32 32 0 0 1 32-32Zm64 60a52 52 0 0 0 0 104 52 52 0 0 0 0-104Z"
+      />
     </svg>
   );
 }
