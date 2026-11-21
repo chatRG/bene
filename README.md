@@ -1,9 +1,9 @@
-# Bene
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/brand-lockup-dark.png">
-  <img src="docs/brand-lockup-light.png" alt="Bene" width="320">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand-lockup-dark.png">
+    <img src="docs/brand-lockup-light.png" alt="Bene" width="300">
+  </picture>
+</p>
 
 **A health coach for iOS, Android and the web. It works offline. Its source is available.**
 
