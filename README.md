@@ -132,7 +132,7 @@ docs/                scoring, architecture and backup notes
 
 - **UI:** The UI uses React 19, TypeScript and Vite. It has no chart library. We hand-build the charts in SVG for control and small bundle size.
 - **State:** State uses Zustand with a persisted data slice. Bene never stores scoring data. It derives the scores.
-- **Native:** Native uses Capacitor 7. Capacitor bundles the web assets into the app. It works with the radio off.
+- **Native:** Native uses Capacitor 8. Capacitor bundles the web assets into the app. It works with the radio off.
 - **Design:** The design uses a warm ivory canvas, white cards, Allo, large tabular numerals and one accent for each metric. Bene includes dark mode. The sleep detail always uses the night theme.
 
 More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
