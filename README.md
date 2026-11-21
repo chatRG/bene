@@ -1,5 +1,10 @@
 # Bene
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand-lockup-dark.png">
+  <img src="docs/brand-lockup-light.png" alt="Bene" width="320">
+</picture>
+
 **A health coach for iOS, Android and the web. It works offline. Its source is available.**
 
 Bene calculates recovery, sleep, strain, training load, nutrition, journaling and biological age. It uses a data model that does not depend on one wearable brand. It explains each score. It stores all data on your device.
@@ -134,6 +139,7 @@ docs/                scoring, architecture and backup notes
 - **State:** State uses Zustand with a persisted data slice. Bene never stores scoring data. It derives the scores.
 - **Native:** Native uses Capacitor 8. Capacitor bundles the web assets into the app. It works with the radio off.
 - **Design:** The design uses a warm ivory canvas, white cards, Allo, large tabular numerals and one accent for each metric. Bene includes dark mode. The sleep detail always uses the night theme.
+- **Identity:** The mark is **Threshold** — a circular opening cut clean through a square field. It has no accent colour; the logo is ink and cream only. Artwork and rules are in [brand/](brand/README.md).
 
 More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
