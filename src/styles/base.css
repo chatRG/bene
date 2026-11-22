@@ -933,17 +933,21 @@ ul {
   gap: 2px;
   border-radius: 999px;
   border: none;
-  /* Liquid glass. The fill is deliberately see-through: at 0.95 opacity the
-     blur underneath had nothing to work with, so the bar read as a solid slab.
-     Three layers do the work — a warm tint for legibility, a soft specular
-     sweep from the top-left as if light hits the rim, and a faint inner glow
-     at the base that suggests thickness rather than an outline. */
-  background:
-    radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
-    linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
+  /* Liquid glass, built the way the material is specified: blur on the
+     element, tint and specular light on a pseudo-element above it.
+
+     Blur and displacement live on separate layers for a reason. A browser
+     treats a combined `url(#f) blur()` chain as inert until the filter
+     resolves, so a single-layer build pops in late. Split, the surface is
+     frosted on the first frame and the highlight fades in over it.
+
+     The tint is what carries legibility, not the blur: a lens over a flat
+     colour shows you that flat colour, so on midnight the blur has nothing to
+     bend and the tint alone keeps the labels readable. */
+  background: transparent;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
+  backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
   box-shadow: var(--nav-shadow);
-  -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.08);
-  backdrop-filter: blur(28px) saturate(200%) brightness(1.08);
   z-index: 40;
   isolation: isolate;
   transition: transform 0.24s var(--ease), opacity 0.2s var(--ease);
@@ -960,6 +964,31 @@ ul {
 @media (prefers-reduced-motion: reduce) {
   .navbar {
     transition: none;
+  }
+}
+
+/* Tint and specular light: the layer above the blur and below the labels.
+   The radial highlight at the top-left is the rim catching light; the bottom
+   wash is the edge turning away from it, which is what stops the capsule
+   reading as a flat cut-out. Both are gradients over the blurred backdrop
+   rather than borders, so the surface gains depth without gaining an outline. */
+.navbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
+    linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
+}
+
+/* Fallback for engines without backdrop-filter: the tint becomes the surface,
+   so it has to be opaque or the labels float on nothing. */
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .navbar::before {
+    background: var(--nav-solid);
   }
 }
 
