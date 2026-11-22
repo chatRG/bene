@@ -919,12 +919,13 @@ ul {
 .navbar {
   position: fixed;
   bottom: calc(8px + env(safe-area-inset-bottom));
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  width: auto;
-  min-width: min(340px, calc(100% - (var(--nav-inset) * 2)));
-  max-width: calc(100% - (var(--nav-inset) * 2));
+  left: 50%;
+  transform: translateX(-50%);
+  /* A fixed-width capsule. Sizing it as a percentage of the viewport made it
+     grow to almost the full width on a tablet or desktop, which reads as a
+     1970s docked bar rather than a floating pill. The clamp keeps it clear of
+     the edges on small phones without ever exceeding a comfortable size. */
+  width: min(100% - (var(--nav-inset) * 2), 370px);
   padding: 4px;
   display: grid;
   grid-auto-flow: column;
@@ -949,7 +950,7 @@ ul {
 /* While reading downwards the bar steps out of the way; any upward scroll
    brings it straight back. Kept mounted so the transition can play. */
 .navbar--hidden {
-  transform: translateY(calc(100% + 24px));
+  transform: translateX(-50%) translateY(calc(100% + 24px));
   opacity: 0;
   pointer-events: none;
 }
