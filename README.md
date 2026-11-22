@@ -39,12 +39,12 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-Six slides, in the light and the dark theme. Every capture shown is a real screen from the app.
+Six slides, side by side, in the light and the dark theme. Every capture shown is a real screen from the app.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/store/preview-dark.png">
-    <img src="docs/screenshots/store/preview-light.png" alt="Six Bene screens: scores, on-device data, one model, score breakdowns, a file as your account, and the feature index" width="100%">
+    <img src="docs/screenshots/store/preview-light.png" alt="Six Bene screens side by side: scores, on-device data, one model, score breakdowns, a file as your account, and the feature index" width="100%">
   </picture>
 </p>
 
