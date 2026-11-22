@@ -86,9 +86,9 @@
 
   /* Floating glass navigation */
   --nav-inset: 30px;
-  --nav-fill-hi: rgba(255, 253, 247, 0.97);
-  --nav-fill: rgba(247, 242, 233, 0.95);
-  --nav-fill-lo: rgba(236, 230, 217, 0.93);
+  --nav-fill-hi: rgba(255, 253, 247, 0.72);
+  --nav-fill: rgba(247, 242, 233, 0.62);
+  --nav-fill-lo: rgba(236, 230, 217, 0.7);
   --nav-edge: rgba(255, 255, 255, 0.95);
   --nav-edge-lo: rgba(28, 26, 22, 0.12);
   --nav-inner-rim: rgba(255, 255, 255, 0.72);
@@ -156,9 +156,9 @@
   --shadow-soft: none;
 
   /* Floating glass navigation — smoked charcoal over the warm dark shell */
-  --nav-fill-hi: rgba(56, 50, 40, 0.95);
-  --nav-fill: rgba(33, 29, 22, 0.95);
-  --nav-fill-lo: rgba(20, 17, 13, 0.97);
+  --nav-fill-hi: rgba(56, 50, 40, 0.68);
+  --nav-fill: rgba(33, 29, 22, 0.6);
+  --nav-fill-lo: rgba(20, 17, 13, 0.72);
   --nav-edge: rgba(255, 250, 241, 0.24);
   --nav-edge-lo: rgba(255, 250, 241, 0.06);
   --nav-inner-rim: rgba(255, 250, 241, 0.18);
@@ -228,9 +228,9 @@
   --shadow: none;
   --shadow-soft: none;
 
-  --nav-fill-hi: rgba(38, 38, 38, 0.96);
-  --nav-fill: rgba(20, 20, 20, 0.96);
-  --nav-fill-lo: rgba(6, 6, 6, 0.98);
+  --nav-fill-hi: rgba(38, 38, 38, 0.66);
+  --nav-fill: rgba(20, 20, 20, 0.58);
+  --nav-fill-lo: rgba(6, 6, 6, 0.74);
   --nav-edge: rgba(255, 250, 241, 0.28);
   --nav-edge-lo: rgba(255, 250, 241, 0.08);
   --nav-inner-rim: rgba(255, 250, 241, 0.2);
@@ -933,12 +933,17 @@ ul {
   gap: 2px;
   border-radius: 999px;
   border: none;
+  /* Liquid glass. The fill is deliberately see-through: at 0.95 opacity the
+     blur underneath had nothing to work with, so the bar read as a solid slab.
+     Three layers do the work — a warm tint for legibility, a soft specular
+     sweep from the top-left as if light hits the rim, and a faint inner glow
+     at the base that suggests thickness rather than an outline. */
   background:
     radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
     linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
   box-shadow: var(--nav-shadow);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%) brightness(1.08);
+  backdrop-filter: blur(28px) saturate(200%) brightness(1.08);
   z-index: 40;
   isolation: isolate;
   transition: transform 0.24s var(--ease), opacity 0.2s var(--ease);
