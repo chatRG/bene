@@ -9,14 +9,14 @@ fs.mkdirSync(out, { recursive: true });
 // A new install starts empty, so the shots need a deterministic fixture. It is
 // written straight into the persisted store before the first paint, which keeps
 // the run independent of onboarding copy and of whatever is in the browser.
-const DAYS_BACK = 13;
+// Five weeks: Recovery needs 5 baseline nights, Stress needs 30 days of
+// baseline and the training-load models need 10 days of qualification, so a
+// shorter fixture would shoot "Calibrating" placeholders instead of scores.
+const DAYS_BACK = 35;
 
-function seedState() {
+function seedState(at = (date, hhmm) => new Date(`${date}T${hhmm}:00`).toISOString()) {
   const pad = (n) => String(n).padStart(2, '0');
   const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  // Local midnight on a fixed hour: `new Date('2026-11-16')` parses as UTC and
-  // would shift the day for anyone west of Greenwich.
-  const at = (date, hhmm) => new Date(`${date}T${hhmm}:00`).toISOString();
 
   const today = new Date();
   const dates = [];
@@ -28,7 +28,7 @@ function seedState() {
   const latest = dates[dates.length - 1];
 
   // Fixed, hand-checked per-day variation. No Math.random — two runs on the
-  // same date must produce byte-identical state.
+  // same date must produce identical state.
   const plan = [
     { asleep: 452, deep: 88, rem: 96, hrv: 58.4, rhr: 51 },
     { asleep: 471, deep: 104, rem: 101, hrv: 61.2, rhr: 50 },
@@ -37,13 +37,8 @@ function seedState() {
     { asleep: 463, deep: 96, rem: 99, hrv: 57.1, rhr: 52 },
     { asleep: 502, deep: 118, rem: 112, hrv: 66.9, rhr: 48 },
     { asleep: 441, deep: 82, rem: 92, hrv: 53.6, rhr: 53 },
-    { asleep: 476, deep: 101, rem: 104, hrv: 60.3, rhr: 50 },
-    { asleep: 488, deep: 109, rem: 110, hrv: 63.4, rhr: 49 },
-    { asleep: 458, deep: 93, rem: 97, hrv: 56.8, rhr: 52 },
-    { asleep: 497, deep: 115, rem: 107, hrv: 65.2, rhr: 48 },
-    { asleep: 469, deep: 99, rem: 102, hrv: 59.5, rhr: 51 },
-    { asleep: 483, deep: 103, rem: 106, hrv: 62.1, rhr: 50 },
   ];
+  const nightFor = (i) => plan[i % plan.length];
 
   // Stage blocks in order; each night is split so the hypnogram has shape.
   function night(date, p) {
@@ -244,10 +239,12 @@ function seedState() {
   const journalEntries = [];
 
   dates.forEach((date, i) => {
-    const p = plan[i];
+    const p = nightFor(i);
     const isToday = date === latest;
     const run = runs[i % runs.length];
-    const strength = i % 3 === 1;
+    // Two strength days a week. The muscular-load model needs 10 qualifying
+    // days before it stops reporting "Calibrating".
+    const strength = i % 3 !== 2;
     const workouts = [
       {
         id: `w-${date}`,
@@ -266,7 +263,7 @@ function seedState() {
         zoneMinutes: run.zones,
       },
       ...(strength ? [strengthBlock(date)] : []),
-      ...(i === 4
+      ...(i % 9 === 4
         ? [
             {
               id: `w-hiit-${date}`,
@@ -519,8 +516,32 @@ const themes = THEME_FILTER ? [THEME_FILTER] : ['light', 'dark'];
 
 const errors = [];
 
+// Everything the app prints as "now" is read from the real clock, so a run at
+// 12:08 and one at 12:12 differ in "Last updated at" text. Pinning the clock
+// (same way the fixture is pinned) makes two runs on the same day identical.
+const HHMM = process.env.SHOT_TIME || '09:42';
+
+const clockSource = (hhmm) => `(() => {
+  const [h, m] = ${JSON.stringify(hhmm)}.split(':').map(Number);
+  const RealDate = Date;
+  class PinnedDate extends RealDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        const now = new RealDate();
+        super(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+      } else {
+        super(...args);
+      }
+    }
+    static now() {
+      return new PinnedDate().getTime();
+    }
+  }
+  window.Date = PinnedDate;
+})();`;
+
 async function seed(page, theme) {
-  const state = seedState();
+  const state = seedState((date, hhmm) => new Date(`${date}T${hhmm}:00`));
   state.settings.theme = theme;
   await page.evaluate(
     ([key, payload]) => {
@@ -529,6 +550,7 @@ async function seed(page, theme) {
     },
     [STORE_KEY, { state, version: 1 }],
   );
+  await page.addInitScript(clockSource(HHMM));
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
   const applied = await page.evaluate(() => document.documentElement.dataset.theme);

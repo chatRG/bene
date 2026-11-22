@@ -19,7 +19,7 @@ Bene calculates recovery, sleep, strain, training load, nutrition, journaling an
 
 > **Licence.** Bene is free for personal, research and other noncommercial use. Commercial use needs a separate paid licence. See [COMMERCIAL.md](COMMERCIAL.md).
 
-![Home, Recovery, Sleep and Biology](docs/screenshots/hero.png)
+![Home](docs/screenshots/home.png)
 
 ## Why this exists
 
