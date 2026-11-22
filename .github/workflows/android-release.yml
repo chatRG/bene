@@ -51,9 +51,14 @@ jobs:
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Name APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk "bene-${GITHUB_REF_NAME}-release.apk"
+        # A branch name can contain a slash, which would make this path a
+        # directory. Only a tag name is a safe file name, so sanitise it.
+        run: |
+          SAFE="${GITHUB_REF_NAME//\//-}"
+          cp android/app/build/outputs/apk/release/app-release.apk "bene-${SAFE}-release.apk"
 
       - name: Create GitHub release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           name: Bene ${{ github.ref_name }}
