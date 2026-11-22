@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowUpRight,
   ChevronRight,
-  Database,
   FileText,
   Gift,
   HardDrive,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { DetailHeader, ListRow } from '../components/ui';
+import { HealthSourceRow } from '../components/health-source';
 import { showToast } from '../components/toast';
 
 const REPO = 'https://github.com/chatRG/bene';
@@ -88,7 +88,7 @@ export function ProfileScreen() {
 
       <div className="settings-group-label">Data & app</div>
       <div className="list-card">
-        <ListRow icon={<Database size={16} />} title="Data sources" subtitle="Apple Health and Health Connect · manual logs" onClick={() => navigate('/settings/data')} />
+        <HealthSourceRow onClick={() => navigate('/settings/data')} />
         <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, Home layout" onClick={() => navigate('/settings/general')} />
       </div>
 

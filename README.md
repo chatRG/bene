@@ -19,8 +19,6 @@ Bene calculates recovery, sleep, strain, training load, nutrition, journaling an
 
 > **Licence.** Bene is free for personal, research and other noncommercial use. Commercial use needs a separate paid licence. See [COMMERCIAL.md](COMMERCIAL.md).
 
-![Home](docs/screenshots/home.png)
-
 ## Why this exists
 
 Most health apps put the interpretation of your data behind a subscription and a cloud account. Bene does not. Bene is a local-first coach. It runs on your device. It continues to work when the device has no network connection, for example on a plane. You can move your data to another device as one file.
@@ -41,81 +39,92 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-| Home | Recovery | Sleep |
-|---|---|---|
-| ![](docs/screenshots/home.png) | ![](docs/screenshots/recovery.png) | ![](docs/screenshots/sleep.png) |
+Each screen in light, then the same screen in dark. A true-black midnight theme
+ships as well.
 
-| Strain | Fitness | Nutrition |
-|---|---|---|
-| ![](docs/screenshots/strain.png) | ![](docs/screenshots/fitness.png) | ![](docs/screenshots/nutrition.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/home.png) | ![](docs/screenshots/dark-home.png) |
 
-| Journal | Biology | Coach |
-|---|---|---|
-| ![](docs/screenshots/journal.png) | ![](docs/screenshots/biology.png) | ![](docs/screenshots/intelligence.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/recovery.png) | ![](docs/screenshots/dark-recovery.png) |
 
-### Dark mode
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/sleep.png) | ![](docs/screenshots/dark-sleep.png) |
 
-Bene ships a dark theme and a true-black midnight theme. The screenshots below use the dark theme.
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/strain.png) | ![](docs/screenshots/dark-strain.png) |
 
-| Home | Recovery | Sleep |
-|---|---|---|
-| ![](docs/screenshots/dark-home.png) | ![](docs/screenshots/dark-recovery.png) | ![](docs/screenshots/dark-sleep.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/fitness.png) | ![](docs/screenshots/dark-fitness.png) |
 
-| Strain | Fitness | Nutrition |
-|---|---|---|
-| ![](docs/screenshots/dark-strain.png) | ![](docs/screenshots/dark-fitness.png) | ![](docs/screenshots/dark-nutrition.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/nutrition.png) | ![](docs/screenshots/dark-nutrition.png) |
 
-| Journal | Biology | Coach |
-|---|---|---|
-| ![](docs/screenshots/dark-journal.png) | ![](docs/screenshots/dark-biology.png) | ![](docs/screenshots/dark-intelligence.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/journal.png) | ![](docs/screenshots/dark-journal.png) |
+
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/biology.png) | ![](docs/screenshots/dark-biology.png) |
+
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/intelligence.png) | ![](docs/screenshots/dark-intelligence.png) |
 
 ## Quick start
 
-Requirements: Node.js 20+ and npm.
+Requirements: Bun 1.2+.
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173
+bun install
+bun run dev          # http://localhost:5173
 ```
 
 The first run opens onboarding. It asks for your name, birth date, height and weight. The app then starts empty. Every score fills in as you log or import data.
 
 ```bash
-npm test             # scoring, backup and offline-coach invariants
-npm run lint         # TypeScript project check
-npm run build        # production web build in dist/
-npm run preview      # serve the production build
+bun run test             # scoring, backup and offline-coach invariants
+bun run lint         # TypeScript project check
+bun run build        # production web build in dist/
+bun run preview      # serve the production build
 ```
 
 ### Visual and end-to-end tests
 
-These tests use Playwright against a running dev server. Install Chromium one time with `npx playwright install chromium`.
+These tests use Playwright against a running dev server. Install Chromium one time with `bunx playwright install chromium`.
 
 ```bash
-npm run dev            # terminal 1
-npm run shots          # capture every screen at 430×932, assert no overflow
-npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
-npm run test:empty     # onboarding and first-run empty state
-npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
-npm run test:pwa       # service worker + fully offline reload of the production build
+bun run dev            # terminal 1
+bun run shots          # capture every screen at 430×932, assert no overflow
+bun run test:e2e       # navigation, logging, chat, workout start/finish, theme
+bun run test:empty     # onboarding and first-run empty state
+bun run test:backup    # snapshot, download, restore, import, invalid file, tabs
+bun run test:pwa       # service worker + fully offline reload of the production build
 ```
 
-`test:pwa` runs against `npm run preview` on port 4173 after `npm run build`. The other tests use the dev server on port 5173. The scripts are in `scripts/`. They also operate as acceptance tests for the behaviour in `docs/`. Screenshots go to `docs/screenshots/`. `npm run shots` is the visual review pass.
+`test:pwa` runs against `bun run preview` on port 4173 after `bun run build`. The other tests use the dev server on port 5173. The scripts are in `scripts/`. They also operate as acceptance tests for the behaviour in `docs/`. Screenshots go to `docs/screenshots/`. `bun run shots` is the visual review pass.
 
 ## iOS and Android
 
 Capacitor generated the native projects. The same TypeScript/React UI runs in a native shell.
 
 ```bash
-npm run build
-npx cap sync
-npm run cap:ios      # opens ios/App/App.xcworkspace in Xcode (macOS)
-npm run cap:android  # opens android/ in Android Studio
+bun run build
+bunx cap sync
+bun run cap:ios      # opens ios/App/App.xcworkspace in Xcode (macOS)
+bun run cap:android  # opens android/ in Android Studio
 ```
 
-- **iOS:** Run `cd ios/App && pod install` one time (CocoaPods). Then open `ios/App/App.xcworkspace`. Select a signing team. Run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. The deployment target and bundle id are in Xcode and `capacitor.config.ts`.
+- **iOS:** Run `cd ios/App && pod install` one time (CocoaPods). Then open `ios/App/App.xcworkspace`. Select a signing team. Run on a device or simulator. `bunx cap sync` runs `pod install` automatically when CocoaPods is available. The deployment target and bundle id are in Xcode and `capacitor.config.ts`.
 - **Android:** Open `android/` and let Gradle sync. Run on a device or emulator. `minSdk` is 34 (Android 14+). `applicationId` is `health.bene.community`.
-- **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
+- **Web/PWA:** `bun run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
 ### Installing without a store
 
@@ -128,35 +137,15 @@ The `iOS unsigned` workflow builds the IPA on a macOS runner with `CODE_SIGNING_
 
 You do not need a native build for development. The web target has the shortest development loop. The automated screenshot suite uses the web target.
 
-## Backups
+## How it works, and where your data lives
 
-Bene has no server, so a backup file **is** your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats.
+**Architecture.** `src/domain/` holds pure TypeScript: types, scoring and backup. `src/store/` is a Zustand store persisted to localStorage. `src/screens/` is one file per surface. `src/styles/` holds tokens and screen CSS. `ios/` and `android/` are Capacitor 8 shells around the same UI.
 
-The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**. Treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
+React 19, TypeScript and Vite. Charts are hand-built SVG with no chart library. The store persists data only; scores are always derived, never stored. The design is a warm ivory canvas in the light theme, with one accent per metric, in light, dark and midnight. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)). More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Scoring
+**Your data.** Bene has no server, so a backup file *is* your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats. The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
-Every score is a pure function of your data with a published set of invariants. Recovery needs two complete nights, sleep stages, overnight HRV and RHR, then blends sleep, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain is logarithmic TRIMP and can exceed 100%. Nutrition follows 11 food-quality contributors, with sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness, and updates weekly.
-
-Formulas, gates, weights and known gaps are in [docs/SCORING.md](docs/SCORING.md).
-
-## Architecture
-
-```
-src/domain/     pure TypeScript: types, scoring, backup
-src/store/      Zustand store, persisted to localStorage
-src/screens/    one file per surface
-src/styles/     tokens and screen CSS
-ios/, android/  Capacitor 8 native shells
-```
-
-React 19, TypeScript and Vite. The charts are hand-built SVG, with no chart library. The store persists data only — scores are always derived, never stored. The design uses a warm ivory canvas, Allo, and one accent per metric, in light, dark and midnight themes. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)).
-
-More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Privacy
-
-No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
+**Privacy.** No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
 
 ## Contributing
 

@@ -2411,3 +2411,35 @@
 .thread-row .chat-mark {
   color: var(--text-2);
 }
+
+/* ---------------- Health source ---------------- */
+
+.health-source__actions {
+  margin-top: 16px;
+}
+
+.insight-unlock--ok {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: var(--good-soft);
+}
+
+.insight-unlock > svg.spin {
+  animation: health-spin 1s linear infinite;
+}
+
+.btn > svg.spin {
+  animation: health-spin 1s linear infinite;
+}
+
+@keyframes health-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

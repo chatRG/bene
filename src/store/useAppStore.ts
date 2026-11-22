@@ -23,6 +23,18 @@ import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } fro
 
 export const STORE_KEY = 'bene-v1';
 
+/**
+ * Advanced whenever the whole store is cleared.
+ *
+ * A health read can take seconds; if the person deletes everything while it
+ * runs, the result that arrives afterwards belongs to an account that no
+ * longer exists. Callers capture this before a read and compare it after, so
+ * stale data is discarded instead of silently restored.
+ */
+let clearGeneration = 0;
+
+export const storeGeneration = () => clearGeneration;
+
 interface AppActions {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
@@ -37,6 +49,7 @@ interface AppActions {
     },
   ) => void;
   ensureToday: () => void;
+  importHealthDays: (records: DayRecord[]) => void;
   setActivityStatus: (status: ActivityStatus, untilISO: string | null, note: string) => void;
   addMeal: (meal: MealEntry) => void;
   removeMeal: (date: string, id: string) => void;
@@ -47,7 +60,7 @@ interface AppActions {
   logWorkout: (workout: Workout) => void;
   addRoutine: (routine: Routine) => void;
   completeRoutineDay: (routineId: string, date: string) => void;
-  toggleTab: (tab: 'fitness' | 'journal' | 'biology') => void;
+  toggleTab: (tab: 'fitness' | 'journal' | 'biology' | 'nutrition') => void;
   createChatThread: (ghost?: boolean, model?: ChatThread['model']) => string;
   sendChatMessage: (threadId: string, text: string, attachmentName?: string) => void;
   deleteChat: (threadId: string) => void;
@@ -92,13 +105,20 @@ export const useAppStore = create<AppStore>()(
             weightKg: opts?.weightKg ?? s.profile.weightKg,
             goal: opts?.goal ?? s.profile.goal,
           };
-          // A new account starts empty: one blank day for today and nothing else.
+          // A new account starts empty: one blank day for today and nothing
+          // else. Anything already imported during onboarding survives, so
+          // connecting a health store on the first run is not thrown away when
+          // the person finishes the flow.
           const today = dateOf(new Date());
+          const imported = s.dayOrder.filter((d) => s.days[d]?.sleep || s.days[d]?.metrics.steps || s.days[d]?.workouts.length);
+          const days: Record<string, DayRecord> = {};
+          for (const date of imported) days[date] = s.days[date];
+          days[today] = days[today] ?? emptyDay(today);
           return {
             profile,
             settings: onboardedSettings,
-            days: { [today]: emptyDay(today) },
-            dayOrder: [today],
+            days,
+            dayOrder: imported.includes(today) ? imported : [...imported, today],
             journalEntries: [],
             biomarkers: [],
             healthRecords: [],
@@ -119,6 +139,38 @@ export const useAppStore = create<AppStore>()(
           };
         });
       },
+
+      // Merge a batch read from the phone's health store. Imported days replace
+      // the health fields but keep anything logged by hand: a meal, a journal
+      // entry or a workout the person added themselves is never overwritten by
+      // a sync.
+      importHealthDays: (records) =>
+        set((s) => {
+          if (!records.length) return s;
+          const days = { ...s.days };
+          const order = [...s.dayOrder];
+          for (const incoming of records) {
+            const existing = days[incoming.date];
+            days[incoming.date] = existing
+              ? {
+                  ...existing,
+                  sleep: incoming.sleep ?? existing.sleep,
+                  metrics: incoming.metrics.steps || incoming.metrics.hrSamples.length
+                    ? incoming.metrics
+                    : existing.metrics,
+                  workouts: [
+                    ...existing.workouts.filter((w) => !w.imported),
+                    ...incoming.workouts,
+                  ],
+                  meals: existing.meals,
+                  journal: existing.journal,
+                }
+              : incoming;
+            if (!order.includes(incoming.date)) order.push(incoming.date);
+          }
+          order.sort();
+          return { days, dayOrder: order };
+        }),
 
       setActivityStatus: (status, untilISO, note) =>
         set((s) => ({
@@ -318,6 +370,7 @@ export const useAppStore = create<AppStore>()(
       exportBackupJson: () => backupJson(get()),
 
       clearAll: () => {
+        clearGeneration += 1;
         localStorage.removeItem(SNAPSHOT_KEY);
         const now = new Date().toISOString();
         set({
@@ -340,6 +393,21 @@ export const useAppStore = create<AppStore>()(
       name: STORE_KEY,
       storage: createJSONStorage(() => localStorage),
       version: 1,
+      // Settings gained keys over time (nutrition joined activeTabs). A stored
+      // snapshot without them would read back `undefined`, which every toggle
+      // and switch treats as off — so fill defaults in rather than guess.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<typeof current>;
+        return {
+          ...current,
+          ...saved,
+          settings: {
+            ...current.settings,
+            ...saved.settings,
+            activeTabs: { ...current.settings.activeTabs, ...saved.settings?.activeTabs },
+          },
+        };
+      },
       partialize: (state) => {
         const {
           profile,

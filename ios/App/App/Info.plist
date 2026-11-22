@@ -43,5 +43,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- HealthKit usage descriptions. Both keys are required by @capgo/capacitor-health even
+	     though Bene is read-only: HealthKit refuses to show the authorization sheet if either
+	     description is missing. See node_modules/@capgo/capacitor-health/README.md (iOS Setup). -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Bene reads your sleep, heart rate, heart rate variability, respiratory rate, oxygen saturation, body temperature, steps, calories, exercise and body measurements so it can show your recovery, sleep and training on this device. Your health data never leaves your phone.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Bene does not write health data to Apple Health. This permission is required by Apple for Health access and is never used.</string>
 </dict>
 </plist>

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowDown,
@@ -68,11 +68,24 @@ export function HomeScreen() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string[]>(state.settings.homeOrder);
   const [addOpen, setAddOpen] = useState(false);
+  const location = useLocation();
+
+  // Settings sends the user here to arrange cards, rather than telling them to
+  // find the button themselves. The flag is consumed once so a back press does
+  // not reopen the editor.
+  useEffect(() => {
+    if ((location.state as { editHome?: boolean } | null)?.editHome) {
+      setDraft(state.settings.homeOrder);
+      setEditing(true);
+      navigate('/', { replace: true, state: null });
+    }
+  }, [location.state, navigate, state.settings.homeOrder]);
 
   const order = editing ? draft : state.settings.homeOrder;
   const visible = order.filter((id) => {
     if (id === 'journal' && !state.settings.activeTabs.journal) return false;
     if (id === 'fitness' && !state.settings.activeTabs.fitness) return false;
+    if (id === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
     return true;
   });
 
@@ -301,7 +314,7 @@ export function HomeScreen() {
                           <span className="caption">{clockLabel(w.start)}</span>
                         </div>
                       ))}
-                      {derived.record.meals.slice(0, 2).map((m) => (
+                      {(state.settings.activeTabs.nutrition ? derived.record.meals : []).slice(0, 2).map((m) => (
                         <div className="list-row" key={m.id}>
                           <div className="list-icon" style={{ background: 'rgba(75,201,58,.12)', color: 'var(--green-deep)' }}><Utensils size={16} /></div>
                           <div className="grow">
@@ -311,7 +324,9 @@ export function HomeScreen() {
                           <span className="caption">{m.time}</span>
                         </div>
                       ))}
-                      {!derived.sleep && derived.record.workouts.length === 0 && derived.record.meals.length === 0 ? (
+                      {!derived.sleep &&
+                      derived.record.workouts.length === 0 &&
+                      (!state.settings.activeTabs.nutrition || derived.record.meals.length === 0) ? (
                         <div className="empty" style={{ padding: '18px 12px' }}>Nothing logged yet. Add food, an activity or last night's sleep.</div>
                       ) : null}
                     </div>

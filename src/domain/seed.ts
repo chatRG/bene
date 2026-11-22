@@ -33,7 +33,7 @@ export function buildSeed(now = new Date()): AppStateData {
     theme: 'system',
     onboarded: false,
     demoMode: false,
-    activeTabs: { fitness: true, journal: true, biology: true },
+    activeTabs: { fitness: true, journal: true, biology: true, nutrition: true },
     homeCards: ['scores', 'coach', 'stress', 'sleep', 'timeline', 'nutrition', 'journal'],
     homeOrder: ['scores', 'coach', 'stress', 'sleep', 'timeline', 'nutrition', 'journal'],
     sleepGoalMin: 552,
