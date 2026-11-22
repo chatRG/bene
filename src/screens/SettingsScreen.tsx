@@ -76,7 +76,7 @@ export function SettingsScreen() {
 
         <GroupLabel>App</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.3.0 · Noncommercial" onClick={() => navigate('/settings/about')} />
+          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.3.1 · Noncommercial" onClick={() => navigate('/settings/about')} />
         </div>
 
         <div className="settings-footer">Bene is a local-first health app.<br />Health estimates are wellness only, not medical advice.</div>
@@ -610,7 +610,7 @@ function About() {
           <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
-        <div className="caption mt-4">Version 0.3.0</div>
+        <div className="caption mt-4">Version 0.3.1</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           <span className="pill pill--sm pill--flat">Noncommercial</span>
