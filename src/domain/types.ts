@@ -304,7 +304,7 @@ export interface AppSettings {
   theme: ThemeMode;
   onboarded: boolean;
   demoMode: boolean;
-  activeTabs: { fitness: boolean; journal: boolean; biology: boolean };
+  activeTabs: { fitness: boolean; journal: boolean; biology: boolean; nutrition: boolean };
   homeCards: string[];
   homeOrder: string[];
   sleepGoalMin: number;

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowDown,
@@ -68,11 +68,24 @@ export function HomeScreen() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string[]>(state.settings.homeOrder);
   const [addOpen, setAddOpen] = useState(false);
+  const location = useLocation();
+
+  // Settings sends the user here to arrange cards, rather than telling them to
+  // find the button themselves. The flag is consumed once so a back press does
+  // not reopen the editor.
+  useEffect(() => {
+    if ((location.state as { editHome?: boolean } | null)?.editHome) {
+      setDraft(state.settings.homeOrder);
+      setEditing(true);
+      navigate('/', { replace: true, state: null });
+    }
+  }, [location.state, navigate, state.settings.homeOrder]);
 
   const order = editing ? draft : state.settings.homeOrder;
   const visible = order.filter((id) => {
     if (id === 'journal' && !state.settings.activeTabs.journal) return false;
     if (id === 'fitness' && !state.settings.activeTabs.fitness) return false;
+    if (id === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
     return true;
   });
 

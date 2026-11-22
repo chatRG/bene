@@ -61,6 +61,7 @@ function Shell() {
   const autoBackup = useAppStore((s) => s.settings.autoBackup);
   const lastBackupAt = useAppStore((s) => s.settings.lastBackupAt);
   const backupNow = useAppStore((s) => s.backupNow);
+  const activeTabs = useAppStore((s) => s.settings.activeTabs);
   const isTab = TABS.includes(location.pathname) || location.pathname.startsWith('/chat/');
   const isOnboarding = location.pathname === '/onboarding';
 
@@ -76,6 +77,23 @@ function Shell() {
 
   if (!onboarded && !isOnboarding) return <Navigate to="/onboarding" replace />;
   if (onboarded && isOnboarding) return <Navigate to="/" replace />;
+
+  // A disabled feature is unreachable, not merely hidden from the tab bar: an
+  // old link or a back press would still land on it and resume tracking. Its
+  // sub-screens (a workout detail, a settings section) are covered too.
+  //
+  // Compared against a normalised path: React Router matches `/journal/` to the
+  // `/journal` route, so an exact comparison here would let a trailing slash
+  // through and the "disabled" screen would render and still write data.
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const off =
+    (path.startsWith('/workout/') && !activeTabs.fitness) ||
+    (path === '/fitness' && !activeTabs.fitness) ||
+    (path === '/journal' && !activeTabs.journal) ||
+    (path === '/biology' && !activeTabs.biology) ||
+    (path === '/records' && !activeTabs.biology) ||
+    (path === '/nutrition' && !activeTabs.nutrition);
+  if (off) return <Navigate to="/" replace />;
 
   return (
     <div className="app-shell">

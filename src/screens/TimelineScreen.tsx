@@ -158,7 +158,9 @@ export function TimelineScreen() {
           {addMode === 'menu' ? (
             <div className="col gap-8">
               {[
-                ['food', 'Food', 'Search, describe, photo or barcode', <Utensils size={18} />],
+                ...(state.settings.activeTabs.nutrition
+                  ? [['food', 'Food', 'Search, describe, photo or barcode', <Utensils size={18} />] as const]
+                  : []),
                 ['activity', 'Activity', 'Run, strength, cycle or walk', <Flame size={18} />],
                 ['sleep', 'Sleep', 'Naps and overnight sleep', <Moon size={18} />],
               ].map(([id, title, sub, icon]) => (

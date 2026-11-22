@@ -37,6 +37,7 @@ interface AppActions {
     },
   ) => void;
   ensureToday: () => void;
+  importHealthDays: (records: DayRecord[]) => void;
   setActivityStatus: (status: ActivityStatus, untilISO: string | null, note: string) => void;
   addMeal: (meal: MealEntry) => void;
   removeMeal: (date: string, id: string) => void;
@@ -47,7 +48,7 @@ interface AppActions {
   logWorkout: (workout: Workout) => void;
   addRoutine: (routine: Routine) => void;
   completeRoutineDay: (routineId: string, date: string) => void;
-  toggleTab: (tab: 'fitness' | 'journal' | 'biology') => void;
+  toggleTab: (tab: 'fitness' | 'journal' | 'biology' | 'nutrition') => void;
   createChatThread: (ghost?: boolean, model?: ChatThread['model']) => string;
   sendChatMessage: (threadId: string, text: string, attachmentName?: string) => void;
   deleteChat: (threadId: string) => void;
@@ -119,6 +120,38 @@ export const useAppStore = create<AppStore>()(
           };
         });
       },
+
+      // Merge a batch read from the phone's health store. Imported days replace
+      // the health fields but keep anything logged by hand: a meal, a journal
+      // entry or a workout the person added themselves is never overwritten by
+      // a sync.
+      importHealthDays: (records) =>
+        set((s) => {
+          if (!records.length) return s;
+          const days = { ...s.days };
+          const order = [...s.dayOrder];
+          for (const incoming of records) {
+            const existing = days[incoming.date];
+            days[incoming.date] = existing
+              ? {
+                  ...existing,
+                  sleep: incoming.sleep ?? existing.sleep,
+                  metrics: incoming.metrics.steps || incoming.metrics.hrSamples.length
+                    ? incoming.metrics
+                    : existing.metrics,
+                  workouts: [
+                    ...existing.workouts.filter((w) => !w.imported),
+                    ...incoming.workouts,
+                  ],
+                  meals: existing.meals,
+                  journal: existing.journal,
+                }
+              : incoming;
+            if (!order.includes(incoming.date)) order.push(incoming.date);
+          }
+          order.sort();
+          return { days, dayOrder: order };
+        }),
 
       setActivityStatus: (status, untilISO, note) =>
         set((s) => ({
@@ -340,6 +373,21 @@ export const useAppStore = create<AppStore>()(
       name: STORE_KEY,
       storage: createJSONStorage(() => localStorage),
       version: 1,
+      // Settings gained keys over time (nutrition joined activeTabs). A stored
+      // snapshot without them would read back `undefined`, which every toggle
+      // and switch treats as off — so fill defaults in rather than guess.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<typeof current>;
+        return {
+          ...current,
+          ...saved,
+          settings: {
+            ...current.settings,
+            ...saved.settings,
+            activeTabs: { ...current.settings.activeTabs, ...saved.settings?.activeTabs },
+          },
+        };
+      },
       partialize: (state) => {
         const {
           profile,

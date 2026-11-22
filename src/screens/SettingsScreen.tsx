@@ -4,7 +4,6 @@ import { format } from 'date-fns';
 import {
   Check,
   ChevronRight,
-  Database,
   Download,
   FileText,
   Globe,
@@ -17,7 +16,6 @@ import {
   RotateCcw,
   Settings2,
   Shield,
-  Smartphone,
   Target,
   Trash2,
   Upload,
@@ -28,6 +26,8 @@ import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { snapshotInfo } from '../domain/backup';
+import { platform, platformLabel } from '../native/health';
+import { HealthSourceCard, HealthSourceRow } from '../components/health-source';
 import type { ActivityStatus, ThemeMode } from '../domain/types';
 
 const SECTION_TITLES: Record<string, string> = {
@@ -62,7 +62,7 @@ export function SettingsScreen() {
 
         <GroupLabel>Data and privacy</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="Apple Health and Health Connect · manual logs" onClick={() => navigate('/settings/data')} />
+          <HealthSourceRow onClick={() => navigate('/settings/data')} />
           <ListRow icon={<Shield size={16} />} title="Privacy and permissions" subtitle="Export, delete, access" onClick={() => navigate('/settings/privacy')} />
           <ListRow icon={<HardDrive size={16} />} title="Backup and restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
         </div>
@@ -120,6 +120,7 @@ function SwitchRow({ title, subtitle, on, onChange }: { title: string; subtitle?
 function General() {
   const state = useAppStore();
   const s = state.settings;
+  const navigate = useNavigate();
   return (
     <>
       <GroupLabel>Appearance</GroupLabel>
@@ -148,9 +149,19 @@ function General() {
       </div>
       <p className="caption" style={{ margin: '8px 4px 0' }}>Disabling a tab also hides every card and notification that belongs to it.</p>
 
+      <GroupLabel>Tracking</GroupLabel>
+      <div className="list-card">
+        <SwitchRow
+          title="Calorie and macro tracking"
+          subtitle="Hides the Nutrition card and its Home entries. Meals already logged are kept."
+          on={s.activeTabs.nutrition}
+          onChange={() => state.toggleTab('nutrition')}
+        />
+      </div>
+
       <GroupLabel>Home screen</GroupLabel>
       <div className="list-card">
-        <ListRow icon={<Settings2 size={16} />} title="Edit Home" subtitle="Hide, add and reorder cards" onClick={() => useAppStore.getState() && showToast('Use Edit Home at the bottom of the Home tab')} />
+        <ListRow icon={<Settings2 size={16} />} title="Edit Home" subtitle="Hide, add and reorder cards" onClick={() => navigate('/', { state: { editHome: true } })} />
         <ListRow icon={<RefreshCw size={16} />} title="Restore default Home" subtitle={`${s.homeOrder.length} cards visible`} onClick={() => { state.saveHomeLayout(['scores', 'coach', 'stress', 'sleep', 'timeline', 'nutrition', 'journal']); showToast('Home restored'); }} />
       </div>
 
@@ -214,76 +225,79 @@ function Account() {
 /**
  * Two platform health stores, not a list of brands. A watch, ring, strap or CGM
  * is reached through the phone's own health SDK, so one adapter covers every
- * device the person already syncs.
+ * device the person already syncs. The status, the connect flow and the copy
+ * live in HealthSourceCard so onboarding and Settings say the same thing.
  */
 const SOURCES = [
   {
-    id: 'apple',
+    id: 'apple-health' as const,
     name: 'Apple Health',
-    icon: <Heart size={16} />,
-    status: 'Not connected',
     platform: 'iOS',
     detail: 'HealthKit · every device that writes to Apple Health',
-    covers: ['Sleep stages', 'Heart-rate variability', 'Resting heart rate', 'Workouts', 'Body weight', 'Blood glucose'],
+    covers: 'Sleep stages · HRV · resting heart rate · steps · workouts',
     note: 'One HealthKit reader covers an Apple Watch, Oura, Garmin, Amazfit and a CGM, because each of them writes into Apple Health. No per-brand login is needed.',
   },
   {
-    id: 'health-connect',
+    id: 'health-connect' as const,
     name: 'Health Connect',
-    icon: <Heart size={16} />,
-    status: 'Not connected',
     platform: 'Android',
     detail: 'Health Connect · every app that writes to it',
-    covers: ['Sleep stages', 'Heart-rate variability', 'Resting heart rate', 'Workouts', 'Body weight', 'Blood glucose'],
+    covers: 'Sleep stages · HRV · resting heart rate · steps · workouts',
     note: 'Health Connect is Google’s on-device health store and the Android equivalent of Apple Health. Wear OS watches and most Android sync apps write into it, so one reader replaces a per-brand integration.',
   },
 ];
 
 function DataSourceScreen() {
   const [selected, setSelected] = useState<(typeof SOURCES)[number] | null>(null);
+  const healthPlatform = platform();
+  const onDevice = healthPlatform === 'unavailable' ? null : healthPlatform;
 
   return (
     <>
-      <div className="insight-unlock mt-8">
-        <Info size={17} />
-        <span>
-          <strong>No live health source is connected yet.</strong> The app starts empty; data will arrive from Apple Health or Health Connect
-          once the adapter ships. Anything you log manually and every backup you create are real and stay on this device.
-        </span>
-      </div>
+      <HealthSourceCard variant="settings" probe />
       <GroupLabel>Health SDK</GroupLabel>
       <div className="list-card">
         {SOURCES.map((src) => (
-          <button key={src.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => setSelected(src)}>
-            <div className="list-icon">{src.icon}</div>
-            <div className="grow"><div className="list-title">{src.name}</div><div className="list-sub">{src.detail}</div></div>
-            <span className="pill pill--sm pill--flat">{src.status}</span>
+          <button
+            key={src.id}
+            className="list-row"
+            style={{ width: '100%', textAlign: 'left' }}
+            onClick={() => setSelected(src)}
+            aria-disabled={onDevice !== null && onDevice !== src.id}
+          >
+            <div className="list-icon"><Heart size={16} /></div>
+            <div className="grow">
+              <div className="list-title">{src.name}</div>
+              <div className="list-sub">{src.detail}</div>
+            </div>
+            <span className={`pill pill--sm ${onDevice === src.id ? 'pill--green' : 'pill--flat'}`}>
+              {onDevice === src.id ? 'This device' : src.platform}
+            </span>
             <ChevronRight size={16} className="chevron" />
           </button>
         ))}
       </div>
-      <GroupLabel>Duplicates</GroupLabel>
-      <div className="list-card">
-        <SwitchRow title="Hide duplicate sources" subtitle="Show one workout when several devices record it" on={false} onChange={() => showToast('Available once a live source is connected')} />
-      </div>
       {selected ? (
-        <Sheet title={selected.name} subtitle={`${selected.platform} · ${selected.status}`} onClose={() => setSelected(null)}>
+        <Sheet title={selected.name} subtitle={`${selected.platform} · read-only, on this device`} onClose={() => setSelected(null)}>
           <p className="body" style={{ lineHeight: 1.6 }}>{selected.note}</p>
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
-            <div className="list-row"><div className="grow"><div className="list-title">Reads</div><div className="list-sub">{selected.covers.join(' · ')}</div></div></div>
-            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">Up to 2 years, read-only</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Reads</div><div className="list-sub">{selected.covers}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">Last 30 days on each connect and sync</div></div></div>
             <div className="list-row"><div className="grow"><div className="list-title">Brand logins</div><div className="list-sub">None · every device arrives through the phone’s health store</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Leaves the phone</div><div className="list-sub">Nothing · no account, no cloud</div></div></div>
           </div>
-          <button
-            className="btn btn--soft btn--block mt-20"
-            onClick={() => {
-              setSelected(null);
-              showToast('Health adapter is not included in this build');
-            }}
-          >
-            Not included in this build
-          </button>
+          {onDevice === selected.id ? (
+            <div className="mt-20">
+              <HealthSourceCard variant="settings" probe />
+            </div>
+          ) : (
+            <p className="caption mt-20" style={{ lineHeight: 1.6 }}>
+              {onDevice === null
+                ? 'This build has no health store behind it, so there is nothing to connect here. On a phone Bene reads this store directly.'
+                : `${selected.name} is ${selected.platform}-only. On this device Bene reads ${platformLabel(onDevice)} — the connection below covers every device that writes into it.`}
+            </p>
+          )}
         </Sheet>
       ) : null}
     </>
@@ -327,12 +341,6 @@ function Goals() {
           <div className="grow"><div className="list-title">Show macros as</div></div>
           <Segmented options={[{ value: 'g', label: 'Grams' }, { value: 'percent', label: 'Percent' }]} value={units} onChange={setUnits} />
         </div>
-      </div>
-      <GroupLabel>Targets & limits</GroupLabel>
-      <div className="list-card">
-        <ListRow title="Target nutrients" subtitle="Reach at least — fiber, protein, omega-3" value="2 set" onClick={() => showToast('Target nutrients editor')} />
-        <ListRow title="Limit nutrients" subtitle="Stay under — sodium, added sugar" value="2 set" onClick={() => showToast('Limit nutrients editor')} />
-        <ListRow title="Excluded contributors" subtitle={`${s.excludedContributors.length} excluded from score`} onClick={() => showToast('Exclude contributors for allergies or preferences')} />
       </div>
       <button className="btn btn--block mt-20" onClick={() => { state.updateSettings({ sleepGoalMin: Math.max(1, sleepH * 60 + sleepM), calorieGoal: Math.max(1, Math.round(kcal) || 1), proteinGoalG: Math.max(0, Math.round(protein) || 0), nutritionUnits: units }); showToast('Goals saved'); }}>Save goals</button>
     </>
@@ -609,10 +617,9 @@ function About() {
         </div>
       </div>
       <div className="list-card mt-16">
-        <ListRow icon={<Info size={16} />} title="Scoring methodology" subtitle="docs/SCORING.md in the repository" onClick={() => showToast('Open docs/SCORING.md in the repo')} />
-        <ListRow icon={<FileText size={16} />} title="Third-party licenses" subtitle="React, Capacitor, Allo, Lucide" onClick={() => showToast('See NOTICE.md for attribution')} />
-        <ListRow icon={<Smartphone size={16} />} title="Native builds" subtitle="iOS and Android via Capacitor" onClick={() => showToast('Run npm run cap:ios / cap:android')} />
-        <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => showToast('Add your repository URL before release')} />
+        <ListRow icon={<Info size={16} />} title="Scoring methodology" subtitle="How each score is calculated" onClick={() => window.open('https://github.com/chatRG/bene/blob/main/docs/SCORING.md', '_blank')} />
+        <ListRow icon={<FileText size={16} />} title="Third-party licenses" subtitle="React, Capacitor, Allo, Lucide" onClick={() => window.open('https://github.com/chatRG/bene/blob/main/NOTICE.md', '_blank')} />
+        <ListRow icon={<Globe size={16} />} title="Community" subtitle="Issues and discussions welcome" onClick={() => window.open('https://github.com/chatRG/bene/issues', '_blank')} />
       </div>
       <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
         Bene is a local-first, source-available health app. Health estimates are for wellness only and are not medical advice. See NOTICE.md for
