@@ -27,9 +27,65 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Health Connect (Android 13 and earlier): lets the user open Bene's rationale page
+             from the Health Connect permission sheet. The activity lives in the plugin
+             (app.capgo.plugin.health.PermissionsRationaleActivity), so the name is fully
+             qualified — a relative ".PermissionsRationaleActivity" would resolve against
+             Bene's package and not exist. -->
+        <activity
+            android:name="app.capgo.plugin.health.PermissionsRationaleActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Health Connect (Android 14+): permission usage entry point. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity="app.capgo.plugin.health.PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Health Connect. Bene only reads, and only these types (see READ_TYPES in
+         src/native/health.ts): steps, sleep, heart rate, HRV, resting heart rate,
+         respiratory rate, oxygen saturation, body temperature, calories, exercise
+         (exerciseTime + workouts), weight and height. No WRITE_* permissions are
+         declared because Bene never writes to the store.
+         Names follow the Health Connect permission constants the plugin builds from
+         its record classes (HealthDataType.kt:37-56 via HealthPermission.getReadPermission). -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_RESPIRATORY_RATE" />
+    <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
+    <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_HEIGHT" />
+    <!-- Required by the plugin for requestHistoryAccess (history beyond Health Connect's
+         30-day read window); HealthManager.kt:1248, and requestAccess() in
+         src/native/health.ts passes it. Health Connect only shows permissions that are
+         both declared here and requested, so this line is what makes it take effect. -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+
+    <!-- Lets isAvailable() query the Health Connect package itself. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 </manifest>

@@ -51,6 +51,11 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Health Connect client. The health plugin compiles against androidx.health.connect:connect-client
+    // (node_modules/@capgo/capacitor-health/android/build.gradle declares connect-client:1.1.0) but
+    // only as an `implementation` dependency, so nothing is exposed to this module at compile time.
+    // Declared here at the same version to keep the permission/record APIs resolvable in app code.
+    implementation "androidx.health.connect:connect-client:$androidxHealthConnectVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
