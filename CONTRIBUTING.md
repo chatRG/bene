@@ -13,18 +13,18 @@ Thank you for your help with this local-first health app. The project is small e
 ## Setup
 
 ```bash
-npm install
-npm run dev
-npm test
-npm run lint
+bun install
+bun run dev
+bun run test
+bun run lint
 ```
 
 ## Before opening a PR
 
-- [ ] `npm test` passes.
-- [ ] `npm run lint` passes (TypeScript, no unused symbols).
-- [ ] `npm run build` succeeds.
-- [ ] `npm run shots` renders every screen without console errors or horizontal overflow.
+- [ ] `bun run test` passes.
+- [ ] `bun run lint` passes (TypeScript, no unused symbols).
+- [ ] `bun run build` succeeds.
+- [ ] `bun run shots` renders every screen without console errors or horizontal overflow.
 - [ ] New UI works in light and dark mode, at 375 px and 430 px widths.
 - [ ] No new network calls (`fetch`, `XMLHttpRequest`, analytics).
 - [ ] Document new score weights in `docs/SCORING.md`.

@@ -19,8 +19,6 @@ Bene calculates recovery, sleep, strain, training load, nutrition, journaling an
 
 > **Licence.** Bene is free for personal, research and other noncommercial use. Commercial use needs a separate paid licence. See [COMMERCIAL.md](COMMERCIAL.md).
 
-![Home](docs/screenshots/home.png)
-
 ## Why this exists
 
 Most health apps put the interpretation of your data behind a subscription and a cloud account. Bene does not. Bene is a local-first coach. It runs on your device. It continues to work when the device has no network connection, for example on a plane. You can move your data to another device as one file.
@@ -41,33 +39,44 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-| Home | Recovery | Sleep |
-|---|---|---|
-| ![](docs/screenshots/home.png) | ![](docs/screenshots/recovery.png) | ![](docs/screenshots/sleep.png) |
+Each screen in light, then the same screen in dark. A true-black midnight theme
+ships as well.
 
-| Strain | Fitness | Nutrition |
-|---|---|---|
-| ![](docs/screenshots/strain.png) | ![](docs/screenshots/fitness.png) | ![](docs/screenshots/nutrition.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/home.png) | ![](docs/screenshots/dark-home.png) |
 
-| Journal | Biology | Coach |
-|---|---|---|
-| ![](docs/screenshots/journal.png) | ![](docs/screenshots/biology.png) | ![](docs/screenshots/intelligence.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/recovery.png) | ![](docs/screenshots/dark-recovery.png) |
 
-### Dark mode
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/sleep.png) | ![](docs/screenshots/dark-sleep.png) |
 
-Bene ships a dark theme and a true-black midnight theme. The screenshots below use the dark theme.
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/strain.png) | ![](docs/screenshots/dark-strain.png) |
 
-| Home | Recovery | Sleep |
-|---|---|---|
-| ![](docs/screenshots/dark-home.png) | ![](docs/screenshots/dark-recovery.png) | ![](docs/screenshots/dark-sleep.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/fitness.png) | ![](docs/screenshots/dark-fitness.png) |
 
-| Strain | Fitness | Nutrition |
-|---|---|---|
-| ![](docs/screenshots/dark-strain.png) | ![](docs/screenshots/dark-fitness.png) | ![](docs/screenshots/dark-nutrition.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/nutrition.png) | ![](docs/screenshots/dark-nutrition.png) |
 
-| Journal | Biology | Coach |
-|---|---|---|
-| ![](docs/screenshots/dark-journal.png) | ![](docs/screenshots/dark-biology.png) | ![](docs/screenshots/dark-intelligence.png) |
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/journal.png) | ![](docs/screenshots/dark-journal.png) |
+
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/biology.png) | ![](docs/screenshots/dark-biology.png) |
+
+| Light | Dark |
+|---|---|
+| ![](docs/screenshots/intelligence.png) | ![](docs/screenshots/dark-intelligence.png) |
 
 ## Quick start
 
@@ -128,35 +137,15 @@ The `iOS unsigned` workflow builds the IPA on a macOS runner with `CODE_SIGNING_
 
 You do not need a native build for development. The web target has the shortest development loop. The automated screenshot suite uses the web target.
 
-## Backups
+## How it works, and where your data lives
 
-Bene has no server, so a backup file **is** your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats.
+**Architecture.** `src/domain/` holds pure TypeScript: types, scoring and backup. `src/store/` is a Zustand store persisted to localStorage. `src/screens/` is one file per surface. `src/styles/` holds tokens and screen CSS. `ios/` and `android/` are Capacitor 8 shells around the same UI.
 
-The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**. Treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
+React 19, TypeScript and Vite. Charts are hand-built SVG with no chart library. The store persists data only; scores are always derived, never stored. The design is a warm ivory canvas in the light theme, with one accent per metric, in light, dark and midnight. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)). More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Scoring
+**Your data.** Bene has no server, so a backup file *is* your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats. The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
-Every score is a pure function of your data with a published set of invariants. Recovery needs two complete nights, sleep stages, overnight HRV and RHR, then blends sleep, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain is logarithmic TRIMP and can exceed 100%. Nutrition follows 11 food-quality contributors, with sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness, and updates weekly.
-
-Formulas, gates, weights and known gaps are in [docs/SCORING.md](docs/SCORING.md).
-
-## Architecture
-
-```
-src/domain/     pure TypeScript: types, scoring, backup
-src/store/      Zustand store, persisted to localStorage
-src/screens/    one file per surface
-src/styles/     tokens and screen CSS
-ios/, android/  Capacitor 8 native shells
-```
-
-React 19, TypeScript and Vite. The charts are hand-built SVG, with no chart library. The store persists data only — scores are always derived, never stored. The design uses a warm ivory canvas, Allo, and one accent per metric, in light, dark and midnight themes. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)).
-
-More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Privacy
-
-No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
+**Privacy.** No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
 
 ## Contributing
 

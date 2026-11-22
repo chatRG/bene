@@ -90,7 +90,7 @@ Thus backup files contain raw data only. A restore from a backup of the previous
 - `webDir: dist`
 - mobile content mode and safe-area handling
 
-`npx cap sync` copies `dist/` into both native shells. The current feature set needs no native plugin. Haptics, HealthKit and Health Connect are future adapters.
+`bunx cap sync` copies `dist/` into both native shells. The current feature set needs no native plugin. Haptics, HealthKit and Health Connect are future adapters.
 
 ## Testing
 
