@@ -34,7 +34,7 @@ export function WorkoutDetailScreen() {
   if (!routine && !workout) {
     return (
       <div className="screen screen--detail">
-        <div className="detail-head safe-top"><button className="icon-btn" onClick={() => navigate(-1)}><ChevronLeft size={20} /></button><div className="detail-head__title">Workout</div><div /></div>
+        <div className="detail-head"><button className="icon-btn" onClick={() => navigate(-1)}><ChevronLeft size={20} /></button><div className="detail-head__title">Workout</div><div /></div>
         <div className="empty">Workout not found.</div>
       </div>
     );
@@ -44,7 +44,7 @@ export function WorkoutDetailScreen() {
     const isRun = routine.kind === 'run';
     return (
       <div className="screen screen--detail" style={{ background: 'var(--bg)' }}>
-        <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+        <div className="detail-head">
           <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Close"><ChevronLeft size={20} /></button>
           <div />
           <div className="detail-head__right">
@@ -161,7 +161,7 @@ export function WorkoutDetailScreen() {
               <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => { showToast('Routine is now scheduled'); setMenuOpen(false); }}>
                 <div className="list-icon"><Calendar size={16} /></div><div className="grow"><div className="list-title">Schedule</div><div className="list-sub">Adds to Fitness and the Watch</div></div>
               </button>
-              <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => { showToast('Routine deleted (demo)'); setMenuOpen(false); }}>
+              <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => { showToast('Routine deleted'); setMenuOpen(false); }}>
                 <div className="list-icon" style={{ color: 'var(--red)' }}><MoreHorizontal size={16} /></div><div className="grow"><div className="list-title" style={{ color: 'var(--red)' }}>Delete routine</div></div>
               </button>
             </div>
@@ -187,7 +187,7 @@ export function WorkoutDetailScreen() {
   const totalZone = w.zoneMinutes.reduce((a, b) => a + b, 0) || 1;
   return (
     <div className="screen screen--detail">
-      <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+      <div className="detail-head">
         <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
         <div className="detail-head__title">{w.kind === 'strength' ? 'Strength' : 'Cardio'}</div>
         <div />

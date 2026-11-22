@@ -63,7 +63,7 @@ export function DetailHeader({
 }) {
   const navigate = useNavigate();
   return (
-    <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+    <div className="detail-head">
       <button
         className={`icon-btn ${transparent ? 'glass' : ''}`}
         onClick={() => (onBack ? onBack() : navigate(-1))}

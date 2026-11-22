@@ -5,6 +5,14 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://github.com/chatRG/bene/releases/latest"><img src="https://img.shields.io/github/v/release/chatRG/bene?style=flat-square&color=E8B84B" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platforms-Android%20%C2%B7%20iOS-E8B84B?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/local--first-E8B84B?style=flat-square" alt="Local first">
+  <img src="https://img.shields.io/badge/account--free-C8902F?style=flat-square" alt="Account free">
+  <img src="https://img.shields.io/badge/offline--capable-C8902F?style=flat-square" alt="Offline capable">
+</p>
+
 **A health coach for iOS, Android and the web. It works offline. Its source is available.**
 
 Bene calculates recovery, sleep, strain, training load, nutrition, journaling and biological age. It uses a data model that does not depend on one wearable brand. It explains each score. It stores all data on your device.
@@ -17,28 +25,19 @@ Bene calculates recovery, sleep, strain, training load, nutrition, journaling an
 
 Most health apps put the interpretation of your data behind a subscription and a cloud account. Bene does not. Bene is a local-first coach. It runs on your device. It continues to work when the device has no network connection, for example on a plane. You can move your data to another device as one file.
 
-This is the first iteration. It has sufficient features for daily use. This document also describes what comes next.
+## Features
 
-## What works today
-
-| Area | Status |
+| Area | What it does |
 |---|---|
-| **Offline by default** | ✅ Bene has no accounts, no telemetry and no network calls. It keeps all state in local storage or the app container. |
-| **Backup and restore** | ✅ Bene downloads one JSON backup file. It makes an automatic on-device snapshot each day. It validates a restore from a file. |
-| **Demo dataset** | ✅ A deterministic 60-day history includes sleep stages, HR/HRV, workouts, meals and journal entries. Each screen has values at first run. |
-| **Recovery, Sleep, Strain** | ✅ A documented scoring model uses calibration gates and personal baselines. Each score has a breakdown. |
-| **Training** | ✅ Bene calculates cardio load and muscular load. It gives muscle freshness, structured routines, a live workout timer and workout logging. |
-| **Nutrition** | ✅ Bene tracks calories, macros and net energy. It has 11 food-quality contributors, food search and custom foods. |
-| **Journal** | ✅ Journal tags support Yes/No, Yes/Neutral/No and numeric values. You can pin tags. Bene displays correlation insights after 5+5 entries. |
-| **Biology** | ✅ Biological Age has a ± year estimate, a contributor breakdown, biomarkers and local health-record uploads. |
-| **Coach** | ✅ The coach works offline and uses scripts. It answers from your metrics and makes no model calls. The UI can use a local or user-supplied model later. |
-| **Native shells** | ✅ The repository includes Capacitor iOS and Android projects. |
-
-## What's next
-
-- **Native health adapters.** Bene will add adapters for native health stores. One Capacitor plugin will connect HealthKit and Health Connect. The plugin will supply the same `DayRecord` contract that the rest of the domain uses.
-- **Optional on-device coach.** A local model can phrase the numbers later. The rule-based coach remains the always-available fallback. No cloud model is in scope.
-- **Store builds.** The repository includes the Capacitor projects. You still sign and package in Xcode and Android Studio.
+| **Offline by default** | No accounts, no telemetry, no network calls. All state stays in local storage or the app container. |
+| **Backup and restore** | One JSON file. An automatic on-device snapshot each day. A restore is validated before it replaces anything. |
+| **Recovery, Sleep, Strain** | A documented scoring model with calibration gates and personal baselines. Every score has a breakdown. |
+| **Training** | Cardio and muscular load, muscle freshness, structured routines, a live workout timer and workout logging. |
+| **Nutrition** | Calories, macros and net energy across 11 food-quality contributors, with food search and custom foods. |
+| **Journal** | Yes/No, Yes/Neutral/No and numeric tags. Pinned tags. Correlation insights after 5+5 entries. |
+| **Biology** | Biological Age with a ± year estimate, a contributor breakdown, biomarkers and local health-record uploads. |
+| **Coach** | Works offline from your own metrics, script-based, no model calls. |
+| **Native shells** | Capacitor iOS and Android projects in the repository. |
 
 ## Screens
 
@@ -54,6 +53,22 @@ This is the first iteration. It has sufficient features for daily use. This docu
 |---|---|---|
 | ![](docs/screenshots/journal.png) | ![](docs/screenshots/biology.png) | ![](docs/screenshots/intelligence.png) |
 
+### Dark mode
+
+Bene ships a dark theme and a true-black midnight theme. The screenshots below use the dark theme.
+
+| Home | Recovery | Sleep |
+|---|---|---|
+| ![](docs/screenshots/dark-home.png) | ![](docs/screenshots/dark-recovery.png) | ![](docs/screenshots/dark-sleep.png) |
+
+| Strain | Fitness | Nutrition |
+|---|---|---|
+| ![](docs/screenshots/dark-strain.png) | ![](docs/screenshots/dark-fitness.png) | ![](docs/screenshots/dark-nutrition.png) |
+
+| Journal | Biology | Coach |
+|---|---|---|
+| ![](docs/screenshots/dark-journal.png) | ![](docs/screenshots/dark-biology.png) | ![](docs/screenshots/dark-intelligence.png) |
+
 ## Quick start
 
 Requirements: Node.js 20+ and npm.
@@ -63,7 +78,7 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-The first run opens a 3-step onboarding. Choose **See a sample day** to load the full 60-day dataset immediately. Or enter your name and start with an empty profile.
+The first run opens onboarding. It asks for your name, birth date, height and weight. The app then starts empty. Every score fills in as you log or import data.
 
 ```bash
 npm test             # scoring, backup and offline-coach invariants
@@ -80,7 +95,7 @@ These tests use Playwright against a running dev server. Install Chromium one ti
 npm run dev            # terminal 1
 npm run shots          # capture every screen at 430×932, assert no overflow
 npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
-npm run test:empty     # onboarding with no demo data
+npm run test:empty     # onboarding and first-run empty state
 npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
 npm run test:pwa       # service worker + fully offline reload of the production build
 ```
@@ -102,54 +117,46 @@ npm run cap:android  # opens android/ in Android Studio
 - **Android:** Open `android/` and let Gradle sync. Run on a device or emulator. `minSdk` is 34 (Android 14+). `applicationId` is `health.bene.community`.
 - **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
+### Installing without a store
+
+Each tagged release attaches an Android APK and an unsigned iOS IPA.
+
+- **Android.** Install the APK directly. It is release-signed, so it updates over itself on Android 14+.
+- **iOS.** Install the unsigned IPA with AltStore, SideStore or Sideloadly. Those tools re-sign it on your device with your own Apple account. An `.ipa` cannot be published pre-signed: a signature belongs to one developer identity and provisioning profile, so only that account could install it. An App Store build needs a paid Apple Developer account and review.
+
+The `iOS unsigned` workflow builds the IPA on a macOS runner with `CODE_SIGNING_ALLOWED=NO` in the Release configuration. A Debug build would fail after re-signing, because it carries the `get-task-allow` entitlement.
+
 You do not need a native build for development. The web target has the shortest development loop. The automated screenshot suite uses the web target.
 
-## Backups: the important part
+## Backups
 
-Bene has no server. A backup file **is** your account.
+Bene has no server, so a backup file **is** your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats.
 
-- **Create backup:** Bene writes a timestamped snapshot to the device and downloads `bene-backup-YYYY-MM-DD.json`.
-- **Daily automatic snapshot:** Bene saves a snapshot on the device one time each 24 hours.
-- **Restore:** Bene validates the file or snapshot, then replaces the current data. Bene rejects an invalid, foreign or newer-version backup without a change to your data.
-- Backups include profile, settings, every day of metrics, meals, workouts, journal entries, biomarkers, records, routines and chat history.
+The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**. Treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
-The format is a plain JSON document (`app: "bene"`, `version: 1`). It is **not encrypted**. Treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
+## Scoring
 
-## Scoring, in one paragraph
+Every score is a pure function of your data with a published set of invariants. Recovery needs two complete nights, sleep stages, overnight HRV and RHR, then blends sleep, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain is logarithmic TRIMP and can exceed 100%. Nutrition follows 11 food-quality contributors, with sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness, and updates weekly.
 
-Each score is a pure function of your data and has a published list of invariants. Recovery needs two complete nights, sleep stages, overnight HRV and overnight RHR. It blends sleep score, HRV, RHR, temperature, respiratory rate and SpO₂ against a 28-night personal baseline. Strain uses logarithmic TRIMP load and can exceed 100%. Nutrition follows the 11 published food-quality contributors, including the sodium and added-sugar dead bands. Biological Age combines nine PhenoAge-style markers with sleep, activity and fitness contributors. It updates only each week. The exact weights are not public. This build uses an independent, documented model and keeps all weights in one place.
-
-Read [docs/SCORING.md](docs/SCORING.md) for formulas, gates, weights and the known gaps.
+Formulas, gates, weights and known gaps are in [docs/SCORING.md](docs/SCORING.md).
 
 ## Architecture
 
 ```
-src/
-  domain/            pure TypeScript: types, scoring, seed data, backup
-  store/             Zustand store + persistence (localStorage)
-  components/        design system, charts, icons
-  screens/           one file per surface
-  styles/            tokens + screen CSS
-ios/, android/       Capacitor native shells
-scripts/             Playwright visual + end-to-end checks
-docs/                scoring, architecture and backup notes
+src/domain/     pure TypeScript: types, scoring, backup
+src/store/      Zustand store, persisted to localStorage
+src/screens/    one file per surface
+src/styles/     tokens and screen CSS
+ios/, android/  Capacitor 8 native shells
 ```
 
-- **UI:** The UI uses React 19, TypeScript and Vite. It has no chart library. We hand-build the charts in SVG for control and small bundle size.
-- **State:** State uses Zustand with a persisted data slice. Bene never stores scoring data. It derives the scores.
-- **Native:** Native uses Capacitor 8. Capacitor bundles the web assets into the app. It works with the radio off.
-- **Design:** The design uses a warm ivory canvas, white cards, Allo, large tabular numerals and one accent for each metric. Bene includes dark mode. The sleep detail always uses the night theme.
-- **Identity:** The mark is **Threshold** — a circular opening cut clean through a square field. It has no accent colour; the logo is ink and cream only. Artwork and rules are in [brand/](brand/README.md).
+React 19, TypeScript and Vite. The charts are hand-built SVG, with no chart library. The store persists data only — scores are always derived, never stored. The design uses a warm ivory canvas, Allo, and one accent per metric, in light, dark and midnight themes. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)).
 
 More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Privacy
 
-- Bene has no analytics, no crash reporting, no remote logging and no third-party scripts.
-- The app source has no network requests (`fetch`, `XMLHttpRequest`, `axios` are absent).
-- Health data stays in the local storage of the app. Backups are files that the user creates.
-- The demo dataset is synthetic. The names and values are fictional.
-- This is a wellness tool. It is not a medical device and it does not give a diagnosis.
+No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
 
 ## Contributing
 

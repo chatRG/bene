@@ -56,10 +56,10 @@ Include:
 - platform (web / iOS / Android) and version,
 - steps to reproduce,
 - expected and actual behaviour,
-- whether the bug reproduces after `Reset demo data`,
+- whether the bug reproduces from a fresh account (no stored data),
 - a screenshot if the bug is visual.
 
-Do not attach a real health backup. Reduce the case with the demo dataset or a synthetic fixture.
+Do not attach a real health backup. Reduce the case with synthetic fixture data inside a test, never a real person's health record.
 
 ## Security
 

@@ -59,6 +59,10 @@ export function HomeScreen() {
     () => Math.round(state.dayOrder.slice(-7).reduce((total, day) => total + (state.days[day]?.workouts ?? []).reduce((sum, w) => sum + w.zoneMinutes[2] + w.zoneMinutes[3], 0), 0)),
     [state.dayOrder, state.days],
   );
+  const allWorkouts = useMemo(
+    () => state.dayOrder.flatMap((date) => state.days[date]?.workouts ?? []),
+    [state.dayOrder, state.days],
+  );
   const insight = coachInsight(derived);
   const [statusOpen, setStatusOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -110,7 +114,7 @@ export function HomeScreen() {
 
   return (
     <div className="screen home-screen">
-      <div className="home-top safe-top">
+      <div className="home-top">
         <div className="home-top__left">
           <button className={`status-chip ${status !== 'active' ? 'status-chip--alert' : ''}`} onClick={() => setStatusOpen(true)}>
             {status === 'active' ? <span className="status-dot" /> : <Heart size={13} />}
@@ -160,11 +164,11 @@ export function HomeScreen() {
                     <button className="score-card__col" onClick={() => navigate('/strain')}>
                       <Ring value={derived.strain.score} size={78} stroke={7} color="var(--orange)">
                         <div className="ring__center">
-                          <span className="ring__value">{Math.round(derived.strain.score)}%</span>
+                          <span className="ring__value">{derived.strain.unscored ? '—' : `${Math.round(derived.strain.score)}%`}</span>
                           <span className="ring__label">Strain</span>
                         </div>
                       </Ring>
-                      <span className="score-card__hint">{derived.strain.status === 'within' ? 'On target' : derived.strain.status === 'above' ? 'Above target' : 'Below target'}</span>
+                      <span className="score-card__hint">{derived.strain.unscored ? 'No data' : derived.strain.status === 'within' ? 'On target' : derived.strain.status === 'above' ? 'Above target' : 'Below target'}</span>
                     </button>
                     <div className="score-card__divider" />
                     <button className="score-card__col" onClick={() => navigate('/recovery')}>
@@ -220,12 +224,12 @@ export function HomeScreen() {
                         </span>
                       </div>
                       <div className="stress-stats">
-                        <div><strong>{derived.stress.high}</strong><span>Highest</span></div>
-                        <div><strong>{derived.stress.low}</strong><span>Lowest</span></div>
-                        <div><strong>{derived.stress.average}</strong><span>Average</span></div>
-                        <div><strong>{derived.stress.energyBank}</strong><span>Energy bank</span></div>
+                        <div><strong>{derived.stress.status === 'scored' || derived.stress.high > 0 ? derived.stress.high : '—'}</strong><span>Highest</span></div>
+                        <div><strong>{derived.stress.status === 'scored' || derived.stress.low > 0 ? derived.stress.low : '—'}</strong><span>Lowest</span></div>
+                        <div><strong>{derived.stress.status === 'scored' || derived.stress.average > 0 ? derived.stress.average : '—'}</strong><span>Average</span></div>
+                        <div><strong>{derived.stress.status === 'scored' ? derived.stress.energyBank : '—'}</strong><span>Energy bank</span></div>
                       </div>
-                      <EnergyBar value={derived.stress.energyBank} />
+                      {derived.stress.status === 'scored' ? <EnergyBar value={derived.stress.energyBank} /> : <div className="caption">No stress samples yet. Wear your tracker to build a baseline.</div>}
                     </div>
                   </div>
                 );
@@ -331,7 +335,7 @@ export function HomeScreen() {
                             </span>
                           </div>
                         </div>
-                        <span className="meta-mono">{Math.round((derived.nutrition.totals.calories / state.settings.calorieGoal) * 100)}% of goal</span>
+                        <span className="meta-mono">{state.settings.calorieGoal > 0 ? `${Math.round((derived.nutrition.totals.calories / state.settings.calorieGoal) * 100)}% of goal` : 'Goal not set'}</span>
                       </div>
                       <div className="stage-bar" aria-hidden>
                         <span style={{ width: `${derived.nutrition.macroPercents.protein}%`, background: 'var(--protein)' }} />
@@ -388,12 +392,12 @@ export function HomeScreen() {
                       <div className="row-between">
                         <div>
                           <div className="card-sub">Cardio load</div>
-                          <div className="h2" style={{ marginTop: 2 }}>Productive</div>
+                          <div className="h2" style={{ marginTop: 2 }}>{allWorkouts.length > 0 ? 'Logged' : 'No sessions yet'}</div>
                         </div>
-                        <span className="pill pill--sm pill--green">On track</span>
+                        <span className={`pill pill--sm ${allWorkouts.length > 0 ? 'pill--green' : 'pill--flat'}`}>{allWorkouts.length > 0 ? 'On track' : 'Calibrating'}</span>
                       </div>
                       <div className="row gap-16" style={{ marginTop: 14 }}>
-                        <div><div className="caption">Strain</div><strong className="mono-num">{Math.round(derived.strain.score)}%</strong></div>
+                        <div><div className="caption">Strain</div><strong className="mono-num">{derived.strain.unscored ? '—' : `${Math.round(derived.strain.score)}%`}</strong></div>
                         <div><div className="caption">Target</div><strong className="mono-num">{derived.strain.target}%</strong></div>
                         <div><div className="caption">Zone 2</div><strong className="mono-num">{weeklyZone2}m</strong></div>
                       </div>

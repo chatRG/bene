@@ -201,11 +201,13 @@ export function recoveryNarrative(input: {
   const hrvText =
     hrv == null
       ? 'Overnight HRV was not recorded'
-      : hrvPct == null || Math.abs(hrvPct) < 3
-        ? `HRV is ${hrv.toFixed(1)} ms, close to your ${hrvBaseline.toFixed(1)} ms baseline`
-        : `HRV is ${Math.abs(hrvPct)}% ${hrvPct > 0 ? 'above' : 'below'} your ${hrvBaseline.toFixed(1)} ms baseline`;
+      : hrvPct == null
+        ? `HRV is ${hrv.toFixed(1)} ms; there is no baseline to compare it with yet`
+        : Math.abs(hrvPct) < 3
+          ? `HRV is ${hrv.toFixed(1)} ms, close to your ${hrvBaseline.toFixed(1)} ms baseline`
+          : `HRV is ${Math.abs(hrvPct)}% ${hrvPct > 0 ? 'above' : 'below'} your ${hrvBaseline.toFixed(1)} ms baseline`;
 
-  const rhrDelta = rhr != null ? Math.round((rhr - rhrBaseline) * 10) / 10 : null;
+  const rhrDelta = rhr != null && rhrBaseline > 0 ? Math.round((rhr - rhrBaseline) * 10) / 10 : null;
   const rhrText =
     rhr == null || rhrDelta == null
       ? ''

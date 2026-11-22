@@ -905,7 +905,7 @@
   margin-top: 8px;
   padding: 20px;
   border-radius: var(--r-card);
-  background: #211c15;
+  background: var(--member-card, #211c15);
   color: #f3ede1;
   position: relative;
 }
@@ -1898,7 +1898,7 @@
 
 .credit-card {
   padding: 20px;
-  background: #211c15;
+  background: var(--member-card, #211c15);
   color: #f3ede1;
   border-radius: var(--r-card);
 }
@@ -2057,12 +2057,6 @@
   margin-top: 12px;
 }
 
-.profile-email {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
 .pro-banner {
   display: flex;
   align-items: center;
@@ -2070,7 +2064,7 @@
   width: 100%;
   padding: 16px;
   border-radius: var(--r-card);
-  background: #211c15;
+  background: var(--member-card, #211c15);
   color: #f3ede1;
   text-align: left;
   margin-top: 16px;

@@ -102,7 +102,7 @@ export function NutritionScreen() {
 
   return (
     <div className="screen nutrition-page">
-      <div className="detail-head safe-top" style={{ paddingTop: 8, gridTemplateColumns: '1fr auto 1fr' }}>
+      <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
         <div />
         <div>
           <div className="detail-head__title">Nutrition</div>
@@ -202,6 +202,9 @@ export function NutritionScreen() {
           action={<button className="pill pill--sm pill--flat" onClick={() => setContribOpen(true)}>All {n.contributors.length}</button>}
         />
         <div className="card" style={{ paddingTop: 6, paddingBottom: 6 }}>
+          {n.contributors.filter((c) => c.points !== 0 || ['vegetables', 'wholeGrains', 'fruits'].includes(c.id)).length === 0 ? (
+            <div className="empty" style={{ padding: '18px 12px' }}>Log a meal to see which contributors count.</div>
+          ) : null}
           {n.contributors.filter((c) => c.points !== 0 || ['vegetables', 'wholeGrains', 'fruits'].includes(c.id)).slice(0, 6).map((c) => (
             <div className="contributor-row" key={c.id}>
               <span className="contributor-emoji"><Glyph emoji={c.emoji} /></span>

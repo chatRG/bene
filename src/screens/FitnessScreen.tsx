@@ -37,7 +37,7 @@ export function FitnessScreen() {
 
   return (
     <div className="screen">
-      <div className="app-header safe-top">
+      <div className="app-header">
         <div>
           <div className="h1">Fitness</div>
           <div className="caption" style={{ marginTop: 2 }}>{format(now, 'EEEE, MMMM d')}</div>
@@ -169,6 +169,7 @@ export function FitnessScreen() {
       <div className="section">
         <SectionHead title="Recent workouts" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/timeline')}>Timeline</button>} />
         <div className="col gap-8">
+          {recent.length === 0 ? <div className="empty" style={{ padding: '18px 12px' }}>No workouts logged yet.</div> : null}
           {recent.map((w) => (
             <button key={w.id} className="workout-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate(`/workout/${w.id}`)}>
               <div className="workout-row__icon" style={{ color: w.kind === 'strength' ? 'var(--indigo)' : 'var(--orange)' }}>

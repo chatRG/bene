@@ -75,8 +75,8 @@ export function RecoveryScreen() {
   }
 
   const score = d.recovery.score ?? 0;
-  const hrvDelta = d.sleep?.hrvMs != null ? d.sleep.hrvMs - d.baselineHrv : null;
-  const rhrDelta = d.sleep?.rhrBpm != null ? d.sleep.rhrBpm - d.baselineRhr : null;
+  const hrvDelta = d.sleep?.hrvMs != null && d.baselineHrv > 0 ? d.sleep.hrvMs - d.baselineHrv : null;
+  const rhrDelta = d.sleep?.rhrBpm != null && d.baselineRhr > 0 ? d.sleep.rhrBpm - d.baselineRhr : null;
 
   return (
     <div className="screen screen--detail recovery-page">
@@ -118,7 +118,7 @@ export function RecoveryScreen() {
               </span>
             ) : null}
           </div>
-          <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineHrv.toFixed(1)} ms</div>
+          <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineHrv > 0 ? `${d.baselineHrv.toFixed(1)} ms` : '— not enough nights yet'}</div>
         </div>
         <div className="metric-card">
           <div className="metric-card__label"><Heart size={13} /> Resting HR</div>
@@ -131,7 +131,7 @@ export function RecoveryScreen() {
               </span>
             ) : null}
           </div>
-          <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineRhr.toFixed(1)} bpm</div>
+          <div className="caption" style={{ marginTop: 2 }}>Baseline {d.baselineRhr > 0 ? `${d.baselineRhr.toFixed(1)} bpm` : '— not enough nights yet'}</div>
         </div>
       </div>
 
@@ -174,17 +174,18 @@ export function RecoveryScreen() {
               <div className="chart-card__title">Recovery score</div>
               <div className="caption">Morning reading · 1–100</div>
             </div>
-            <span className="pill pill--sm pill--flat">Avg {Math.round(points.reduce((a, b) => a + b, 0) / Math.max(1, points.length))}</span>
+            <span className="pill pill--sm pill--flat">Avg {points.length ? Math.round(points.reduce((a, b) => a + b, 0) / points.length) : '—'}</span>
           </div>
           <LineChart
-            values={points}
+            values={points.length >= 2 ? points : []}
             yMax={100}
             yTicks={[100, 75, 50, 25]}
             color={recoveryColor(score)}
             height={190}
-            avg={points.reduce((a, b) => a + b, 0) / Math.max(1, points.length)}
+            avg={points.length >= 2 ? points.reduce((a, b) => a + b, 0) / points.length : null}
             xLabels={[history[Math.max(0, history.length - range)]?.date.slice(5) ?? '', 'Today']}
           />
+          {points.length < 2 ? <div className="empty" style={{ padding: '18px 12px' }}>Two scored mornings unlock the trend.</div> : null}
         </div>
       </div>
 

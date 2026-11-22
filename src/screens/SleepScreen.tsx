@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay, sleepNeedFor } from '../domain/derive';
+import { deepSleepTargetPct } from '../domain/scoring/sleep';
 import { stageTotals } from '../domain/math';
 import { Hypnogram, LineChart } from '../components/charts';
 import { EmptyState, Ring, Sheet } from '../components/ui';
@@ -30,7 +31,7 @@ export function SleepScreen() {
     return (
       <div>
         <div className="screen screen--detail sleep-page">
-          <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+          <div className="detail-head">
             <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
             <div><div className="detail-head__title">Sleep</div></div>
             <div />
@@ -79,7 +80,7 @@ export function SleepScreen() {
   return (
     <div>
       <div className="screen screen--detail sleep-page">
-        <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+        <div className="detail-head">
           <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
           <div>
             <div className="detail-head__title">Primary sleep</div>
@@ -168,7 +169,11 @@ export function SleepScreen() {
             <span className="caption">Last 14 nights</span>
           </div>
           <div className="chart-card">
-            <LineChart values={hist.filter((v) => v > 0)} yMax={10} yTicks={[10, 7, 4]} color="var(--sleep)" height={150} avg={hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)} avgLabel={`Avg ${(hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)).toFixed(1)}h`} xLabels={['2 weeks ago', 'Last night']} />
+            {hist.filter((v) => v > 0).length >= 2 ? (
+              <LineChart values={hist.filter((v) => v > 0)} yMax={10} yTicks={[10, 7, 4]} color="var(--sleep)" height={150} avg={hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)} avgLabel={`Avg ${(hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)).toFixed(1)}h`} xLabels={['2 weeks ago', 'Last night']} />
+            ) : (
+              <div className="empty" style={{ padding: '18px 12px' }}>Two nights of sleep unlock the trend.</div>
+            )}
           </div>
         </div>
 
@@ -186,9 +191,26 @@ export function SleepScreen() {
               <strong className="mono-num" style={{ fontSize: 22 }}>{consistency == null ? '—' : `${consistency}%`}</strong>
             </div>
             <div className="row gap-3 mt-12">
-              {Array.from({ length: 14 }, (_, i) => (
-                <span key={i} style={{ flex: 1, height: 24, borderRadius: 2, background: i > 10 ? 'var(--sleep)' : 'color-mix(in srgb, var(--sleep) 55%, var(--field))' }} />
-              ))}
+              {Array.from({ length: 14 }, (_, i) => {
+                // One cell per recent night, coloured only where a night was recorded.
+                const night = state.dayOrder[state.dayOrder.length - 14 + i];
+                const logged = night ? !!state.days[night]?.sleep : false;
+                return (
+                  <span
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 24,
+                      borderRadius: 2,
+                      background: !logged
+                        ? 'var(--field)'
+                        : i > 10
+                          ? 'var(--sleep)'
+                          : 'color-mix(in srgb, var(--sleep) 55%, var(--field))',
+                    }}
+                  />
+                );
+              })}
             </div>
             <div className="row-between caption mt-8"><span>2 weeks ago</span><span>Last night</span></div>
           </div>
@@ -243,7 +265,10 @@ export function SleepScreen() {
             ))}
           </div>
           <p className="caption mt-16" style={{ lineHeight: 1.55 }}>
-            Deep target for your age is {score.deepPct.toFixed(0)}% today; REM target is 22%. Your efficiency was {score.efficiency}% with {Math.round(totals.awakeMin)}m awake.
+            {d.age != null
+              ? `Deep sleep was ${score.deepPct.toFixed(0)}% against a ${deepSleepTargetPct(d.age, state.profile.sex).toFixed(0)}% target for your age`
+              : `Deep sleep was ${score.deepPct.toFixed(0)}%`}
+            ; REM was {score.remPct.toFixed(0)}% against 22%. Your efficiency was {score.efficiency}% with {Math.round(totals.awakeMin)}m awake.
           </p>
           <button className="btn btn--block mt-20" onClick={() => setScoreOpen(false)}>Close</button>
         </Sheet>

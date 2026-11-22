@@ -20,7 +20,7 @@ export function Sparkline({
   strokeWidth?: number;
 }) {
   useId();
-  if (values.length < 2) return <div style={{ width, height }} />;
+  if (values.length < 2 || !values.every((v) => Number.isFinite(v))) return <div style={{ width, height }} />;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
@@ -87,6 +87,8 @@ export function LineChart({
   showArea?: boolean;
 }) {
   const id = useId().replace(/[:]/g, '');
+  // A zero or non-finite axis collapses every y coordinate to NaN; render nothing.
+  if (!(yMax > 0) || !values.every((v) => Number.isFinite(v))) return <div style={{ height }} />;
   const w = 320;
   const h = height;
   const padR = 34;

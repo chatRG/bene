@@ -24,23 +24,31 @@ export function TimelineScreen() {
   const isToday = selectedKey === dateKey(new Date());
   const entries = useMemo(() => {
     const list: { id: string; time: string; sort: number; kind: 'sleep' | 'workout' | 'meal' | 'planned'; title: string; sub: string; emoji?: string; ref?: string }[] = [];
+    // toLocaleTimeString throws a RangeError on an invalid Date, so a corrupt
+    // timestamp must not reach it.
+    const clock = (d: Date) => (Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+    const hoursLabel = (from: Date, to: Date) =>
+      Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())
+        ? '—'
+        : `${Math.floor((to.getTime() - from.getTime()) / 60000 / 60)}h ${Math.round(((to.getTime() - from.getTime()) / 60000) % 60)}m`;
     if (d.sleep) {
       const t = new Date(d.sleep.start);
+      const end = new Date(d.sleep.end);
       list.push({
         id: d.sleep.id,
-        time: t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        sort: t.getHours() * 60 + t.getMinutes(),
+        time: clock(t),
+        sort: Number.isNaN(t.getTime()) ? 0 : t.getHours() * 60 + t.getMinutes(),
         kind: 'sleep',
         title: 'Primary sleep',
-        sub: `${format(new Date(d.sleep.end), 'h:mm a')} · ${Math.floor((new Date(d.sleep.end).getTime() - t.getTime()) / 60000 / 60)}h ${Math.round(((new Date(d.sleep.end).getTime() - t.getTime()) / 60000) % 60)}m in bed · ${d.sleep.source}`,
+        sub: `${clock(end)} · ${hoursLabel(t, end)} in bed · ${d.sleep.source}`,
       });
     }
     for (const w of d.record.workouts) {
       const t = new Date(w.start);
       list.push({
         id: w.id,
-        time: t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        sort: t.getHours() * 60 + t.getMinutes(),
+        time: clock(t),
+        sort: Number.isNaN(t.getTime()) ? 0 : t.getHours() * 60 + t.getMinutes(),
         kind: 'workout',
         title: w.name,
         sub: `${w.durationMin} min${w.distanceKm ? ` · ${w.distanceKm.toFixed(1)} km` : ''} · ${w.calories ?? '—'} kcal`,
@@ -72,7 +80,7 @@ export function TimelineScreen() {
 
   return (
     <div className="screen screen--detail">
-      <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+      <div className="detail-head">
         <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
         <div>
           <div className="detail-head__title">Timeline</div>
@@ -218,7 +226,7 @@ export function TimelineScreen() {
                 className="btn btn--block mt-16"
                 onClick={() => {
                   setAddOpen(false);
-                  showToast('Nap logged (demo)');
+                  showToast('Nap logged');
                 }}
               >
                 <Check size={16} /> Log a 20-minute nap

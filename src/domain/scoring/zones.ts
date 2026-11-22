@@ -1,5 +1,30 @@
 
-export type ZoneMethod = 'maxHr' | 'hrReserve' | 'lactate' | 'manual';
+/**
+ * The app computes every score one way. These values were previously settings;
+ * they are pinned here so the fixed method lives in a single place.
+ *
+ * - hrvMethod: HRV is summarised as RMSSD.
+ * - hrvWindow: HRV is taken from REM + deep sleep only.
+ * - rhrWindow: resting heart rate is taken from the entire sleep session.
+ * - tempMethod: skin temperature is read from the wrist.
+ * - zoneMethod: zones are percent of max HR, with no manual override.
+ *
+ * To change a method, change it here and nowhere else.
+ */
+export const CALC_METHODS = {
+  hrvMethod: 'rmssd',
+  hrvWindow: 'remDeep',
+  rhrWindow: 'entireSleep',
+  tempMethod: 'wrist',
+  zoneMethod: 'maxHr',
+} as const;
+
+export type HrvMethod = typeof CALC_METHODS.hrvMethod;
+export type HrvWindow = typeof CALC_METHODS.hrvWindow;
+export type RhrWindow = typeof CALC_METHODS.rhrWindow;
+export type TempMethod = typeof CALC_METHODS.tempMethod;
+
+export type ZoneMethod = typeof CALC_METHODS.zoneMethod;
 
 export interface ZoneConfig {
   method: ZoneMethod;
@@ -17,26 +42,20 @@ export function estimatedMaxHr(age: number): number {
   return Math.round(208 - 0.7 * age);
 }
 
+/**
+ * Zones are a fixed percent of max HR. There is one method, so there is nothing
+ * to branch on: the config carries its age and the estimate follows.
+ */
 export function maxHrFor(config: ZoneConfig): number {
-  if (config.method === 'manual' && config.manualMaxHr > 0) return config.manualMaxHr;
-  if (config.method === 'lactate' && config.lactateThresholdHr > 0) return Math.round(config.lactateThresholdHr / 0.85);
   return estimatedMaxHr(config.age);
 }
 
 /**
  * Published zone table (percent of HR max): 0–49, 50–59, 60–69, 70–79, 80–89, 90–100.
- * With the HR-reserve method the same bands are applied to heart-rate reserve.
  */
 export function zoneIndex(bpm: number, config: ZoneConfig): number {
   if (bpm <= 0) return 0;
-  const max = maxHrFor(config);
-  let pct: number;
-  if (config.method === 'hrReserve') {
-    const reserve = Math.max(1, max - config.restingHr);
-    pct = ((bpm - config.restingHr) / reserve) * 100;
-  } else {
-    pct = (bpm / max) * 100;
-  }
+  const pct = (bpm / maxHrFor(config)) * 100;
   if (pct < 50) return 0;
   if (pct < 60) return 1;
   if (pct < 70) return 2;

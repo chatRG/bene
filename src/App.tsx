@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
+import type { ThemeMode } from './domain/types';
+import { useNativeBackButton } from './native';
 import { TabBar } from './components/ui';
 import { ToastHost } from './components/toast';
 import { HomeScreen } from './screens/HomeScreen';
@@ -21,21 +23,34 @@ import { RecordsScreen } from './screens/RecordsScreen';
 
 const TABS = ['/', '/fitness', '/journal', '/biology', '/intelligence'];
 
+const THEME_COLOR: Record<string, string> = {
+  light: '#F7F6F2',
+  dark: '#0A0E18',
+  midnight: '#000000',
+};
+
 function ThemeSync() {
   const theme = useAppStore((s) => s.settings.theme);
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
-      const dark = theme === 'dark' || (theme === 'system' && media.matches);
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      const resolved: ThemeMode =
+        theme === 'midnight' ? 'midnight' : theme === 'dark' || (theme === 'system' && media.matches) ? 'dark' : 'light';
+      document.documentElement.dataset.theme = resolved;
       document
         .querySelector('meta[name="theme-color"]')
-        ?.setAttribute('content', dark ? '#0A0E18' : '#F7F6F2');
+        ?.setAttribute('content', THEME_COLOR[resolved]);
     };
     apply();
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
   }, [theme]);
+  return null;
+}
+
+function BackToPreviousScreen() {
+  const location = useLocation();
+  useNativeBackButton(location.pathname);
   return null;
 }
 
@@ -64,6 +79,7 @@ function Shell() {
 
   return (
     <div className="app-shell">
+      <BackToPreviousScreen />
       <Routes>
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/" element={<HomeScreen />} />

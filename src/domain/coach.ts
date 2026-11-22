@@ -66,8 +66,8 @@ export function generateCoachReply(data: AppStateData, text: string, now = new D
 
   if (/whoop|oura|apple|garmin|data|source/.test(q)) {
     return {
-      text: `This build has no live health source connected. The dashboard is running on a synthetic demo dataset, and anything you log manually is stored on this device.\n\nA production build would add native adapters that read Apple Health on iOS and Health Connect on Android, with Oura, Garmin and Strava arriving through those stores.`,
-      followUps: ['Open Data Sources', 'What is real in this build?', 'Why is my HRV missing?'],
+      text: `There is no live health source connected yet, so there are no scores to show until data starts arriving. Apple Health on iOS and Health Connect on Android will feed the dashboard once those adapters ship.\n\nAnything you log manually is stored on this device.`,
+      followUps: ['Open Data Sources', 'What data will be imported?', 'Why is my HRV missing?'],
     };
   }
 

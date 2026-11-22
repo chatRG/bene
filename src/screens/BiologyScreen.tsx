@@ -73,7 +73,7 @@ export function BiologyScreen() {
 
   return (
     <div className="screen biology-page">
-      <div className="detail-head safe-top" style={{ paddingTop: 8, gridTemplateColumns: '1fr auto 1fr' }}>
+      <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
         <div />
         <div>
           <div className="detail-head__title">Biological Age</div>
@@ -118,7 +118,9 @@ export function BiologyScreen() {
       />
 
       <div className="bio-update">
-        Chronological age {bio.chronologicalAge.toFixed(0)} · gauge spans ±5 years
+        {state.profile.birthDate
+          ? `Chronological age ${bio.chronologicalAge.toFixed(0)} · gauge spans ±5 years`
+          : 'Add your birth date in Profile to anchor the estimate'}
       </div>
       <div className="bio-update" style={{ marginTop: 2 }}>
         Next age update is in <strong>{Math.max(1, nextMondayDays(today))} days</strong> · weekly on Monday
@@ -145,7 +147,9 @@ export function BiologyScreen() {
                 <span className="grow">
                   <span className="bio-contributor__title" style={{ display: 'block' }}>{c.label}</span>
                   <span className="bio-contributor__sub" style={{ display: 'block', color: good ? 'var(--good)' : 'var(--warn)' }}>
-                    {Math.abs(c.years).toFixed(1)} years {good ? 'younger' : 'older'}
+                    {state.profile.birthDate
+                      ? `${Math.abs(c.years).toFixed(1)} years ${good ? 'younger' : 'older'}`
+                      : `${c.years > 0 ? '+' : ''}${c.years.toFixed(1)} years`}
                   </span>
                 </span>
                 <span className="caption" style={{ maxWidth: 120, textAlign: 'right' }}>{c.detail}</span>
@@ -165,6 +169,9 @@ export function BiologyScreen() {
           action={<button className="pill pill--sm pill--flat" onClick={() => navigate('/records')}><Upload size={11} /> Upload</button>}
         />
         <div className="card">
+          {state.biomarkers.length === 0 ? (
+            <div className="empty" style={{ padding: '18px 12px' }}>No markers yet. Upload bloodwork to track them here.</div>
+          ) : null}
           {groups.slice(0, 4).map(([category, items]) => (
             <div key={category} style={{ marginBottom: 12 }}>
               <div className="tiny" style={{ marginBottom: 2 }}>{CATEGORY_LABEL[category] ?? category}</div>
