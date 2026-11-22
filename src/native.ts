@@ -1,49 +1,52 @@
 import { useEffect } from 'react';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 
 /* ==========================================================================
    Native shell behaviour.
-   The router is the only place that knows what "back" means. A pushed screen
-   carries a shadow history entry, so the platform back gesture walks back
-   through the app; the native side is only told whether the screen on top was
-   pushed, and closes the app when it was not.
-   ========================================================================== */
 
-/** A screen the user navigated into, as opposed to one of the five tabs. */
-const isPushed = (path: string) => !path.includes('/', 1) || path.startsWith('/chat/');
+   Android closes the app on back unless the web view has history behind it.
+   So every screen the user navigates into leaves a marker entry in the
+   history; back pops the marker, which returns to the previous screen. A tab
+   has no marker, so its back press falls through and closes the app.
+
+   MainActivity asks the web view's own canGoBack() for that decision, so this
+   file keeps no native state and there is nothing to drift out of sync.
+   ========================================================================== */
 
 export const isNativeShell = () => Capacitor.isNativePlatform();
 
-type BackButtonPlugin = { armed: (options: { value: boolean }) => Promise<void> };
-const BackButton = registerPlugin<BackButtonPlugin>('BackButton');
+/** The five tabs. Everything else is a screen the user navigated into. */
+const TABS = ['/', '/fitness', '/journal', '/biology', '/intelligence'] as const;
+
+/**
+ * A screen the user navigated into, as opposed to one of the five tabs.
+ * Compared against the tab list rather than by counting slashes, because
+ * `/settings` and `/recovery` are top-level paths that are still pushed
+ * screens.
+ */
+export function isPushed(path: string): boolean {
+  if (path.startsWith('/chat/')) return true;
+  return !(TABS as readonly string[]).includes(path);
+}
 
 const hasShadow = () => (window.history.state as { beneShadow?: boolean } | null)?.beneShadow === true;
-const dropShadow = () => {
-  if (hasShadow()) window.history.replaceState(null, '');
-};
 
 export function useNativeBackButton(path: string) {
   const pushed = isPushed(path);
 
   useEffect(() => {
-    if (isNativeShell()) void BackButton.armed({ value: pushed });
-  }, [pushed]);
-
-  useEffect(() => {
     if (!isNativeShell()) return undefined;
-    if (pushed) {
-      // Let the route change land first, then leave a marker behind it.
-      const push = window.setTimeout(() => {
-        if (!hasShadow()) window.history.pushState({ beneShadow: true }, '');
-      }, 0);
-      return () => {
-        window.clearTimeout(push);
-        dropShadow();
-      };
+    if (!pushed) {
+      // Back on a tab: drop any marker a thread or detail screen left behind,
+      // so this tab's back press closes the app rather than revisiting it.
+      if (hasShadow()) window.history.replaceState(null, '');
+      return undefined;
     }
-    // A tab is the last screen: chat threads are routes inside one tab, so their
-    // shadow would stack on the tab's. Drop it and let the next press leave.
-    dropShadow();
-    return undefined;
+    // Leave a marker behind the current entry. Pushed in the same tick as the
+    // navigation, so a back press straight after it cannot outrun the marker.
+    if (!hasShadow()) window.history.pushState({ beneShadow: true }, '');
+    return () => {
+      if (hasShadow()) window.history.replaceState(null, '');
+    };
   }, [path, pushed]);
 }
