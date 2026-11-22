@@ -74,10 +74,11 @@ await page.getByText('Restore this file', { exact: true }).click();
 await page.waitForTimeout(400);
 check('invalid backup rejected with toast', (await page.locator('.toast').count()) > 0);
 
-// Tab visibility removes the tab entirely
+// Tab visibility removes the tab entirely. Journal appears twice now (a tab
+// toggle and a tracking toggle), so target the first, which is Tab visibility.
 await page.goto(`${BASE}/#/settings/general`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
-await page.locator('button[aria-label="Journal"]').click();
+await page.locator('button[aria-label="Journal"]').first().click();
 await page.waitForTimeout(300);
 await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);

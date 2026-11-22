@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "Bene — a source-available, local-first health & recovery coach for iOS and Android.",
+  "description": "Bene \u2014 a source-available, local-first health & recovery coach for iOS and Android.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
@@ -12,19 +12,21 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -b --pretty false",
-    "shots": "node scripts/screenshots.mjs",
-    "shots:light": "SHOT_THEME=light node scripts/screenshots.mjs",
-    "shots:dark": "SHOT_THEME=dark node scripts/screenshots.mjs",
-    "test:e2e": "node scripts/e2e.mjs",
-    "test:backup": "node scripts/e2e-backup.mjs",
-    "test:empty": "node scripts/e2e-empty.mjs",
-    "test:pwa": "node scripts/e2e-pwa.mjs",
+    "shots": "bun scripts/screenshots.mjs",
+    "shots:light": "SHOT_THEME=light bun scripts/screenshots.mjs",
+    "shots:dark": "SHOT_THEME=dark bun scripts/screenshots.mjs",
+    "test:e2e": "bun scripts/e2e.mjs",
+    "test:backup": "bun scripts/e2e-backup.mjs",
+    "test:empty": "bun scripts/e2e-empty.mjs",
+    "test:pwa": "bun scripts/e2e-pwa.mjs",
+    "test:a11y": "bun scripts/a11y-contrast.mjs",
     "cap:sync": "cap sync",
     "cap:ios": "cap open ios",
     "cap:android": "cap open android"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.2",
+    "@capgo/capacitor-health": "^8.13.0",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.77.0",
     "react": "^19.3.1",
@@ -44,5 +46,10 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.1"
-  }
+  },
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.2"
+  },
+  "packageManager": "bun@1.4.5"
 }

@@ -71,51 +71,51 @@ Bene ships a dark theme and a true-black midnight theme. The screenshots below u
 
 ## Quick start
 
-Requirements: Node.js 20+ and npm.
+Requirements: Bun 1.2+.
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173
+bun install
+bun run dev          # http://localhost:5173
 ```
 
 The first run opens onboarding. It asks for your name, birth date, height and weight. The app then starts empty. Every score fills in as you log or import data.
 
 ```bash
-npm test             # scoring, backup and offline-coach invariants
-npm run lint         # TypeScript project check
-npm run build        # production web build in dist/
-npm run preview      # serve the production build
+bun run test             # scoring, backup and offline-coach invariants
+bun run lint         # TypeScript project check
+bun run build        # production web build in dist/
+bun run preview      # serve the production build
 ```
 
 ### Visual and end-to-end tests
 
-These tests use Playwright against a running dev server. Install Chromium one time with `npx playwright install chromium`.
+These tests use Playwright against a running dev server. Install Chromium one time with `bunx playwright install chromium`.
 
 ```bash
-npm run dev            # terminal 1
-npm run shots          # capture every screen at 430×932, assert no overflow
-npm run test:e2e       # navigation, logging, chat, workout start/finish, theme
-npm run test:empty     # onboarding and first-run empty state
-npm run test:backup    # snapshot, download, restore, import, invalid file, tabs
-npm run test:pwa       # service worker + fully offline reload of the production build
+bun run dev            # terminal 1
+bun run shots          # capture every screen at 430×932, assert no overflow
+bun run test:e2e       # navigation, logging, chat, workout start/finish, theme
+bun run test:empty     # onboarding and first-run empty state
+bun run test:backup    # snapshot, download, restore, import, invalid file, tabs
+bun run test:pwa       # service worker + fully offline reload of the production build
 ```
 
-`test:pwa` runs against `npm run preview` on port 4173 after `npm run build`. The other tests use the dev server on port 5173. The scripts are in `scripts/`. They also operate as acceptance tests for the behaviour in `docs/`. Screenshots go to `docs/screenshots/`. `npm run shots` is the visual review pass.
+`test:pwa` runs against `bun run preview` on port 4173 after `bun run build`. The other tests use the dev server on port 5173. The scripts are in `scripts/`. They also operate as acceptance tests for the behaviour in `docs/`. Screenshots go to `docs/screenshots/`. `bun run shots` is the visual review pass.
 
 ## iOS and Android
 
 Capacitor generated the native projects. The same TypeScript/React UI runs in a native shell.
 
 ```bash
-npm run build
-npx cap sync
-npm run cap:ios      # opens ios/App/App.xcworkspace in Xcode (macOS)
-npm run cap:android  # opens android/ in Android Studio
+bun run build
+bunx cap sync
+bun run cap:ios      # opens ios/App/App.xcworkspace in Xcode (macOS)
+bun run cap:android  # opens android/ in Android Studio
 ```
 
-- **iOS:** Run `cd ios/App && pod install` one time (CocoaPods). Then open `ios/App/App.xcworkspace`. Select a signing team. Run on a device or simulator. `npx cap sync` runs `pod install` automatically when CocoaPods is available. The deployment target and bundle id are in Xcode and `capacitor.config.ts`.
+- **iOS:** Run `cd ios/App && pod install` one time (CocoaPods). Then open `ios/App/App.xcworkspace`. Select a signing team. Run on a device or simulator. `bunx cap sync` runs `pod install` automatically when CocoaPods is available. The deployment target and bundle id are in Xcode and `capacitor.config.ts`.
 - **Android:** Open `android/` and let Gradle sync. Run on a device or emulator. `minSdk` is 34 (Android 14+). `applicationId` is `health.bene.community`.
-- **Web/PWA:** `npm run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
+- **Web/PWA:** `bun run build` also emits a manifest and service worker. Serve `dist/` over HTTPS to install it as a standalone app.
 
 ### Installing without a store
 

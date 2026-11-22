@@ -23,15 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: npm
+          bun-version: 1.4.5
 
-      - run: npm ci
+      - run: bun install --frozen-lockfile
 
       - name: Build the web bundle into the iOS shell
-        run: npm run build && npx cap sync ios
+        run: bun run build && bunx cap sync ios
 
       - name: Install CocoaPods dependencies
         run: |
