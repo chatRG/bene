@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, Dna, Dumbbell, House, MessageCircle, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
@@ -92,8 +92,24 @@ export function TabBar() {
     ...(activeTabs.biology ? [{ to: '/biology', label: 'Biology', icon: <Dna size={20} strokeWidth={1.5} />, end: false }] : []),
     { to: '/intelligence', label: 'Coach', icon: <MessageCircle size={20} strokeWidth={1.5} />, end: false },
   ];
+  // Hide the bar while reading downwards, bring it back on any upward scroll.
+  // A small threshold stops a one-pixel jitter from flickering it.
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - lastY.current) < 8) return;
+      // Always show near the top, so the bar is never stranded off-screen.
+      setHidden(y > 96 && y > lastY.current);
+      lastY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <nav className="navbar" aria-label="Primary">
+    <nav className={`navbar ${hidden ? 'navbar--hidden' : ''}`} aria-label="Primary">
       {items.map((item) => (
         <NavLink
           key={item.to}
