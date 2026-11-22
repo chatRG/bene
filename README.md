@@ -39,44 +39,15 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-Each screen in light, then the same screen in dark. A true-black midnight theme
-ships as well.
+Four to a row: light, dark, then the next screen. A true-black midnight theme ships as well.
 
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/home.png) | ![](docs/screenshots/dark-home.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/recovery.png) | ![](docs/screenshots/dark-recovery.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/sleep.png) | ![](docs/screenshots/dark-sleep.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/strain.png) | ![](docs/screenshots/dark-strain.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/fitness.png) | ![](docs/screenshots/dark-fitness.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/nutrition.png) | ![](docs/screenshots/dark-nutrition.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/journal.png) | ![](docs/screenshots/dark-journal.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/biology.png) | ![](docs/screenshots/dark-biology.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/intelligence.png) | ![](docs/screenshots/dark-intelligence.png) |
+| | | | |
+|---|---|---|---|
+| <img src="docs/screenshots/home.png" width="150" alt="Home light"> | <img src="docs/screenshots/dark-home.png" width="150" alt="Home dark"> | <img src="docs/screenshots/recovery.png" width="150" alt="Recovery light"> | <img src="docs/screenshots/dark-recovery.png" width="150" alt="Recovery dark"> |
+| <img src="docs/screenshots/sleep.png" width="150" alt="Sleep light"> | <img src="docs/screenshots/dark-sleep.png" width="150" alt="Sleep dark"> | <img src="docs/screenshots/strain.png" width="150" alt="Strain light"> | <img src="docs/screenshots/dark-strain.png" width="150" alt="Strain dark"> |
+| <img src="docs/screenshots/fitness.png" width="150" alt="Fitness light"> | <img src="docs/screenshots/dark-fitness.png" width="150" alt="Fitness dark"> | <img src="docs/screenshots/nutrition.png" width="150" alt="Nutrition light"> | <img src="docs/screenshots/dark-nutrition.png" width="150" alt="Nutrition dark"> |
+| <img src="docs/screenshots/journal.png" width="150" alt="Journal light"> | <img src="docs/screenshots/dark-journal.png" width="150" alt="Journal dark"> | <img src="docs/screenshots/biology.png" width="150" alt="Biology light"> | <img src="docs/screenshots/dark-biology.png" width="150" alt="Biology dark"> |
+| <img src="docs/screenshots/intelligence.png" width="150" alt="Coach light"> | <img src="docs/screenshots/dark-intelligence.png" width="150" alt="Coach dark"> |  |  |
 
 ## Quick start
 
@@ -139,13 +110,11 @@ You do not need a native build for development. The web target has the shortest 
 
 ## How it works, and where your data lives
 
-**Architecture.** `src/domain/` holds pure TypeScript: types, scoring and backup. `src/store/` is a Zustand store persisted to localStorage. `src/screens/` is one file per surface. `src/styles/` holds tokens and screen CSS. `ios/` and `android/` are Capacitor 8 shells around the same UI.
+**Architecture.** React 19, TypeScript and Vite, with hand-built SVG charts. `src/domain/` is pure logic, `src/store/` persists, `src/screens/` renders, and `ios/` + `android/` are Capacitor shells around the same UI. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-React 19, TypeScript and Vite. Charts are hand-built SVG with no chart library. The store persists data only; scores are always derived, never stored. The design is a warm ivory canvas in the light theme, with one accent per metric, in light, dark and midnight. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)). More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Your data.** No server, so a backup file *is* your account: plain JSON, written every 24 hours and validated before it restores. It is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
-**Your data.** Bene has no server, so a backup file *is* your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats. The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
-
-**Privacy.** No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
+**Privacy.** No analytics, no telemetry, no network calls, nothing uploaded. Bene is a wellness tool, not a medical device.
 
 ## Contributing
 
