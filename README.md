@@ -39,13 +39,25 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-| | | | |
-|---|---|---|---|
-| <img src="docs/screenshots/home.png" width="150" alt="Home light"> | <img src="docs/screenshots/dark-home.png" width="150" alt="Home dark"> | <img src="docs/screenshots/recovery.png" width="150" alt="Recovery light"> | <img src="docs/screenshots/dark-recovery.png" width="150" alt="Recovery dark"> |
-| <img src="docs/screenshots/sleep.png" width="150" alt="Sleep light"> | <img src="docs/screenshots/dark-sleep.png" width="150" alt="Sleep dark"> | <img src="docs/screenshots/strain.png" width="150" alt="Strain light"> | <img src="docs/screenshots/dark-strain.png" width="150" alt="Strain dark"> |
-| <img src="docs/screenshots/fitness.png" width="150" alt="Fitness light"> | <img src="docs/screenshots/dark-fitness.png" width="150" alt="Fitness dark"> | <img src="docs/screenshots/nutrition.png" width="150" alt="Nutrition light"> | <img src="docs/screenshots/dark-nutrition.png" width="150" alt="Nutrition dark"> |
-| <img src="docs/screenshots/journal.png" width="150" alt="Journal light"> | <img src="docs/screenshots/dark-journal.png" width="150" alt="Journal dark"> | <img src="docs/screenshots/biology.png" width="150" alt="Biology light"> | <img src="docs/screenshots/dark-biology.png" width="150" alt="Biology dark"> |
-| <img src="docs/screenshots/intelligence.png" width="150" alt="Coach light"> | <img src="docs/screenshots/dark-intelligence.png" width="150" alt="Coach dark"> |  |  |
+Six slides, in the light and the dark theme. Every capture shown is a real screen from the app.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/store/preview-dark.png">
+    <img src="docs/screenshots/store/preview-light.png" alt="Six Bene screens: scores, on-device data, one model, score breakdowns, a file as your account, and the feature index" width="100%">
+  </picture>
+</p>
+
+| Slide | Screen |
+|---|---|
+| **01** Every score, finally yours | [Home](docs/screenshots/store/light-01-hero.png) |
+| **02** Your data never leaves the device | [Recovery](docs/screenshots/store/light-02-data.png) |
+| **03** One model, not five silos | [Fitness](docs/screenshots/store/light-03-model.png) |
+| **04** See the work behind the score | [Biological age](docs/screenshots/store/light-04-work.png) |
+| **05** One file is your account | [Journal and Nutrition](docs/screenshots/store/light-05-account.png) |
+| **06** Wellness, not a subscription | Feature index |
+
+The deck is rendered by [`scripts/store-screenshots.mjs`](scripts/store-screenshots.mjs) at the 6.9 inch App Store size, 1290 × 2796, into `docs/screenshots/store/`. Run `bun run shots:store` after a screen changes.
 
 ## Quick start
 

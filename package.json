@@ -1,7 +1,7 @@
 {
   "name": "bene",
   "private": true,
-  "version": "0.3.2",
+  "version": "0.3.3",
   "type": "module",
   "description": "Bene \u2014 a source-available, local-first health & recovery coach for iOS and Android.",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -15,6 +15,7 @@
     "shots": "bun scripts/screenshots.mjs",
     "shots:light": "SHOT_THEME=light bun scripts/screenshots.mjs",
     "shots:dark": "SHOT_THEME=dark bun scripts/screenshots.mjs",
+    "shots:store": "bun scripts/store-screenshots.mjs",
     "test:e2e": "bun scripts/e2e.mjs",
     "test:backup": "bun scripts/e2e-backup.mjs",
     "test:empty": "bun scripts/e2e-empty.mjs",
