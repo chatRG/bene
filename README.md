@@ -139,13 +139,11 @@ You do not need a native build for development. The web target has the shortest 
 
 ## How it works, and where your data lives
 
-**Architecture.** `src/domain/` holds pure TypeScript: types, scoring and backup. `src/store/` is a Zustand store persisted to localStorage. `src/screens/` is one file per surface. `src/styles/` holds tokens and screen CSS. `ios/` and `android/` are Capacitor 8 shells around the same UI.
+**Architecture.** React 19, TypeScript and Vite, with hand-built SVG charts. `src/domain/` is pure logic, `src/store/` persists, `src/screens/` renders, and `ios/` + `android/` are Capacitor shells around the same UI. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-React 19, TypeScript and Vite. Charts are hand-built SVG with no chart library. The store persists data only; scores are always derived, never stored. The design is a warm ivory canvas in the light theme, with one accent per metric, in light, dark and midnight. The mark is **Threshold**, a circular opening cut through a square field, in ink and cream only ([brand/](brand/README.md)). More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Your data.** No server, so a backup file *is* your account: plain JSON, written every 24 hours and validated before it restores. It is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
 
-**Your data.** Bene has no server, so a backup file *is* your account. You can download `bene-backup-YYYY-MM-DD.json`, and a snapshot is written on the device every 24 hours. A restore is validated before it replaces anything, so an invalid or foreign file changes nothing. Everything is included: profile, settings, days, meals, workouts, journal, biomarkers, records, routines and chats. The file is plain JSON (`app: "bene"`, `version: 1`) and is **not encrypted**, so treat it like a lab report. See [docs/BACKUP.md](docs/BACKUP.md).
-
-**Privacy.** No analytics, no crash reporting, no remote logging and no third-party scripts. The source contains no network requests. Health data stays on your device, and backups exist only as the files you choose to create. Bene is a wellness tool: it is not a medical device and it gives no diagnosis.
+**Privacy.** No analytics, no telemetry, no network calls, nothing uploaded. Bene is a wellness tool, not a medical device.
 
 ## Contributing
 
