@@ -26,7 +26,16 @@ export const STORE_KEY = 'bene-v1';
 interface AppActions {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
-  completeOnboarding: (name: string, opts?: { sex?: UserProfile['sex']; birthDate?: string; goal?: UserProfile['goal']; demo?: boolean }) => void;
+  completeOnboarding: (
+    name: string,
+    opts?: {
+      sex?: UserProfile['sex'];
+      birthDate?: string;
+      heightCm?: number;
+      weightKg?: number;
+      goal?: UserProfile['goal'];
+    },
+  ) => void;
   ensureToday: () => void;
   setActivityStatus: (status: ActivityStatus, untilISO: string | null, note: string) => void;
   addMeal: (meal: MealEntry) => void;
@@ -51,7 +60,6 @@ interface AppActions {
   restoreLatestBackup: () => { ok: boolean; error?: string };
   importBackupJson: (json: string) => { ok: boolean; error?: string };
   exportBackupJson: () => string;
-  resetDemo: () => void;
 }
 
 export type AppStore = AppStateData & AppActions;
@@ -73,31 +81,32 @@ export const useAppStore = create<AppStore>()(
 
       completeOnboarding: (name, opts) =>
         set((s) => {
-          const onboardedSettings = { ...s.settings, onboarded: true, demoMode: opts?.demo ?? s.settings.demoMode };
+          const onboardedSettings = { ...s.settings, onboarded: true };
           const profile = {
             ...s.profile,
             name: name.trim() || s.profile.name,
             sex: opts?.sex ?? s.profile.sex,
             birthDate: opts?.birthDate ?? s.profile.birthDate,
+            // Body metrics are only overwritten when the person actually gave them.
+            heightCm: opts?.heightCm ?? s.profile.heightCm,
+            weightKg: opts?.weightKg ?? s.profile.weightKg,
             goal: opts?.goal ?? s.profile.goal,
           };
-          if (opts?.demo === false) {
-            const today = dateOf(new Date());
-            return {
-              profile,
-              settings: onboardedSettings,
-              days: { [today]: emptyDay(today) },
-              dayOrder: [today],
-              journalEntries: [],
-              biomarkers: [],
-              healthRecords: [],
-              chats: [],
-              routines: [],
-              activityEvents: [],
-              seededAt: new Date().toISOString(),
-            };
-          }
-          return { profile, settings: onboardedSettings, seededAt: new Date().toISOString() };
+          // A new account starts empty: one blank day for today and nothing else.
+          const today = dateOf(new Date());
+          return {
+            profile,
+            settings: onboardedSettings,
+            days: { [today]: emptyDay(today) },
+            dayOrder: [today],
+            journalEntries: [],
+            biomarkers: [],
+            healthRecords: [],
+            chats: [],
+            routines: [],
+            activityEvents: [],
+            seededAt: new Date().toISOString(),
+          };
         }),
 
       ensureToday: () => {
@@ -312,7 +321,7 @@ export const useAppStore = create<AppStore>()(
         localStorage.removeItem(SNAPSHOT_KEY);
         const now = new Date().toISOString();
         set({
-          profile: { ...initial.profile, name: '', email: '', birthDate: '', createdAt: now },
+          profile: { ...initial.profile, name: '', birthDate: '', createdAt: now },
           settings: { ...initial.settings, onboarded: false, demoMode: false, lastBackupAt: null },
           days: {},
           dayOrder: [],
@@ -325,12 +334,6 @@ export const useAppStore = create<AppStore>()(
           activityEvents: [],
           seededAt: now,
         });
-      },
-
-      resetDemo: () => {
-        const fresh = buildSeed(new Date());
-        fresh.settings.onboarded = get().settings.onboarded;
-        set({ ...fresh });
       },
     }),
     {

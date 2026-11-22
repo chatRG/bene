@@ -6,5 +6,5 @@ export default defineConfig({
   base: './',
   server: { port: 5173, host: '0.0.0.0', allowedHosts: ['.trycloudflare.com'] },
   preview: { port: 4173, host: '0.0.0.0', allowedHosts: ['.trycloudflare.com'] },
-  build: { target: 'es2020', sourcemap: false, chunkSizeWarningLimit: 1200 },
+  build: { target: 'es2024', sourcemap: false, chunkSizeWarningLimit: 1200 },
 });

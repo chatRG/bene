@@ -166,6 +166,39 @@
   --nav-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.78), 0 3px 12px -4px rgba(0, 0, 0, 0.45);
   --nav-solid: #241f18;
   --nav-active-solid: #3a332a;
+
+  /* Member card — warm ink panel */
+  --member-card: #262019;
+}
+
+/* Midnight — the same ink and accent on true black, for OLED screens and the
+   dark after lights-out. Only the surfaces change; text and meaning keep their
+   contrast, and the hairline is loosened slightly because a black card needs a
+   visible edge to sit on. */
+[data-theme='midnight'] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --bg-soft: #0a0a0a;
+  --card: #0c0c0c;
+  --card-2: #111111;
+  --field: #161616;
+  --raise: #101010;
+
+  --hairline: rgba(239, 233, 222, 0.14);
+  --hairline-strong: rgba(239, 233, 222, 0.24);
+
+  --shadow: none;
+  --shadow-soft: none;
+
+  --nav-fill-hi: rgba(38, 38, 38, 0.96);
+  --nav-fill: rgba(20, 20, 20, 0.96);
+  --nav-fill-lo: rgba(6, 6, 6, 0.98);
+  --nav-solid: #141414;
+  --nav-active-solid: #262626;
+  --nav-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.9), 0 3px 12px -4px rgba(0, 0, 0, 0.6);
+
+  --member-card: #0d0d0d;
 }
 
 * {
@@ -246,6 +279,14 @@ ul {
 
 /* ---------------- App frame ---------------- */
 
+:root {
+  /* Clearance for the status bar / display cutout at the top of every screen.
+     Android's WebView only reports env(safe-area-inset-*) with viewport-fit
+     set, and some builds report zero, so Capacitor's SystemBars custom
+     properties are taken when they are larger. */
+  --safe-top-inset: max(calc(8px + env(safe-area-inset-top)), calc(8px + var(--safe-area-inset-top, 0px)));
+}
+
 .app-shell {
   position: relative;
   z-index: 1;
@@ -277,6 +318,18 @@ ul {
   min-height: 100dvh;
 }
 
+/* Every screen opens at the top of the safe area, so the status bar and the
+   display cutout never sit on top of a title or a back button. Screens whose
+   headers add the inset themselves (via .safe-top) opt out. */
+:where(.screen, .chat-page, .onboarding) {
+  padding-top: var(--safe-top-inset);
+}
+
+.screen:has(> .safe-top),
+.screen:has(> .home-top) {
+  padding-top: 0;
+}
+
 .screen--detail {
   padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
@@ -286,8 +339,13 @@ ul {
   padding-right: 0;
 }
 
-.safe-top {
-  padding-top: calc(12px + env(safe-area-inset-top));
+/* Android WebView only reports env(safe-area-inset-*) with viewport-fit=cover,
+   and some builds report zero. Capacitor's SystemBars also publishes the real
+   insets as custom properties; take whichever is larger. */
+.safe-top,
+.home-top,
+.chat-head {
+  padding-top: max(calc(12px + env(safe-area-inset-top)), calc(12px + var(--safe-area-inset-top, 0px)));
 }
 
 /* ---------------- Type ---------------- */
@@ -555,6 +613,7 @@ ul {
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
   gap: 8px;
+  /* The screens already clear the safe area, so the header carries only a small gap. */
   padding: 8px 0 4px;
 }
 
@@ -1038,6 +1097,31 @@ ul {
   font-weight: 500;
   color: var(--muted);
   margin-bottom: 6px;
+}
+
+/* A number field with its unit sitting inside the trailing edge */
+.input-with-unit {
+  position: relative;
+}
+
+.input-with-unit .text-input {
+  padding-right: 42px;
+}
+
+.input-unit {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Placeholders are a hint, never a value the person has to delete first. */
+.text-input::placeholder {
+  color: var(--muted-2);
+  opacity: 1;
 }
 
 /* ---------------- Lists ---------------- */

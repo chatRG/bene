@@ -9,13 +9,21 @@ export function OnboardingScreen() {
   const navigate = useNavigate();
   const state = useAppStore();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('John Carter');
+  const [name, setName] = useState('');
   const [sex, setSex] = useState<Sex>('male');
-  const [birthDate, setBirthDate] = useState('1998-01-20');
+  const [birthDate, setBirthDate] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
   const [goal, setGoal] = useState<'recovery' | 'performance' | 'sleep' | 'fatloss' | 'general'>('performance');
 
-  const finish = (demo: boolean) => {
-    state.completeOnboarding(name, { sex, birthDate, goal, demo });
+  const finish = () => {
+    state.completeOnboarding(name, {
+      sex,
+      birthDate: birthDate || undefined,
+      goal,
+      heightCm: Number(height) || undefined,
+      weightKg: Number(weight) || undefined,
+    });
     navigate('/', { replace: true });
   };
 
@@ -89,7 +97,7 @@ export function OnboardingScreen() {
             <p className="onboarding__sub">Bene works from your manual logs. There is no account, no cloud and no background service to enable.</p>
             <div className="insight-unlock mt-24">
               <Shield size={17} />
-              <span>Everything stays on this device. Native health sync is planned for a later build.</span>
+              <span>Everything stays on this device. Sleep and heart data comes from your phone’s health store, read on the device and never uploaded.</span>
             </div>
           </div>
         ) : null}
@@ -100,7 +108,14 @@ export function OnboardingScreen() {
             <p className="onboarding__sub">These details tune your heart-rate zones, recovery baseline and age estimate.</p>
             <div className="mt-24">
               <div className="field-label">Name</div>
-              <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+              <input
+                className="text-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+                autoCapitalize="words"
+              />
               <div className="row gap-8 mt-12">
                 <div className="grow">
                   <div className="field-label">Birth date</div>
@@ -113,6 +128,41 @@ export function OnboardingScreen() {
                     <option value="female">Female</option>
                     <option value="unspecified">Other</option>
                   </select>
+                </div>
+              </div>
+              <div className="row gap-8 mt-12">
+                <div className="grow">
+                  <div className="field-label">Height</div>
+                  <div className="input-with-unit">
+                    <input
+                      className="text-input"
+                      type="number"
+                      inputMode="numeric"
+                      min={80}
+                      max={250}
+                      value={height}
+                      onChange={(e) => setHeight(e.target.value)}
+                      placeholder="e.g. 178"
+                    />
+                    <span className="input-unit">cm</span>
+                  </div>
+                </div>
+                <div className="grow">
+                  <div className="field-label">Weight</div>
+                  <div className="input-with-unit">
+                    <input
+                      className="text-input"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      min={20}
+                      max={400}
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                      placeholder="e.g. 74.5"
+                    />
+                    <span className="input-unit">kg</span>
+                  </div>
                 </div>
               </div>
               <div className="field-label" style={{ marginTop: 16 }}>Primary goal</div>
@@ -128,9 +178,6 @@ export function OnboardingScreen() {
                 ))}
               </div>
             </div>
-            <p className="caption mt-20" style={{ lineHeight: 1.5 }}>
-              You can look around with a sample day before connecting anything.
-            </p>
           </div>
         ) : null}
       </div>
@@ -142,7 +189,6 @@ export function OnboardingScreen() {
         {step === 0 ? (
           <>
             <button className="btn btn--block" onClick={() => setStep(1)}>Continue <ChevronRight size={17} /></button>
-            <button className="onboarding__link" onClick={() => finish(true)}>See a sample day</button>
           </>
         ) : step === 1 ? (
           <>
@@ -153,10 +199,9 @@ export function OnboardingScreen() {
           </>
         ) : (
           <>
-            <button className="btn btn--block" onClick={() => finish(false)} disabled={!name.trim()}>
+            <button className="btn btn--block" onClick={finish} disabled={!name.trim()}>
               Start tracking <Check size={17} />
             </button>
-            <button className="onboarding__link" onClick={() => finish(true)}>See a sample day</button>
             <p className="caption" style={{ textAlign: 'center' }}>By continuing you agree to the Terms and Privacy Policy. Wellness use only.</p>
           </>
         )}

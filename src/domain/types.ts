@@ -4,7 +4,7 @@ export type ISODate = string; // yyyy-MM-dd
 export type ISODateTime = string; // ISO 8601
 export type Sex = 'male' | 'female' | 'unspecified';
 export type UnitSystem = 'metric' | 'imperial';
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeMode = 'system' | 'light' | 'dark' | 'midnight';
 export type ActivityStatus = 'active' | 'sick' | 'injured' | 'break';
 export type ScoreAvailability = 'scored' | 'calibrating' | 'insufficient';
 export type Stage = 'awake' | 'rem' | 'core' | 'deep';
@@ -12,7 +12,6 @@ export type WorkoutKind = 'run' | 'strength' | 'cycle' | 'walk' | 'swim' | 'hiit
 
 export interface UserProfile {
   name: string;
-  email: string;
   sex: Sex;
   birthDate: ISODate;
   heightCm: number;
@@ -311,13 +310,6 @@ export interface AppSettings {
   sleepGoalMin: number;
   calorieGoal: number;
   proteinGoalG: number;
-  hrvMethod: 'sdnn' | 'rmssd';
-  hrvWindow: 'entireSleep' | 'remDeep';
-  rhrWindow: 'entireSleep' | 'remDeep' | 'entireDay';
-  tempMethod: 'wrist' | 'body';
-  hrZoneMethod: 'maxHr' | 'hrReserve' | 'lactate' | 'manual';
-  manualMaxHr: number;
-  lactateThresholdHr: number;
   aiPersonality: 'supportive' | 'direct' | 'analytical' | 'playful';
   aiEnabled: boolean;
   ghostDefault: boolean;

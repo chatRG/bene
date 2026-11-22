@@ -13,7 +13,6 @@ import {
   Info,
   MessageCircle,
   Lock,
-  Moon,
   RefreshCw,
   RotateCcw,
   Settings2,
@@ -23,8 +22,6 @@ import {
   Trash2,
   Upload,
   User,
-  Watch,
-  Zap,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components/ui';
@@ -38,7 +35,6 @@ const SECTION_TITLES: Record<string, string> = {
   account: 'Account',
   data: 'Data sources',
   goals: 'Goals',
-  calculations: 'Calculations',
   coach: 'Local coach',
   privacy: 'Privacy and data',
   activity: 'Activity status',
@@ -66,21 +62,21 @@ export function SettingsScreen() {
 
         <GroupLabel>Data and privacy</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="No live adapters · demo and manual logs" onClick={() => navigate('/settings/data')} />
+          <ListRow icon={<Database size={16} />} title="Data sources" subtitle="Apple Health and Health Connect · manual logs" onClick={() => navigate('/settings/data')} />
           <ListRow icon={<Shield size={16} />} title="Privacy and permissions" subtitle="Export, delete, access" onClick={() => navigate('/settings/privacy')} />
           <ListRow icon={<HardDrive size={16} />} title="Backup and restore" subtitle={s.lastBackupAt ? `Last backup ${format(new Date(s.lastBackupAt), 'MMM d, h:mm a')}` : 'Create your first local backup'} onClick={() => navigate('/settings/backup')} />
         </div>
 
         <GroupLabel>Preferences</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, calculations" onClick={() => navigate('/settings/general')} />
+          <ListRow icon={<Settings2 size={16} />} title="Customization" subtitle="Tabs, appearance, Home layout" onClick={() => navigate('/settings/general')} />
           <ListRow icon={<Target size={16} />} title="Goals" subtitle={`Sleep ${Math.floor(s.sleepGoalMin / 60)}h ${s.sleepGoalMin % 60}m · ${s.calorieGoal} kcal`} onClick={() => navigate('/settings/goals')} />
           <ListRow icon={<MessageCircle size={16} />} title="Local coach" subtitle="Rule-based, on this device" onClick={() => navigate('/settings/coach')} />
         </div>
 
         <GroupLabel>App</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.1.3 · Noncommercial" onClick={() => navigate('/settings/about')} />
+          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.2.0 · Noncommercial" onClick={() => navigate('/settings/about')} />
         </div>
 
         <div className="settings-footer">Bene is a local-first health app.<br />Health estimates are wellness only, not medical advice.</div>
@@ -95,7 +91,6 @@ export function SettingsScreen() {
       {section === 'account' ? <Account /> : null}
       {section === 'data' ? <DataSourceScreen /> : null}
       {section === 'goals' ? <Goals /> : null}
-      {section === 'calculations' ? <Calculations /> : null}
       {section === 'coach' ? <CoachSettings /> : null}
       {section === 'privacy' ? <Privacy /> : null}
       {section === 'backup' ? <Backup /> : null}
@@ -124,7 +119,6 @@ function SwitchRow({ title, subtitle, on, onChange }: { title: string; subtitle?
 
 function General() {
   const state = useAppStore();
-  const navigate = useNavigate();
   const s = state.settings;
   return (
     <>
@@ -133,11 +127,17 @@ function General() {
         <div className="row-between">
           <span className="card-title">Theme</span>
           <Segmented<ThemeMode>
-            options={[{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+            options={[
+              { value: 'system', label: 'Auto' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+              { value: 'midnight', label: 'Midnight' },
+            ]}
             value={s.theme}
             onChange={(v) => state.updateSettings({ theme: v })}
           />
         </div>
+        <p className="card-sub mt-8">Midnight is true black, for OLED screens and lights-out reading.</p>
       </div>
 
       <GroupLabel>Tab visibility</GroupLabel>
@@ -154,17 +154,6 @@ function General() {
         <ListRow icon={<RefreshCw size={16} />} title="Restore default Home" subtitle={`${s.homeOrder.length} cards visible`} onClick={() => { state.saveHomeLayout(['scores', 'coach', 'stress', 'sleep', 'timeline', 'nutrition', 'journal']); showToast('Home restored'); }} />
       </div>
 
-      <GroupLabel>Calculations</GroupLabel>
-      <div className="list-card">
-        <ListRow title="HRV and RHR method" subtitle={`${s.hrvMethod === 'sdnn' ? 'SDNN' : 'RMSSD'} · ${s.hrvWindow === 'entireSleep' ? 'entire sleep' : 'REM + deep'}`} onClick={() => navigate('/settings/calculations')} />
-        <ListRow title="Heart-rate zones" subtitle={s.hrZoneMethod === 'manual' ? `Manual · ${s.manualMaxHr} bpm` : s.hrZoneMethod === 'hrReserve' ? 'Heart-rate reserve' : 'Max heart rate'} onClick={() => navigate('/settings/calculations')} />
-      </div>
-
-      <GroupLabel>Advanced</GroupLabel>
-      <div className="list-card">
-        <ListRow icon={<RefreshCw size={16} />} title="Reload demo data" subtitle="Rebuild the 60-day sample dataset" onClick={() => { state.resetDemo(); showToast('Demo data rebuilt'); }} />
-        <ListRow icon={<Shield size={16} />} title="Data loading window" subtitle="60 days in this build" onClick={() => showToast('Native builds load up to 2 years')} />
-      </div>
     </>
   );
 }
@@ -179,16 +168,11 @@ function Account() {
       <div className="profile-head" style={{ paddingTop: 8 }}>
         <div className="avatar avatar--lg" style={{ width: 64, height: 64, fontSize: 20 }}>{name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2).toUpperCase()}</div>
         <div className="profile-name" style={{ fontSize: 21 }}>{name}</div>
-        <div className="profile-email">{state.profile.email}</div>
       </div>
       <div className="list-card">
         <div className="list-row">
           <div className="grow"><div className="list-title">Name</div></div>
           <input className="text-input" style={{ width: 170, minHeight: 38 }} value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="list-row">
-          <div className="grow"><div className="list-title">Email</div><div className="list-sub">Cannot be changed</div></div>
-          <span className="list-value">{state.profile.email}</span>
         </div>
         <div className="list-row">
           <div className="grow"><div className="list-title">Sex</div></div>
@@ -227,15 +211,32 @@ function Account() {
   );
 }
 
+/**
+ * Two platform health stores, not a list of brands. A watch, ring, strap or CGM
+ * is reached through the phone's own health SDK, so one adapter covers every
+ * device the person already syncs.
+ */
 const SOURCES = [
-  { id: 'apple', name: 'Apple Health', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Synthetic dataset · no HealthKit adapter in this build', note: 'This build does not link HealthKit. The dashboard uses a synthetic 60-day dataset; manual logs are real.' },
-  { id: 'oura', name: 'Oura', icon: <Moon size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Oura API connection', note: 'Oura data would arrive through Apple Health or a native bridge. Neither is included yet.' },
-  { id: 'garmin', name: 'Garmin', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Garmin connection', note: 'Requires Garmin Connect → Apple Health or a native adapter.' },
-  { id: 'strava', name: 'Strava', icon: <Zap size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Strava OAuth', note: 'Imported workouts are read-only by design; the integration is not built.' },
-  { id: 'google', name: 'Google Health', icon: <Heart size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Health Connect adapter', note: 'Health Connect is the Android path; it is not included in this iteration.' },
-  { id: 'amazfit', name: 'Amazfit', icon: <Watch size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no Amazfit connection', note: 'Some body-weight load is excluded when data arrives.' },
-  { id: 'cgm', name: 'CGM · Dexcom / Lingo / Stelo', icon: <Zap size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no CGM SDK', note: 'Glucose impact and Net Energy glucose inputs are not wired.' },
-  { id: 'polar', name: 'Bluetooth HR sensor', icon: <Heart size={16} />, status: 'Not connected', live: false, detail: 'Placeholder · no BLE bridge', note: 'Live HR requires a native Bluetooth adapter and Health write permission.' },
+  {
+    id: 'apple',
+    name: 'Apple Health',
+    icon: <Heart size={16} />,
+    status: 'Not connected',
+    platform: 'iOS',
+    detail: 'HealthKit · every device that writes to Apple Health',
+    covers: ['Sleep stages', 'Heart-rate variability', 'Resting heart rate', 'Workouts', 'Body weight', 'Blood glucose'],
+    note: 'One HealthKit reader covers an Apple Watch, Oura, Garmin, Amazfit and a CGM, because each of them writes into Apple Health. No per-brand login is needed.',
+  },
+  {
+    id: 'health-connect',
+    name: 'Health Connect',
+    icon: <Heart size={16} />,
+    status: 'Not connected',
+    platform: 'Android',
+    detail: 'Health Connect · every app that writes to it',
+    covers: ['Sleep stages', 'Heart-rate variability', 'Resting heart rate', 'Workouts', 'Body weight', 'Blood glucose'],
+    note: 'Health Connect is Google’s on-device health store and the Android equivalent of Apple Health. Wear OS watches and most Android sync apps write into it, so one reader replaces a per-brand integration.',
+  },
 ];
 
 function DataSourceScreen() {
@@ -246,11 +247,11 @@ function DataSourceScreen() {
       <div className="insight-unlock mt-8">
         <Info size={17} />
         <span>
-          <strong>No live sensor connection is active yet.</strong> The dashboard runs on a synthetic demo dataset; anything you log manually and
-          every backup you create are real and stay on this device.
+          <strong>No live health source is connected yet.</strong> The app starts empty; data will arrive from Apple Health or Health Connect
+          once the adapter ships. Anything you log manually and every backup you create are real and stay on this device.
         </span>
       </div>
-      <GroupLabel>Sources</GroupLabel>
+      <GroupLabel>Health SDK</GroupLabel>
       <div className="list-card">
         {SOURCES.map((src) => (
           <button key={src.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => setSelected(src)}>
@@ -264,24 +265,24 @@ function DataSourceScreen() {
       <GroupLabel>Duplicates</GroupLabel>
       <div className="list-card">
         <SwitchRow title="Hide duplicate sources" subtitle="Show one workout when several devices record it" on={false} onChange={() => showToast('Available once a live source is connected')} />
-        <ListRow title="Apple Health permissions" subtitle="No permission is requested in this build" value="Not active" onClick={() => showToast('HealthKit is not included in this iteration')} />
       </div>
       {selected ? (
-        <Sheet title={selected.name} subtitle={selected.status} onClose={() => setSelected(null)}>
+        <Sheet title={selected.name} subtitle={`${selected.platform} · ${selected.status}`} onClose={() => setSelected(null)}>
           <p className="body" style={{ lineHeight: 1.6 }}>{selected.note}</p>
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
-            <div className="list-row"><div className="grow"><div className="list-title">Data it would provide</div><div className="list-sub">{selected.detail}</div></div></div>
-            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">{selected.id === 'oura' ? 'Limited to 1 month in Bene' : 'Up to 2 years'}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Reads</div><div className="list-sub">{selected.covers.join(' · ')}</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">Up to 2 years, read-only</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">Brand logins</div><div className="list-sub">None · every device arrives through the phone’s health store</div></div></div>
           </div>
           <button
             className="btn btn--soft btn--block mt-20"
             onClick={() => {
               setSelected(null);
-              showToast('Adapter not included in this build');
+              showToast('Health adapter is not included in this build');
             }}
           >
-            Adapter not included in this build
+            Not included in this build
           </button>
         </Sheet>
       ) : null}
@@ -333,40 +334,7 @@ function Goals() {
         <ListRow title="Limit nutrients" subtitle="Stay under — sodium, added sugar" value="2 set" onClick={() => showToast('Limit nutrients editor')} />
         <ListRow title="Excluded contributors" subtitle={`${s.excludedContributors.length} excluded from score`} onClick={() => showToast('Exclude contributors for allergies or preferences')} />
       </div>
-      <button className="btn btn--block mt-20" onClick={() => { state.updateSettings({ sleepGoalMin: sleepH * 60 + sleepM, calorieGoal: kcal, proteinGoalG: protein, nutritionUnits: units }); showToast('Goals saved'); }}>Save goals</button>
-    </>
-  );
-}
-
-function Calculations() {
-  const state = useAppStore();
-  const s = state.settings;
-  return (
-    <>
-      <div className="list-card">
-        <ListRow title="HRV method" subtitle="SDNN and RMSSD are not interchangeable" value={<Segmented options={[{ value: 'sdnn', label: 'SDNN' }, { value: 'rmssd', label: 'RMSSD' }]} value={s.hrvMethod} onChange={(v) => state.updateSettings({ hrvMethod: v })} />} />
-        <ListRow title="Use HRV from" subtitle="Overnight window only" value={<Segmented options={[{ value: 'entireSleep', label: 'All sleep' }, { value: 'remDeep', label: 'REM+Deep' }]} value={s.hrvWindow} onChange={(v) => state.updateSettings({ hrvWindow: v })} />} />
-        <ListRow title="Use RHR from" subtitle="Resting heart rate window" value={<select className="pill pill--flat" value={s.rhrWindow} onChange={(e) => state.updateSettings({ rhrWindow: e.target.value as typeof s.rhrWindow })}><option value="entireSleep">All sleep</option><option value="remDeep">REM+Deep</option><option value="entireDay">Entire day</option></select>} />
-        <ListRow title="Temperature method" subtitle="Wrist is more sensitive to illness" value={<Segmented options={[{ value: 'wrist', label: 'Wrist' }, { value: 'body', label: 'Body' }]} value={s.tempMethod} onChange={(v) => state.updateSettings({ tempMethod: v })} />} />
-      </div>
-
-      <GroupLabel>Heart-rate zones</GroupLabel>
-      <div className="list-card">
-        <div className="list-row"><div className="grow"><div className="list-title">Method</div><div className="list-sub">Zones 1–5 at 50/60/70/80/90%</div></div>
-          <Segmented options={[{ value: 'maxHr', label: 'Max' }, { value: 'hrReserve', label: 'Reserve' }, { value: 'manual', label: 'Manual' }]} value={s.hrZoneMethod === 'lactate' ? 'manual' : s.hrZoneMethod} onChange={(v) => state.updateSettings({ hrZoneMethod: v })} />
-        </div>
-        <div className="list-row">
-          <div className="grow"><div className="list-title">Manual max HR</div><div className="list-sub">Used when method is Manual</div></div>
-          <input className="text-input" style={{ width: 90, minHeight: 38 }} type="number" value={s.manualMaxHr} onChange={(e) => state.updateSettings({ manualMaxHr: Number(e.target.value) })} />
-        </div>
-        <div className="list-row">
-          <div className="grow"><div className="list-title">Lactate threshold HR</div><div className="list-sub">Estimated max = LTHR ÷ 0.85</div></div>
-          <input className="text-input" style={{ width: 90, minHeight: 38 }} type="number" value={s.lactateThresholdHr} onChange={(e) => state.updateSettings({ lactateThresholdHr: Number(e.target.value) })} />
-        </div>
-      </div>
-      <p className="caption mt-12" style={{ lineHeight: 1.5 }}>
-        Max HR defaults to the Tanaka estimate (208 − 0.7 × age). The method and the manual override are explicit here rather than implied.
-      </p>
+      <button className="btn btn--block mt-20" onClick={() => { state.updateSettings({ sleepGoalMin: Math.max(1, sleepH * 60 + sleepM), calorieGoal: Math.max(1, Math.round(kcal) || 1), proteinGoalG: Math.max(0, Math.round(protein) || 0), nutritionUnits: units }); showToast('Goals saved'); }}>Save goals</button>
     </>
   );
 }
@@ -634,7 +602,7 @@ function About() {
           <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
-        <div className="caption mt-4">Version 0.1.3 · local-first build</div>
+        <div className="caption mt-4">Version 0.2.0</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           <span className="pill pill--sm pill--flat">Noncommercial</span>

@@ -46,6 +46,17 @@ export type ParseResult =
 
 const DAY_FIELDS = ['sleep', 'metrics', 'workouts', 'meals', 'journal'] as const;
 
+/** Settings that older backups stored but the app no longer reads. */
+const RETIRED_SETTING_KEYS = [
+  'hrvMethod',
+  'hrvWindow',
+  'rhrWindow',
+  'tempMethod',
+  'hrZoneMethod',
+  'manualMaxHr',
+  'lactateThresholdHr',
+] as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -102,7 +113,11 @@ export function parseBackup(raw: string): ParseResult {
       return { ok: false, error: `Backup has an incomplete day of data (${date}).` };
     }
   }
-  return { ok: true, data, exportedAt: obj.exportedAt ?? new Date().toISOString() };
+  // Calculation methods are fixed now, not user settings. Older backups still
+  // carry them; drop them so the restored state matches today's shape.
+  const settings = isRecord(data.settings) ? { ...data.settings } : data.settings;
+  if (isRecord(settings)) for (const key of RETIRED_SETTING_KEYS) delete settings[key];
+  return { ok: true, data: { ...data, settings: settings as BackupPayload['settings'] }, exportedAt: obj.exportedAt ?? new Date().toISOString() };
 }
 
 export interface SnapshotResult {

@@ -29,6 +29,11 @@ export function StrainScreen() {
   const avg = hasHr ? values.reduce((a, b) => a + b, 0) / values.length : 0;
   const avgHr = daytimeAverageHr(d.record.metrics.hrSamples);
   const hiddenTarget = state.settings.activityStatus === 'injured' || state.settings.activityStatus === 'break';
+  const timeLabel = (() => {
+    const now = new Date();
+    // A restored/zeroed device clock yields an invalid Date, and toLocaleTimeString throws on it.
+    return Number.isNaN(now.getTime()) ? '' : now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  })();
   const statusNote = state.settings.activityStatus === 'injured'
     ? 'Target Strain is hidden while you are injured. Strain calculations are limited.'
     : state.settings.activityStatus === 'sick'
@@ -52,7 +57,7 @@ export function StrainScreen() {
 
   return (
     <div className="screen screen--detail">
-      <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+      <div className="detail-head">
         <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Close"><ChevronLeft size={20} /></button>
         <div className="detail-head__title">Strain Score</div>
         <div className="detail-head__right">
@@ -65,12 +70,12 @@ export function StrainScreen() {
 
       <div className="strain-score-line">
         <div>
-          <div className="strain-score-line__value">{Math.round(d.strain.score)}<span style={{ fontSize: 28 }}>%</span></div>
-          <div className="strain-score-line__date">{format(new Date(), 'MMM d, yyyy')} <span style={{ color: 'var(--muted-2)' }}>·</span> {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+          <div className="strain-score-line__value">{d.strain.unscored ? '—' : Math.round(d.strain.score)}<span style={{ fontSize: 28 }}>%</span></div>
+          <div className="strain-score-line__date">{format(new Date(), 'MMM d, yyyy')} <span style={{ color: 'var(--muted-2)' }}>·</span> {timeLabel}</div>
         </div>
         <div>
           <div className="strain-range" style={hiddenTarget ? { color: 'var(--muted)' } : undefined}>
-            {hiddenTarget ? 'Target hidden' : d.strain.status === 'within' ? 'On target' : d.strain.label === 'Normal range' ? 'In range' : d.strain.label}
+            {hiddenTarget ? 'Target hidden' : d.strain.unscored ? 'No load yet' : d.strain.status === 'within' ? 'On target' : d.strain.label === 'Normal range' ? 'In range' : d.strain.label}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="caption" style={{ marginTop: 3 }}>{hiddenTarget ? 'Injured status' : 'Normal range'}</div>
@@ -165,8 +170,11 @@ export function StrainScreen() {
             <div className="card-title">Active energy timeline</div>
             <div className="row gap-2 mt-12" style={{ alignItems: 'flex-end', height: 80 }}>
               {Array.from({ length: 24 }, (_, h) => {
-                const val = d.record.metrics.hrSamples.filter((s) => Math.floor(s.minute / 60) === h).reduce((a, s) => a + Math.max(0, s.bpm - 60), 0) / 8;
-                return <span key={h} style={{ flex: 1, height: `${Math.max(4, Math.min(100, val))}%`, background: 'var(--orange)', opacity: 0.35 + (val / 150), borderRadius: 3 }} />;
+                const samples = d.record.metrics.hrSamples.filter((s) => Math.floor(s.minute / 60) === h);
+                // An hour with no samples has no bar: 0/0 would become NaN and
+                // paint the span solid with an NaN opacity.
+                const val = samples.length ? samples.reduce((a, s) => a + Math.max(0, s.bpm - 60), 0) / 8 / samples.length : 0;
+                return <span key={h} style={{ flex: 1, height: `${Math.max(4, Math.min(100, val))}%`, background: 'var(--orange)', opacity: samples.length ? 0.35 + Math.min(0.65, val / 150) : 0.12, borderRadius: 3 }} />;
               })}
             </div>
             <div className="row-between caption mt-6"><span>12 AM</span><span>12 PM</span><span>11 PM</span></div>
@@ -216,12 +224,13 @@ export function StrainScreen() {
           {!hiddenTarget ? (
             <>
               <div className="bar mt-14">
-                <div className="bar__fill" style={{ width: `${Math.min(100, (d.strain.score / Math.max(1, d.strain.target)) * 100)}%`, background: d.strain.status === 'above' ? 'var(--orange)' : 'var(--lime)' }} />
+                <div className="bar__fill" style={{ width: `${d.strain.unscored ? 0 : Math.min(100, (d.strain.score / Math.max(1, d.strain.target)) * 100)}%`, background: d.strain.status === 'above' ? 'var(--orange)' : 'var(--lime)' }} />
               </div>
               <div className="target-note">
-                <span>{d.strain.status === 'within' ? 'You are inside today’s target range.' : d.strain.status === 'below' ? 'You still have room to move.' : 'You are above today’s target.'}</span>
-                <strong style={{ marginLeft: 'auto' }}>{Math.round(d.strain.score)} / {d.strain.target}%</strong>
+                <span>{d.strain.unscored ? 'Your target is set from your recovery.' : d.strain.status === 'within' ? 'You are inside today’s target range.' : d.strain.status === 'below' ? 'You still have room to move.' : 'You are above today’s target.'}</span>
+                <strong style={{ marginLeft: 'auto' }}>{d.strain.unscored ? '—' : Math.round(d.strain.score)} / {d.strain.target}%</strong>
               </div>
+              {d.strain.unscored ? <div className="caption mt-8">Log an activity or wear your tracker to start tracking Strain.</div> : null}
             </>
           ) : <div className="caption mt-8">Target is hidden because of your activity status. Switch back to Active to see it.</div>}
         </div>

@@ -5,12 +5,13 @@ import { baselineFromSessions, recoveryScore, recoveryNarrative, type RecoveryRe
 import { computeStrain, type StrainResult } from './scoring/strain';
 import { stressSummary, type StressSummary } from './scoring/load';
 import { nutritionFor, type NutritionResult } from './scoring/nutrition';
-import { estimatedMaxHr } from './scoring/zones';
+import { CALC_METHODS, estimatedMaxHr } from './scoring/zones';
 
 export interface DayDerived {
   date: string;
   record: DayRecord;
-  age: number;
+  /** Chronological age on `date`, or null when the profile has no valid birth date. */
+  age: number | null;
   sleep: SleepSession | null;
   sleepScore: SleepScoreResult | null;
   sleepNeedMin: number;
@@ -27,17 +28,23 @@ export interface DayDerived {
 
 export function zoneConfigFor(data: AppStateData, date: string) {
   const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
+  const maxHr = estimatedMaxHr(age);
   return {
-    method: data.settings.hrZoneMethod,
+    method: CALC_METHODS.zoneMethod,
     age,
     restingHr: Math.round(recoveryBaselineFor(data, date).rhrBpm || 55),
-    manualMaxHr: data.settings.manualMaxHr || estimatedMaxHr(age),
-    lactateThresholdHr: data.settings.lactateThresholdHr,
+    // Zones are percent of max HR, so the manual and lactate overrides are not
+    // consulted; they are set to the Tanaka estimate to keep the config whole.
+    manualMaxHr: maxHr,
+    lactateThresholdHr: 0,
   };
 }
 
 function priorSessions(data: AppStateData, date: string, daysBack: number): SleepSession[] {
   const idx = data.dayOrder.indexOf(date);
+  // date missing (or the first day) means there is nothing prior to average;
+  // a negative idx would also index dayOrder[-1..] instead of a real date.
+  if (idx <= 0) return [];
   const from = Math.max(0, idx - daysBack);
   const out: SleepSession[] = [];
   for (let i = from; i < idx; i++) {
@@ -64,6 +71,7 @@ function strainOfRecord(record: DayRecord | undefined): number {
 
 export function recentStrains(data: AppStateData, date: string, daysBack = 28): number[] {
   const idx = data.dayOrder.indexOf(date);
+  if (idx <= 0) return [];
   const out: number[] = [];
   for (let i = Math.max(0, idx - daysBack); i < idx; i++) out.push(strainOfRecord(data.days[data.dayOrder[i]]));
   return out;
@@ -116,11 +124,17 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
   };
   const idx = data.dayOrder.indexOf(date);
   const isToday = date === dateOf(now);
+  // Records are only projected once the day is on the timeline. If date is
+  // absent, `recent` would run before index 0 with an empty day record.
+  const isOnTimeline = idx >= 0;
   const nowMinute = isToday ? now.getHours() * 60 + now.getMinutes() : 1440;
   const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
   const needMin = sleepNeedFor(data, date);
   const session = record.sleep;
-  const score = session ? sleepScore(session, { age, sex: data.profile.sex, needMin }) : null;
+  // The score accepts `age: null` so a missing birth date is skipped rather than
+  // guessed. The local `age` above is only the fallback for zone maths.
+  const scoreAge = ageFromBirthDate(data.profile.birthDate, date);
+  const score = session ? sleepScore(session, { age: scoreAge, sex: data.profile.sex, needMin }) : null;
 
   const baseline = recoveryBaselineFor(data, date);
   const stagedNights =
@@ -137,7 +151,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
 
   const recent = recentStrains(data, date, 28);
   const strain = computeStrain({
-    workouts: isToday ? record.workouts : record.workouts,
+    workouts: record.workouts,
     hrSamples: record.metrics.hrSamples,
     restingHr: Math.round(baseline.rhrBpm || 55),
     recovery: recovery.score,
@@ -146,7 +160,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     activityStatus: data.settings.activityStatus,
     age,
     maxHr: Math.round(208 - 0.7 * age),
-    nowMinute: isToday ? nowMinute : 1440,
+    nowMinute: isToday && isOnTimeline ? nowMinute : 1440,
   });
 
   const stress = stressSummary(record.metrics.stressSamples, {
@@ -157,8 +171,9 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
   const nutrition = nutritionFor(record.meals, data.settings.excludedContributors, record.metrics.totalCalories);
 
   const bank = sleepBank(
+    // String() keeps a pre-filled (NaN/empty) day order key from becoming an 'undefined' date label.
     data.dayOrder.slice(Math.max(0, idx - 6), idx + 1).map((d) => ({
-      date: d,
+      date: String(d),
       sleep: data.days[d]?.sleep ?? null,
       needMin: data.settings.sleepGoalMin,
     })),
@@ -167,7 +182,9 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
   return {
     date,
     record,
-    age,
+    // Chronological age for display, or null when the profile has no valid birth
+    // date (the internal `age` above is a fallback for zone maths only).
+    age: ageFromBirthDate(data.profile.birthDate, date),
     sleep: session,
     sleepScore: score,
     sleepNeedMin: needMin,
@@ -185,8 +202,11 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     stress,
     nutrition,
     recentStrainAvg: Math.round(mean(recent.slice(-14))),
-    baselineHrv: round(baseline.hrvMs, 1),
-    baselineRhr: round(baseline.rhrBpm, 1),
+    // No prior nights means no baseline: report null rather than a 0 that
+    // callers would print as "0.0 ms" or divide by. The field stays typed as a
+    // number for existing callers; only the empty-data case returns null.
+    baselineHrv: (baseline.nights > 0 ? round(baseline.hrvMs, 1) : null) as unknown as number,
+    baselineRhr: (baseline.nights > 0 ? round(baseline.rhrBpm, 1) : null) as unknown as number,
   };
 }
 
@@ -233,8 +253,8 @@ export function coachInsight(d: DayDerived): { title: string; body: string; tone
   const hrv = d.sleep?.hrvMs ?? null;
   const rhr = d.sleep?.rhrBpm ?? null;
   const hrvPct =
-    hrv != null && d.baselineHrv > 0 ? Math.round(((hrv - d.baselineHrv) / d.baselineHrv) * 100) : null;
-  const rhrDelta = rhr != null ? Math.round((rhr - d.baselineRhr) * 10) / 10 : null;
+    hrv != null && d.baselineHrv != null && d.baselineHrv > 0 ? Math.round(((hrv - d.baselineHrv) / d.baselineHrv) * 100) : null;
+  const rhrDelta = rhr != null && d.baselineRhr != null ? Math.round((rhr - d.baselineRhr) * 10) / 10 : null;
 
   const signals: string[] = [];
   if (hrv != null && hrvPct != null) {
@@ -243,6 +263,8 @@ export function coachInsight(d: DayDerived): { title: string; body: string; tone
         ? `HRV is close to your baseline at ${hrv.toFixed(0)} ms`
         : `HRV is ${Math.abs(hrvPct)}% ${hrvPct > 0 ? 'above' : 'below'} your baseline`,
     );
+  } else if (hrv != null) {
+    signals.push(`HRV is ${hrv.toFixed(0)} ms`);
   }
   if (rhrDelta != null) {
     signals.push(
@@ -253,8 +275,10 @@ export function coachInsight(d: DayDerived): { title: string; body: string; tone
   }
   const sleep = d.sleepScore?.score != null ? `Sleep scored ${d.sleepScore.score}%,` : '';
   const detail = signals.join(' and ');
-  const target = `Target strain is ${d.strain.target}%.`;
-  const body = [sleep, detail ? `${detail}.` : '', target].filter(Boolean).join(' ');
+  const cost = `Target strain is ${d.strain.target}%.`;
+  const body = [sleep, detail ? `${detail}.` : '', d.strain.unscored ? `No load recorded yet today. ${cost}` : cost]
+    .filter(Boolean)
+    .join(' ');
 
   if (r >= 67) {
     return { title: 'A day to build', body: `${body} A longer session fits if the warm-up feels easy.`, tone: 'positive' };

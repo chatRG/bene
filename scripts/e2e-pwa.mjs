@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
+import { seed } from './fixture.mjs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:4173';
 
@@ -16,10 +17,10 @@ page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
-await page.evaluate(() => localStorage.clear());
-await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('See a sample day').click();
-await page.waitForTimeout(800);
+// A fresh install is empty, so plant the shared fixture; the offline reload then
+// has real scores to render from the service worker cache.
+const fx = await seed(page);
+console.log('fixture: days', fx.dayOrder.length);
 
 const swReady = await page.evaluate(async () => {
   if (!('serviceWorker' in navigator)) return { supported: false };

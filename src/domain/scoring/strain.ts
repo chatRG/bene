@@ -5,6 +5,8 @@ import { estimatedMaxHr, workoutTrimp } from './zones';
 
 export interface StrainResult {
   score: number;
+  /** True when the day has no measured load, so `score` is a placeholder 0 rather than a reading. */
+  unscored: boolean;
   activeTrimp: number;
   passiveTrimp: number;
   target: number;
@@ -111,12 +113,16 @@ export function computeStrain(input: {
   const total = active + passive;
   const score = strainFromTrimp(total);
   const target = targetStrain(input.recovery, input.recentStrainAvg, input.activityStatus);
+  // On a day with no load at all the logarithmic score rounds to 0, which would
+  // read as "well below target". Report it as unscored so the UI can say so.
+  const unscored = active + passive <= 0;
   const normLow = Math.round(clamp(target - 16, 10, 95));
   const normHigh = Math.round(clamp(target + 16, 25, 110));
   const rounded = Math.round(score * 10) / 10;
   const status = rounded < normLow ? 'below' : rounded > normHigh ? 'above' : 'within';
   return {
     score: rounded,
+    unscored,
     activeTrimp: Math.round(active),
     passiveTrimp: Math.round(passive),
     target,

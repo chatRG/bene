@@ -73,7 +73,7 @@ export function JournalScreen() {
 
   return (
     <div className="screen">
-      <div className="app-header safe-top">
+      <div className="app-header">
         <div>
           <div className="h1">Journal</div>
           <div className="caption" style={{ marginTop: 2 }}>{fmt(new Date(), 'EEEE, MMMM d')}</div>

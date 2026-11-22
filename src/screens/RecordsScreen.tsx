@@ -40,7 +40,7 @@ export function RecordsScreen() {
 
   return (
     <div className="screen screen--detail">
-      <div className="detail-head safe-top" style={{ paddingTop: 8 }}>
+      <div className="detail-head">
         <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
         <div><div className="detail-head__title">Health records</div><div className="detail-head__sub">Documents, lab reports and biomarkers</div></div>
         <div className="detail-head__right">
@@ -140,16 +140,6 @@ export function RecordsScreen() {
             <span className="pill pill--sm pill--flat">≤ 100 files</span>
           </div>
           <p className="caption mt-16">After upload: “We’re analyzing your documents now. You’ll get a notification when results are ready.”</p>
-          <button
-            className="btn btn--soft btn--block mt-16"
-            onClick={() => {
-              state.uploadRecord('Demo blood panel.pdf', 420, 'bloodwork');
-              setUploadOpen(false);
-              showToast('Demo record uploaded');
-            }}
-          >
-            Use a demo record
-          </button>
         </Sheet>
       ) : null}
     </div>

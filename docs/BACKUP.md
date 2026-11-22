@@ -26,7 +26,7 @@ The document has this shape. The example lists a subset of the settings and of `
   "version": 1,
   "exportedAt": "2026-11-14T14:00:00.000Z",
   "data": {
-    "profile": { "name": "string", "email": "string", "birthDate": "string" },
+    "profile": { "name": "string", "birthDate": "string" },
     "settings": { "theme": "system" },
     "days": { "2026-11-14": { "sleep": {}, "metrics": {}, "workouts": [], "meals": [], "journal": [] } },
     "dayOrder": ["2026-09-16", "2026-11-14"],
