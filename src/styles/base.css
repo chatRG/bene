@@ -27,8 +27,8 @@
   /* Three text roles */
   --text: #1c1a16;
   --text-2: #4b463c;
-  --muted: #736b5d;
-  --muted-2: #a49b8b;
+  --muted: #6b6355;
+  --muted-2: #6f675a;
 
   --hairline: rgba(28, 26, 22, 0.1);
   --hairline-strong: rgba(28, 26, 22, 0.18);
@@ -80,12 +80,12 @@
   --r-control: 10px;
   --r-chip: 6px;
 
-  --nav-h: 75px;
+  --nav-h: 62px;
   --app-w: 520px;
   --gutter: 20px;
 
   /* Floating glass navigation */
-  --nav-inset: 12px;
+  --nav-inset: 30px;
   --nav-fill-hi: rgba(255, 253, 247, 0.97);
   --nav-fill: rgba(247, 242, 233, 0.95);
   --nav-fill-lo: rgba(236, 230, 217, 0.93);
@@ -122,7 +122,7 @@
   --text: #efe9de;
   --text-2: #c6bcab;
   --muted: #9a9080;
-  --muted-2: #6b6357;
+  --muted-2: #9a9181;
 
   --hairline: rgba(239, 233, 222, 0.1);
   --hairline-strong: rgba(239, 233, 222, 0.18);
@@ -145,6 +145,12 @@
   --sleep-core: #7493b2;
   --sleep-rem: #526d88;
   --sleep-awake: #c68f57;
+
+  /* Macro series. The light values are too dark to read on a night surface,
+     so each theme carries its own. */
+  --protein: #e08a72;
+  --carbs: #d4a75c;
+  --fat: #8ab0d4;
 
   --shadow: none;
   --shadow-soft: none;
@@ -185,8 +191,39 @@
   --field: #161616;
   --raise: #101010;
 
-  --hairline: rgba(239, 233, 222, 0.14);
-  --hairline-strong: rgba(239, 233, 222, 0.24);
+  /* Surface tokens alone are not enough: without these the block inherits the
+     light ramp and renders near-black ink on pure black. These mirror dark,
+     raised slightly because pure black gives a text colour no lift of its own. */
+  --text: #f6f1e7;
+  --text-2: #cdc4b3;
+  --muted: #a89e8d;
+  --muted-2: #a2988a;
+
+  --hairline: rgba(239, 233, 222, 0.16);
+  --hairline-strong: rgba(239, 233, 222, 0.28);
+
+  --accent: #e8906f;
+  --accent-ink: #1c1511;
+  --accent-soft: rgba(232, 144, 111, 0.16);
+
+  --good: #86cea7;
+  --good-soft: rgba(134, 206, 167, 0.15);
+  --warn: #e0b263;
+  --warn-soft: rgba(224, 178, 99, 0.16);
+  --bad: #ec8d82;
+  --bad-soft: rgba(236, 141, 130, 0.14);
+
+  --recovery: #86cea7;
+  --strain-c: #e8906f;
+  --sleep: #9db8d4;
+  --sleep-deep: #aecae2;
+  --sleep-core: #8aa8c6;
+  --sleep-rem: #6a85a0;
+  --sleep-awake: #d9a06a;
+
+  --protein: #ec9a84;
+  --carbs: #e0b56e;
+  --fat: #96bcdd;
 
   --shadow: none;
   --shadow-soft: none;
@@ -194,11 +231,21 @@
   --nav-fill-hi: rgba(38, 38, 38, 0.96);
   --nav-fill: rgba(20, 20, 20, 0.96);
   --nav-fill-lo: rgba(6, 6, 6, 0.98);
+  --nav-edge: rgba(255, 250, 241, 0.28);
+  --nav-edge-lo: rgba(255, 250, 241, 0.08);
+  --nav-inner-rim: rgba(255, 250, 241, 0.2);
+  --nav-sheen: rgba(255, 250, 241, 0.22);
+  --nav-ink: #b5aa99;
+  --nav-ink-active: #fffaf1;
+  --nav-active-hi: rgba(255, 250, 241, 0.28);
+  --nav-active-lo: rgba(255, 250, 241, 0.12);
+  --nav-active-edge: rgba(255, 250, 241, 0.4);
+  --nav-active-edge-lo: rgba(0, 0, 0, 0.3);
   --nav-solid: #141414;
   --nav-active-solid: #262626;
   --nav-shadow: 0 22px 48px -18px rgba(0, 0, 0, 0.9), 0 3px 12px -4px rgba(0, 0, 0, 0.6);
 
-  --member-card: #0d0d0d;
+  --member-card: #121212;
 }
 
 * {
@@ -281,10 +328,12 @@ ul {
 
 :root {
   /* Clearance for the status bar / display cutout at the top of every screen.
-     Android's WebView only reports env(safe-area-inset-*) with viewport-fit
-     set, and some builds report zero, so Capacitor's SystemBars custom
-     properties are taken when they are larger. */
-  --safe-top-inset: max(calc(8px + env(safe-area-inset-top)), calc(8px + var(--safe-area-inset-top, 0px)));
+     Two sources, whichever is larger: env(safe-area-inset-top), which the
+     WebView reports because index.html sets viewport-fit=cover, and
+     SystemBars, which publishes --safe-area-inset-top when installed. A floor
+     of 24px covers the case where a build reports zero for both — without it
+     the back arrow, the title and the action button sit under the clock. */
+  --safe-top-inset: max(24px, calc(env(safe-area-inset-top) + 8px), calc(var(--safe-area-inset-top, 0px) + 8px));
 }
 
 .app-shell {
@@ -305,6 +354,9 @@ ul {
   [data-theme='dark'] body {
     background: #0d0b08;
   }
+  [data-theme='midnight'] body {
+    background: #000000;
+  }
   .app-shell {
     box-shadow: 0 0 0 1px var(--hairline), 0 24px 80px rgba(38, 32, 24, 0.14);
   }
@@ -320,8 +372,13 @@ ul {
 
 /* Every screen opens at the top of the safe area, so the status bar and the
    display cutout never sit on top of a title or a back button. Screens whose
-   headers add the inset themselves (via .safe-top) opt out. */
-:where(.screen, .chat-page, .onboarding) {
+   headers add the inset themselves (via .safe-top) opt out.
+
+   Specificity note: :where() contributes nothing, so `padding: 0 …` on .screen
+   below would beat it. These selectors carry their own weight instead. */
+.screen,
+.chat-page,
+.onboarding {
   padding-top: var(--safe-top-inset);
 }
 
@@ -341,11 +398,12 @@ ul {
 
 /* Android WebView only reports env(safe-area-inset-*) with viewport-fit=cover,
    and some builds report zero. Capacitor's SystemBars also publishes the real
-   insets as custom properties; take whichever is larger. */
+   insets as custom properties; take whichever is larger, with the same 24px
+   floor the screens use so a header never sits under the status bar. */
 .safe-top,
 .home-top,
 .chat-head {
-  padding-top: max(calc(12px + env(safe-area-inset-top)), calc(12px + var(--safe-area-inset-top, 0px)));
+  padding-top: max(24px, calc(env(safe-area-inset-top) + 12px), calc(var(--safe-area-inset-top, 0px) + 12px));
 }
 
 /* ---------------- Type ---------------- */
@@ -860,13 +918,14 @@ ul {
 
 .navbar {
   position: fixed;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(8px + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
   margin: 0 auto;
-  width: calc(100% - (var(--nav-inset) * 2));
-  max-width: calc(var(--app-w) - (var(--nav-inset) * 2));
-  padding: 5px;
+  width: auto;
+  min-width: min(340px, calc(100% - (var(--nav-inset) * 2)));
+  max-width: calc(100% - (var(--nav-inset) * 2));
+  padding: 4px;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
@@ -884,6 +943,21 @@ ul {
   backdrop-filter: blur(26px) saturate(180%);
   z-index: 40;
   isolation: isolate;
+  transition: transform 0.24s var(--ease), opacity 0.2s var(--ease);
+}
+
+/* While reading downwards the bar steps out of the way; any upward scroll
+   brings it straight back. Kept mounted so the transition can play. */
+.navbar--hidden {
+  transform: translateY(calc(100% + 24px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar {
+    transition: none;
+  }
 }
 
 .navbar::before {
@@ -902,14 +976,14 @@ ul {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
-  min-height: 52px;
-  padding: 6px 2px 5px;
+  min-height: 42px;
+  padding: 4px 2px 4px;
   border: 1px solid transparent;
   border-radius: 999px;
   color: var(--nav-ink);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: 0.005em;
@@ -921,8 +995,8 @@ ul {
   position: relative;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   color: inherit;
 }
 

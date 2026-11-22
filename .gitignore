@@ -34,3 +34,6 @@ android/app/src/main/assets/public/
 
 # Local agent skills (unslop audit)
 .agents/
+
+# Crash dumps
+core
