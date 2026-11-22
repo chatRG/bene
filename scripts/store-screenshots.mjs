@@ -33,7 +33,14 @@ const SHOTS = path.join(APP, 'docs/screenshots');
 
 const W = 1290;
 const H = 2796;
-const PREVIEW_W = 352;
+
+/* The README row. GitHub renders a README image at roughly 880 px, so six
+ * slides at 146 px with an 8 px gap come to 876 px — the widest row that still
+ * shows all six at once without the reader having to open the file. */
+const SLIDE_W = 146;
+const ROW_GAP = 8;
+const SLIDE_H = Math.round((H * SLIDE_W) / W);
+const ROW_W = SLIDE_W * 6 + ROW_GAP * 5;
 
 const THEMES = {
   light: {
@@ -45,6 +52,8 @@ const THEMES = {
     muted: '#6b6355',
     hairline: 'rgba(28, 26, 22, 0.10)',
     accent: '#a6402a',
+    bezel: '#24211c',
+    'bezel-edge': '#3a352d',
     print: 'rgba(28, 26, 22, 0.032)',
     shadow: '0 70px 130px -50px rgba(60, 50, 32, 0.38), 0 20px 46px -26px rgba(60, 50, 32, 0.26)',
     mark: 'brand/final/symbol-ink.svg',
@@ -58,6 +67,10 @@ const THEMES = {
     muted: '#9a9080',
     hairline: 'rgba(239, 233, 222, 0.12)',
     accent: '#dc8266',
+    /* On the dark page a black bezel disappears, so the frame is lifted to a
+       graphite that still reads as hardware against #16140f. */
+    bezel: '#33302a',
+    'bezel-edge': '#4d483f',
     print: 'rgba(239, 233, 222, 0.038)',
     shadow: '0 70px 130px -50px rgba(0, 0, 0, 0.85), 0 20px 46px -26px rgba(0, 0, 0, 0.7)',
     mark: 'brand/final/symbol-white.svg',
@@ -155,7 +168,12 @@ function device(theme, capture, cls = '') {
   const file = theme === 'dark' ? `dark-${capture}.png` : `${capture}.png`;
   return `
     <div class="device ${cls}">
-      <div class="device-body"><img src="${SHOTS}/${file}" alt="" /></div>
+      <div class="device-body">
+        <div class="device-screen">
+          <img src="${SHOTS}/${file}" alt="" />
+          <div class="device-notch"></div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -224,6 +242,7 @@ function slideHTML(slide, theme) {
       --bg:${t.bg}; --card:${t.card}; --card2:${t.card2}; --text:${t.text};
       --text2:${t.text2}; --muted:${t.muted}; --hairline:${t.hairline};
       --accent:${t.accent}; --print:${t.print}; --device-shadow:${t.shadow};
+      --bezel:${t.bezel}; --bezel-edge:${t['bezel-edge']};
       background:${t.bg}; color:${t.text};">
       <header class="chrome">
         <img class="chrome-mark" src="${APP}/${t.mark}" alt="" />
@@ -287,12 +306,42 @@ function documentHTML(preview = false) {
   }
 
   .device { position: relative; z-index: 2; }
+  /* The frame is drawn, not a bare rectangle: a dark bezel with real corner
+     radius, a hairline highlight along the top edge and side keys, so the
+     capture reads as a phone held in the hand rather than a floating panel. */
   .device-body {
-    position: relative; padding: 11px; border-radius: 72px;
-    background: var(--card); border: 1px solid var(--hairline);
-    box-shadow: var(--device-shadow);
+    position: relative; padding: 14px; border-radius: 78px;
+    background: var(--bezel);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+      var(--device-shadow);
   }
-  .device-body img { display: block; width: 100%; height: auto; border-radius: 62px; }
+  .device-body::before,
+  .device-body::after {
+    /* side keys */
+    content: ''; position: absolute; width: 3px; border-radius: 2px;
+    background: var(--bezel-edge);
+  }
+  .device-body::before { left: -2px; top: 208px; height: 96px; }
+  .device-body::after { right: -2px; top: 172px; height: 150px; }
+  .device-screen {
+    position: relative; border-radius: 64px; overflow: hidden;
+    background: var(--card2);
+  }
+  .device-screen img { display: block; width: 100%; height: auto; }
+  /* camera cutout: a real notch, not a decoration, so the status bar sits clear */
+  .device-notch {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 132px; height: 34px; border-radius: 18px;
+    background: #000; z-index: 3;
+  }
+  .device-notch::after {
+    content: ''; position: absolute; right: 16px; top: 50%;
+    transform: translateY(-50%); width: 11px; height: 11px;
+    border-radius: 50%; background: #10141a;
+    box-shadow: inset 0 0 0 2px #05070a;
+  }
   .device-md { width: 640px; }
 
   .duo-stage { position: relative; z-index: 2; margin-top: 96px; height: 900px; }
@@ -315,12 +364,35 @@ function documentHTML(preview = false) {
   .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
   ${preview
-    ? `.strip { width: ${PREVIEW_W}px; }
-       .strip .slide {
-         width: ${PREVIEW_W}px;
-         height: ${Math.round(H * (PREVIEW_W / W))}px;
+    ? `/* Six slides in one horizontal row. GitHub renders a README image at up to
+         about 880 px wide, so each slide is 146 px wide: the row stays inside
+         that limit and every slide survives the thumbnail test.
+         Each cell is a real box of the scaled size, and the slide is drawn at
+         full size inside it and scaled from the top-left — a scale transform
+         alone would leave the cell at its unscaled height and collapse the row. */
+       .row {
+         display: flex;
+         flex-direction: row;
+         align-items: flex-start;
+         gap: ${ROW_GAP}px;
+         width: ${ROW_W}px;
+         background: #f1ece2;
+       }
+       .row .cell {
+         position: relative;
+         width: ${SLIDE_W}px;
+         height: ${SLIDE_H}px;
+         flex: 0 0 ${SLIDE_W}px;
+         overflow: hidden;
+       }
+       .row .slide {
+         position: absolute;
+         top: 0;
+         left: 0;
+         width: ${W}px;
+         height: ${H}px;
          padding: 0;
-         transform: scale(${PREVIEW_W / W});
+         transform: scale(${SLIDE_W / W});
          transform-origin: top left;
        }`
     : ''}
@@ -329,7 +401,9 @@ function documentHTML(preview = false) {
 ${['light', 'dark']
   .map(
     (theme) =>
-      `<div id="deck-${theme}">${SLIDES.map((slide) => slideHTML(slide, theme)).join('\n')}</div>`,
+      `<div class="row" id="row-${theme}">${SLIDES.map(
+        (slide) => `<div class="cell">${slideHTML(slide, theme)}</div>`,
+      ).join('\n')}</div>`,
   )
   .join('\n')}
 </body></html>`;
@@ -388,32 +462,21 @@ async function main() {
     }
   }
 
-  // The preview strips are the six full-size slides of one theme, captured as
-  // one element (the page's own layout box, so nothing is clipped), then
-  // downscaled to README width in the browser. Playwright's element capture
-  // ignores `scale`, so the resize is done explicitly rather than guessed at.
+  // The README rows: six slides side by side, captured at 2x so the small
+  // tiles stay crisp on a retina screen. Each row is one element, so nothing
+  // can be clipped and the row is exactly ROW_W wide however it is displayed.
+  const rowPage = await browser.newPage({
+    viewport: { width: ROW_W, height: 800 },
+    deviceScaleFactor: 2,
+  });
+  await rowPage.goto(`file://${previewFile}`);
+  await settle(rowPage);
   for (const theme of ['light', 'dark']) {
-    const handle = await page.$(`#deck-${theme}`);
-    const full = await handle.screenshot({ type: 'png' });
-    const scaled = await page.evaluate(
-      async ({ base64, width }) => {
-        const img = new Image();
-        img.src = `data:image/png;base64,${base64}`;
-        await img.decode();
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = Math.round((img.naturalHeight * width) / img.naturalWidth);
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/png').split(',')[1];
-      },
-      { base64: full.toString('base64'), width: PREVIEW_W },
-    );
     const file = path.join(OUT, `preview-${theme}.png`);
-    await writeFile(file, Buffer.from(scaled, 'base64'));
+    await (await rowPage.$(`#row-${theme}`)).screenshot({ path: file, type: 'png' });
     written.push(path.relative(APP, file));
   }
+  await rowPage.close();
 
   await browser.close();
   await rm(deckFile, { force: true });
