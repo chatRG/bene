@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
+import { seed } from './fixture.mjs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:5173';
 
@@ -15,10 +16,10 @@ const results = [];
 const check = (n, ok, d = '') => results.push(`${ok ? 'PASS' : 'FAIL'} ${n}${d ? ` — ${d}` : ''}`);
 
 await page.goto(`${BASE}`, { waitUntil: 'networkidle' });
-await page.evaluate(() => localStorage.clear());
-await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('See a sample day').click();
-await page.waitForTimeout(800);
+// No demo data ships with the app any more: plant the shared fixture so there
+// is real state for the auto-backup and the restore checks to act on.
+const fx = await seed(page);
+console.log('fixture: days', fx.dayOrder.length);
 
 const snapshot = await page.evaluate(() => localStorage.getItem('bene-snapshot'));
 check('auto snapshot created', !!snapshot);
@@ -51,11 +52,10 @@ await page.waitForTimeout(700);
 check('restore navigates home', page.url().endsWith('#/'), page.url());
 check('theme restored to light', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'light');
 
-// Import a backup file after a reset
+// Import a backup file after a reset. The reset is a clean slate, then the
+// fixture goes back in so the import has a live app to restore over.
 await page.evaluate(() => localStorage.clear());
-await page.reload({ waitUntil: 'networkidle' });
-await page.getByText('See a sample day').click();
-await page.waitForTimeout(500);
+await seed(page);
 await page.goto(`${BASE}/#/settings/backup`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 await page.locator('input[type=file]').setInputFiles(dlPath);
