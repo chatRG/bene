@@ -9,6 +9,7 @@
 import type { DayRecord } from '../domain/types';
 import type { HealthPlatform, HealthStatus } from './health';
 import { checkAccess, openSettings, platform, platformLabel, readDays, requestAccess } from './health';
+import { storeGeneration } from '../store/useAppStore';
 
 /** What the UI knows before anything has been read this session. */
 export type HealthPhase = 'checking' | 'unavailable' | 'idle' | 'denied' | 'connected';
@@ -95,6 +96,7 @@ export async function readAndImport(
   if (!status.readAuthorized.length) {
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
   }
+  const generation = storeGeneration();
   let records: DayRecord[];
   try {
     records = await readDays(days);
@@ -106,6 +108,18 @@ export async function readAndImport(
       detail: `Could not read ${label(status.platform)} just now. Nothing was imported — try again.`,
     };
   }
+  // The person may have deleted everything while the read was running. Those
+  // days belong to an account that no longer exists, so drop them rather than
+  // quietly writing health history back into a cleared store.
+  if (generation !== storeGeneration()) {
+    return {
+      ...initialLink(),
+      ...base,
+      phase: 'idle',
+      detail: 'Everything was deleted while reading, so nothing was imported.',
+    };
+  }
+
   importDays(records);
   return {
     ...initialLink(),
@@ -143,6 +157,7 @@ export async function connectAndImport(
   if (!status.readAuthorized.length) {
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
   }
+  const generation = storeGeneration();
   let records: DayRecord[];
   try {
     records = await readDays(days);
@@ -154,6 +169,18 @@ export async function connectAndImport(
       detail: `Access was granted but ${label(status.platform)} could not be read. Nothing was imported — try again.`,
     };
   }
+  // The person may have deleted everything while the read was running. Those
+  // days belong to an account that no longer exists, so drop them rather than
+  // quietly writing health history back into a cleared store.
+  if (generation !== storeGeneration()) {
+    return {
+      ...initialLink(),
+      ...base,
+      phase: 'idle',
+      detail: 'Everything was deleted while reading, so nothing was imported.',
+    };
+  }
+
   importDays(records);
   return {
     ...initialLink(),

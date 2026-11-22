@@ -314,7 +314,7 @@ export function HomeScreen() {
                           <span className="caption">{clockLabel(w.start)}</span>
                         </div>
                       ))}
-                      {derived.record.meals.slice(0, 2).map((m) => (
+                      {(state.settings.activeTabs.nutrition ? derived.record.meals : []).slice(0, 2).map((m) => (
                         <div className="list-row" key={m.id}>
                           <div className="list-icon" style={{ background: 'rgba(75,201,58,.12)', color: 'var(--green-deep)' }}><Utensils size={16} /></div>
                           <div className="grow">
@@ -324,7 +324,9 @@ export function HomeScreen() {
                           <span className="caption">{m.time}</span>
                         </div>
                       ))}
-                      {!derived.sleep && derived.record.workouts.length === 0 && derived.record.meals.length === 0 ? (
+                      {!derived.sleep &&
+                      derived.record.workouts.length === 0 &&
+                      (!state.settings.activeTabs.nutrition || derived.record.meals.length === 0) ? (
                         <div className="empty" style={{ padding: '18px 12px' }}>Nothing logged yet. Add food, an activity or last night's sleep.</div>
                       ) : null}
                     </div>

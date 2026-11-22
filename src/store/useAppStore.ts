@@ -23,6 +23,18 @@ import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } fro
 
 export const STORE_KEY = 'bene-v1';
 
+/**
+ * Advanced whenever the whole store is cleared.
+ *
+ * A health read can take seconds; if the person deletes everything while it
+ * runs, the result that arrives afterwards belongs to an account that no
+ * longer exists. Callers capture this before a read and compare it after, so
+ * stale data is discarded instead of silently restored.
+ */
+let clearGeneration = 0;
+
+export const storeGeneration = () => clearGeneration;
+
 interface AppActions {
   updateSettings: (patch: Partial<AppSettings>) => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
@@ -93,13 +105,20 @@ export const useAppStore = create<AppStore>()(
             weightKg: opts?.weightKg ?? s.profile.weightKg,
             goal: opts?.goal ?? s.profile.goal,
           };
-          // A new account starts empty: one blank day for today and nothing else.
+          // A new account starts empty: one blank day for today and nothing
+          // else. Anything already imported during onboarding survives, so
+          // connecting a health store on the first run is not thrown away when
+          // the person finishes the flow.
           const today = dateOf(new Date());
+          const imported = s.dayOrder.filter((d) => s.days[d]?.sleep || s.days[d]?.metrics.steps || s.days[d]?.workouts.length);
+          const days: Record<string, DayRecord> = {};
+          for (const date of imported) days[date] = s.days[date];
+          days[today] = days[today] ?? emptyDay(today);
           return {
             profile,
             settings: onboardedSettings,
-            days: { [today]: emptyDay(today) },
-            dayOrder: [today],
+            days,
+            dayOrder: imported.includes(today) ? imported : [...imported, today],
             journalEntries: [],
             biomarkers: [],
             healthRecords: [],
@@ -351,6 +370,7 @@ export const useAppStore = create<AppStore>()(
       exportBackupJson: () => backupJson(get()),
 
       clearAll: () => {
+        clearGeneration += 1;
         localStorage.removeItem(SNAPSHOT_KEY);
         const now = new Date().toISOString();
         set({

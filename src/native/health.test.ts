@@ -48,7 +48,21 @@ vi.mock('@capgo/capacitor-health', () => ({
     readSamples: async (opts: { dataType: string; startDate?: string; endDate?: string; limit?: number }) => {
       if (device.fail) throw new Error('permission revoked');
       device.readCalls.push({ ...opts });
-      return { samples: (device.samples as HealthSample[]).filter((s) => s.dataType === opts.dataType) };
+      // Honour the window the caller asked for, the way a real health store
+      // does. Without this every per-day read would return the whole range and
+      // the day-splitting behaviour would be untestable.
+      const from = opts.startDate ? Date.parse(opts.startDate) : -Infinity;
+      const to = opts.endDate ? Date.parse(opts.endDate) : Infinity;
+      const inWindow = (device.samples as HealthSample[]).filter((s) => {
+        if (s.dataType !== opts.dataType) return false;
+        // A record counts if any part of it falls in the window: a night of
+        // sleep starts the evening before it is filed under.
+        const starts = Date.parse(s.startDate);
+        const ends = Date.parse(s.endDate ?? s.startDate);
+        return ends >= from && starts <= to;
+      });
+      const limit = opts.limit ?? inWindow.length;
+      return { samples: inWindow.slice(0, limit) };
     },
     queryWorkouts: async (opts: { startDate?: string; endDate?: string }) => {
       if (device.fail) throw new Error('permission revoked');
@@ -409,8 +423,10 @@ describe('readDays: queries', () => {
     await onDevice();
     await readDays(7);
 
-    const types = device.readCalls.map((c) => c.dataType).sort();
-    expect(types).toEqual(
+    // Heart rate is read one day at a time so no single query can hit the
+    // platform's sample cap and silently truncate the tail of the range.
+    const types = new Set(device.readCalls.map((c) => c.dataType));
+    expect([...types].sort()).toEqual(
       [
         'bodyTemperature',
         'calories',
@@ -424,9 +440,15 @@ describe('readDays: queries', () => {
         'steps',
       ].sort(),
     );
+    const hrCalls = device.readCalls.filter((c) => c.dataType === 'heartRate');
+    expect(hrCalls).toHaveLength(7);
+    for (const call of hrCalls) {
+      const day = at(call.endDate!) - at(call.startDate!);
+      expect(day).toBeLessThanOrEqual(86400000);
+    }
     expect(device.workoutCalls).toHaveLength(1);
 
-    const first = device.readCalls[0];
+    const first = device.readCalls.find((c) => c.dataType === 'sleep')!;
     const span = at(first.endDate!) - at(first.startDate!);
     // `start` is counted back from end-of-today, so the window is at least
     // `days` long and reaches the end of today or last night's tail is missed.
@@ -510,7 +532,7 @@ describe('readDays: unit conversion on workouts', () => {
     expect(w.durationMin).toBe(32);
   });
 
-  it('maps the workout types Bene knows and marks the rest as other', async () => {
+  it('maps the workout types Bene knows and keeps unknown ones inside WorkoutKind', async () => {
     await onDevice();
     const cases: [string, string][] = [
       ['running', 'run'],
@@ -522,8 +544,10 @@ describe('readDays: unit conversion on workouts', () => {
       ['traditionalStrengthTraining', 'strength'],
       ['highIntensityIntervalTraining', 'hiit'],
       ['yoga', 'yoga'],
-      ['rowing', 'other'],
-      ['unknownFutureType', 'other'],
+      // WorkoutKind is a closed set with no 'other'. An unrecognised type must
+      // still land on a real member, or the bundle fails to type-check.
+      ['rowing', 'walk'],
+      ['unknownFutureType', 'walk'],
     ];
     device.workouts = cases.map(([type], i) =>
       workout({
@@ -730,6 +754,54 @@ describe('readDays: never invents a day', () => {
 });
 
 /** The invariant readDays promises its callers: a day exists only because it has data. */
+describe('readDays: heart rate is never silently truncated', () => {
+  it('reads heart rate in per-day windows rather than one capped range query', async () => {
+    await onDevice();
+    device.samples = [sample('heartRate', 60, day(twoAgo(), '12:00'), 'bpm')];
+
+    await readDays(7);
+
+    const hrCalls = device.readCalls.filter((c) => c.dataType === 'heartRate');
+    expect(hrCalls).toHaveLength(7);
+    for (const call of hrCalls) {
+      const window = at(call.endDate!) - at(call.startDate!);
+      expect(window).toBeGreaterThan(0);
+      expect(window).toBeLessThanOrEqual(86400000);
+    }
+    // The windows must tile the range without gaps or overlap.
+    for (let i = 1; i < hrCalls.length; i += 1) {
+      expect(at(hrCalls[i].startDate!)).toBe(at(hrCalls[i - 1].endDate!) + 1);
+    }
+  });
+
+  it('leaves worn time unknown for a day whose read hit the sample cap', async () => {
+    await onDevice();
+    // A day that returns exactly at the 4000-sample cap cannot be trusted to be
+    // complete, so its worn time must not be presented as a real number.
+    const fullDay: HealthSample[] = [];
+    // 4,000 samples spread across the day, one every 21.6 seconds, so the day
+    // genuinely reaches the per-day cap.
+    for (let i = 0; i < 4000; i += 1) {
+      const secs = Math.floor((i * 86400) / 4000);
+      const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+      const ss = String(secs % 60).padStart(2, '0');
+      fullDay.push(sample('heartRate', 60 + (i % 20), day(yesterday(), `${hh}:${mm}:${ss}`), 'bpm'));
+    }
+    device.samples = fullDay;
+
+    const days = await readDays(7);
+    const capped = days.find((d) => d.date === yesterday());
+    // The capped day must actually have been read for the assertion to mean
+    // anything; fail loudly instead of reporting "undefined".
+    expect(days.map((d) => d.date)).toContain(yesterday());
+    expect(capped).toBeDefined();
+    expect(capped!.metrics.wearMinutes).toBe(0);
+    // The samples themselves are still kept; only the inference is withheld.
+    expect(capped!.metrics.hrSamples.length).toBeGreaterThan(0);
+  });
+});
+
 function hasEvidence(record: DayRecord): boolean {
   const date: ISODate = record.date;
   expect(record.metrics.date).toBe(date);

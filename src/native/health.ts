@@ -214,7 +214,10 @@ function toWorkout(w: HealthWorkout): Workout {
     : Math.round((new Date(w.endDate).getTime() - new Date(w.startDate).getTime()) / 60000);
   return {
     id: w.platformId ?? `hc-${w.startDate}`,
-    kind: WORKOUT_MAP[String(w.workoutType)] ?? 'other',
+    // Unknown workout types fall back to a walk rather than an invented
+    // 'other' kind: WorkoutKind is a closed set, and every consumer already
+    // handles this one. The platform's own name is kept in `name`.
+    kind: WORKOUT_MAP[String(w.workoutType)] ?? 'walk',
     name: String(w.workoutType),
     date: dateKey(new Date(w.startDate)),
     start: w.startDate,
@@ -236,6 +239,58 @@ function toWorkout(w: HealthWorkout): Workout {
  * date that has anything in it. Days with nothing are omitted so the caller
  * never overwrites a hand-logged day with emptiness.
  */
+/**
+ * Heart rate for each day of the range, read one day at a time.
+ *
+ * A single query over 30 days is capped by the platform at a few thousand
+ * samples, and there is no continuation token for samples, so a watch-worn
+ * user silently loses the tail of the range: those days arrive with fewer
+ * samples and a lower worn time, yet look complete. Reading a day at a time
+ * keeps every day under the cap and makes a truncated day detectable rather
+ * than invisible.
+ */
+async function readHeartRateByDay(
+  start: Date,
+  days: number,
+): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  const PER_DAY = 4000;
+  const chunks: { from: Date; to: Date }[] = [];
+  for (let i = 0; i < days; i += 1) {
+    const from = new Date(start.getTime() + i * 86400000);
+    const to = new Date(from.getTime() + 86400000 - 1);
+    chunks.push({ from, to });
+  }
+
+  const pages = await Promise.all(
+    chunks.map(({ from, to }) =>
+      Health.readSamples({
+        dataType: 'heartRate',
+        startDate: from.toISOString(),
+        endDate: to.toISOString(),
+        limit: PER_DAY,
+        ascending: true,
+      }).catch(() => ({ samples: [] })),
+    ),
+  );
+
+  // A day that comes back exactly at the cap may have been cut short. Its rate
+  // is still worth showing, but it must not be presented as complete, so mark
+  // it and let the caller drop that day's worn-time estimate.
+  const samples: HealthSample[] = [];
+  const truncated = new Set<string>();
+  for (let i = 0; i < pages.length; i += 1) {
+    const page = pages[i].samples;
+    // Key the warning by the same local date the samples are filed under, not
+    // by the chunk boundary: the window starts from a rolling timestamp, so
+    // dateKey(chunks[i].from) need not equal the day the records land on.
+    if (page.length >= PER_DAY) {
+      for (const s of page) truncated.add(dateKey(new Date(s.startDate)));
+    }
+    samples.push(...page);
+  }
+  return { samples, truncated };
+}
+
 export async function readDays(days = 30): Promise<DayRecord[]> {
   const p = platform();
   if (p === 'unavailable') return [];
@@ -254,7 +309,7 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     Health.readSamples({ dataType: 'bodyTemperature', ...range, limit: 500 }).catch(() => ({ samples: [] })),
     Health.readSamples({ dataType: 'steps', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
     Health.readSamples({ dataType: 'calories', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'heartRate', ...range, limit: 4000 }).catch(() => ({ samples: [] })),
+    readHeartRateByDay(start, days),
     Health.readSamples({ dataType: 'exerciseTime', ...range, limit: 500 }).catch(() => ({ samples: [] })),
     Health.queryWorkouts({ ...range, limit: 200, ascending: true }).catch(() => ({ workouts: [] })),
   ]);
@@ -327,6 +382,9 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     ...sleep.samples.map((s) => dateKey(new Date(s.endDate))),
     ...steps.samples.map((s) => dateKey(new Date(s.startDate))),
     ...workouts.workouts.map((w) => dateKey(new Date(w.startDate))),
+    // A day evidenced only by heart rate still happened, and its samples are
+    // what build the stress and worn-time picture.
+    ...hr.samples.map((s) => dateKey(new Date(s.startDate))),
   ]);
 
   for (const date of dates) {
@@ -351,7 +409,10 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
         .filter((s) => dateKey(new Date(s.startDate)) === date)
         .map((s) => Math.floor(new Date(s.startDate).getTime() / 60000)),
     ).size;
-    day.metrics.wearMinutes = hrMinutes;
+    // A day whose read hit the per-day cap has an unknown amount of missing
+    // data, so its worn time would read low. Leave it unknown rather than
+    // reporting a number the store cannot stand behind.
+    day.metrics.wearMinutes = hr.truncated.has(date) ? 0 : hrMinutes;
     day.workouts = workouts.workouts
       .filter((w) => dateKey(new Date(w.startDate)) === date)
       .map(toWorkout);
