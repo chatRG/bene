@@ -39,8 +39,6 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-Four to a row: light, dark, then the next screen. A true-black midnight theme ships as well.
-
 | | | | |
 |---|---|---|---|
 | <img src="docs/screenshots/home.png" width="150" alt="Home light"> | <img src="docs/screenshots/dark-home.png" width="150" alt="Home dark"> | <img src="docs/screenshots/recovery.png" width="150" alt="Recovery light"> | <img src="docs/screenshots/dark-recovery.png" width="150" alt="Recovery dark"> |
