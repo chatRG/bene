@@ -39,44 +39,19 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-Each screen in light, then the same screen in dark. A true-black midnight theme
-ships as well.
+Light and dark, side by side. A true-black midnight theme ships as well.
 
-| Light | Dark |
+| | |
 |---|---|
-| ![](docs/screenshots/home.png) | ![](docs/screenshots/dark-home.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/recovery.png) | ![](docs/screenshots/dark-recovery.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/sleep.png) | ![](docs/screenshots/dark-sleep.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/strain.png) | ![](docs/screenshots/dark-strain.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/fitness.png) | ![](docs/screenshots/dark-fitness.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/nutrition.png) | ![](docs/screenshots/dark-nutrition.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/journal.png) | ![](docs/screenshots/dark-journal.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/biology.png) | ![](docs/screenshots/dark-biology.png) |
-
-| Light | Dark |
-|---|---|
-| ![](docs/screenshots/intelligence.png) | ![](docs/screenshots/dark-intelligence.png) |
+| <img src="docs/screenshots/home.png" width="150" alt="Home light"> | <img src="docs/screenshots/dark-home.png" width="150" alt="Home dark"> |
+| <img src="docs/screenshots/recovery.png" width="150" alt="Recovery light"> | <img src="docs/screenshots/dark-recovery.png" width="150" alt="Recovery dark"> |
+| <img src="docs/screenshots/sleep.png" width="150" alt="Sleep light"> | <img src="docs/screenshots/dark-sleep.png" width="150" alt="Sleep dark"> |
+| <img src="docs/screenshots/strain.png" width="150" alt="Strain light"> | <img src="docs/screenshots/dark-strain.png" width="150" alt="Strain dark"> |
+| <img src="docs/screenshots/fitness.png" width="150" alt="Fitness light"> | <img src="docs/screenshots/dark-fitness.png" width="150" alt="Fitness dark"> |
+| <img src="docs/screenshots/nutrition.png" width="150" alt="Nutrition light"> | <img src="docs/screenshots/dark-nutrition.png" width="150" alt="Nutrition dark"> |
+| <img src="docs/screenshots/journal.png" width="150" alt="Journal light"> | <img src="docs/screenshots/dark-journal.png" width="150" alt="Journal dark"> |
+| <img src="docs/screenshots/biology.png" width="150" alt="Biology light"> | <img src="docs/screenshots/dark-biology.png" width="150" alt="Biology dark"> |
+| <img src="docs/screenshots/intelligence.png" width="150" alt="Coach light"> | <img src="docs/screenshots/dark-intelligence.png" width="150" alt="Coach dark"> |
 
 ## Quick start
 
