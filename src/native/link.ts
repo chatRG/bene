@@ -28,6 +28,8 @@ export interface HealthLink {
   detail: string;
   readAuthorized: string[];
   readDenied: string[];
+  /** The OS's own explanation for an unavailable store, when it gives one. */
+  reason?: string;
 }
 
 /** How far back Bene reads on a connect or a manual sync. */
@@ -55,16 +57,23 @@ export function initialLink(p: HealthPlatform = platform()): HealthLink {
   };
 }
 
-function unavailableDetail(p: HealthPlatform): string {
+function unavailableDetail(p: HealthPlatform, reason?: string): string {
   if (p === 'apple-health') {
     // iOS on a phone always has a store; this only happens if HealthKit is off.
     return 'Apple Health is not reachable on this device. You can log everything by hand.';
   }
   if (p === 'health-connect') {
-    /* Two causes, and the user can act on one of them: Health Connect may not
-       be installed on this phone at all. Saying "in this build" blamed the app
-       for something it cannot fix. */
-    return 'Health Connect is not installed or not available on this phone. Install Health Connect from the Play Store to import sleep, heart rate and activity. Until then you can log everything by hand.';
+    /* Health Connect reports two different failures and they need different
+       advice. "Needs an update" means it is installed and an update fixes it;
+       "unavailable" means it is not on the phone. Flattening both into one
+       sentence leaves the user with no next step. */
+    if (reason && /update/i.test(reason)) {
+      return 'Health Connect is installed but needs an update. Update it from the Play Store, then connect again.';
+    }
+    if (reason) {
+      return `Health Connect is not available on this phone (${reason}) Install it from the Play Store, then connect again.`;
+    }
+    return 'Health Connect is not available on this phone. Install or enable it from the Play Store, then connect again.';
   }
   return 'Bene opens on a phone to read Apple Health or Health Connect — until then everything here is logged by hand.';
 }
@@ -82,13 +91,16 @@ export function describe(days: number): string {
 }
 
 
-function fromStatus(status: HealthStatus): Pick<HealthLink, 'available' | 'platform' | 'platformLabel' | 'readAuthorized' | 'readDenied'> {
+function fromStatus(
+  status: HealthStatus,
+): Pick<HealthLink, 'available' | 'platform' | 'platformLabel' | 'readAuthorized' | 'readDenied' | 'reason'> {
   return {
     available: status.available,
     platform: status.platform,
     platformLabel: label(status.platform),
     readAuthorized: status.readAuthorized.map(String),
     readDenied: status.readDenied.map(String),
+    reason: status.reason,
   };
 }
 
@@ -100,7 +112,7 @@ export async function readAndImport(
   const status = await checkAccess();
   const base = fromStatus(status);
   if (!status.available) {
-    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform) };
+    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform, status.reason) };
   }
   if (!status.readAuthorized.length) {
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
@@ -161,7 +173,7 @@ export async function connectAndImport(
   }
   const base = fromStatus(status);
   if (!status.available) {
-    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform) };
+    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform, status.reason) };
   }
   if (!status.readAuthorized.length) {
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
@@ -206,7 +218,7 @@ export async function probeAccess(): Promise<HealthLink> {
   const status = await checkAccess();
   const base = fromStatus(status);
   if (!status.available) {
-    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform) };
+    return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform, status.reason) };
   }
   if (!status.readAuthorized.length) {
     return {

@@ -49,6 +49,13 @@ export interface HealthStatus {
   platform: HealthPlatform;
   readAuthorized: HealthDataType[];
   readDenied: HealthDataType[];
+  /**
+   * Why the store is unavailable, as the OS reports it. Health Connect
+   * distinguishes "not installed" from "installed but needs an update", and
+   * those need different advice, so the distinction is carried out to the UI
+   * rather than flattened into one message.
+   */
+  reason?: string;
 }
 
 /** Ask the OS for read access. The permission sheet appears once. */
@@ -57,9 +64,9 @@ export async function requestAccess(): Promise<HealthStatus> {
   if (p === 'unavailable') {
     return { available: false, platform: p, readAuthorized: [], readDenied: [] };
   }
-  const { available } = await Health.isAvailable();
-  if (!available) {
-    return { available: false, platform: p, readAuthorized: [], readDenied: [] };
+  const probe = await Health.isAvailable();
+  if (!probe.available) {
+    return { available: false, platform: p, readAuthorized: [], readDenied: [], reason: probe.reason };
   }
   // Android caps reads to ~30 days without history access; iOS ignores the flag.
   const status = await Health.requestAuthorization({
@@ -81,8 +88,10 @@ export async function checkAccess(): Promise<HealthStatus> {
     return { available: false, platform: p, readAuthorized: [], readDenied: [] };
   }
   try {
-    const { available } = await Health.isAvailable();
-    if (!available) return { available: false, platform: p, readAuthorized: [], readDenied: [] };
+    const probe = await Health.isAvailable();
+    if (!probe.available) {
+      return { available: false, platform: p, readAuthorized: [], readDenied: [], reason: probe.reason };
+    }
     const status = await Health.checkAuthorization({ read: READ_TYPES });
     return {
       available: true,

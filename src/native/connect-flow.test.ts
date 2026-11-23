@@ -160,6 +160,37 @@ describe('health link flow', () => {
     expect(detail).not.toMatch(/build/i);
   });
 
+  it('turns "needs an update" into advice to update, not to install', async () => {
+    /* Health Connect reports two different failures. "Needs an update" means it
+       is installed; "unavailable" means it is not. Telling someone to install
+       something they already have leaves them with no next step. */
+    bridge.requestAccess.mockResolvedValue({
+      available: false,
+      platform: 'health-connect',
+      readAuthorized: [],
+      readDenied: [],
+      reason: 'Health Connect needs an update.',
+    });
+    const link = await connectAndImport(vi.fn());
+    expect(link.phase).toBe('unavailable');
+    expect(link.detail).toMatch(/update/i);
+    expect(link.detail).not.toMatch(/install it from the play store, then connect again/i);
+  });
+
+  it('repeats the OS reason when the store is simply missing', async () => {
+    bridge.requestAccess.mockResolvedValue({
+      available: false,
+      platform: 'health-connect',
+      readAuthorized: [],
+      readDenied: [],
+      reason: 'Health Connect is unavailable on this device.',
+    });
+    const link = await connectAndImport(vi.fn());
+    expect(link.phase).toBe('unavailable');
+    expect(link.detail).toMatch(/install/i);
+    expect(link.detail).toMatch(/unavailable on this device/i);
+  });
+
   it('uses the same sentence for one day and many', () => {
     expect(sentence(1)).toBe('Connected — 1 day of history read on this device.');
     expect(none().available).toBe(false);
