@@ -25,7 +25,7 @@ const REPO = 'https://github.com/chatRG/bene';
  * shortcut cannot point at a file, so the tag is named explicitly — bump it
  * together with `versionName` in android/app/build.gradle.
  */
-const RELEASE_VERSION = '0.3.4';
+const RELEASE_VERSION = '0.3.5';
 const DOWNLOAD_URL = `${REPO}/releases/download/v${RELEASE_VERSION}/bene-v${RELEASE_VERSION}-release.apk`;
 
 async function inviteAFriend() {
@@ -106,7 +106,7 @@ export function ProfileScreen() {
       </div>
 
       <div className="settings-footer">
-        Bene 0.3.4<br />
+        Bene 0.3.5<br />
         Health estimates are not medical advice.
       </div>
       <div className="row gap-6" style={{ justifyContent: 'center' }}>

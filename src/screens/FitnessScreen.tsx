@@ -36,7 +36,7 @@ export function FitnessScreen() {
   const calibrated = load.status !== 'Calibrating';
 
   return (
-    <div className="screen">
+    <div className="screen screen--enter">
       <div className="app-header">
         <div>
           <div className="h1">Fitness</div>

@@ -101,7 +101,7 @@ export function NutritionScreen() {
   const filtered = FOODS.filter((f) => f.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="screen nutrition-page">
+    <div className="screen nutrition-page screen--enter">
       <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
         <div />
         <div>

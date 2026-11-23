@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
@@ -28,6 +28,8 @@ import { Ring, Sheet, SectionHead } from '../components/ui';
 import { EnergyBar } from '../components/charts';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
+import { PullToRefresh } from '../components/pull-to-refresh';
+import { readAndImport } from '../native/link';
 import type { ActivityStatus } from '../domain/types';
 
 const CARD_META: Record<string, { title: string; blurb: string }> = {
@@ -119,6 +121,26 @@ export function HomeScreen() {
     setDraft((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
   };
 
+  /* Pull to refresh does the one thing that can bring in new numbers: read the
+     health store and merge whatever it has. The date is rolled first, so a pull
+     just after midnight lands on the new day rather than the old one. */
+  const importHealthDays = useAppStore((s) => s.importHealthDays);
+  const ensureToday = useAppStore((s) => s.ensureToday);
+
+  const refresh = useCallback(async () => {
+    ensureToday();
+    const link = await readAndImport(importHealthDays);
+    showToast(
+      link.phase === 'connected'
+        ? link.days
+          ? `Synced ${link.days} ${link.days === 1 ? 'day' : 'days'}`
+          : 'Already up to date'
+        : link.phase === 'denied'
+          ? 'Health access was not granted'
+          : 'No health store to sync',
+    );
+  }, [ensureToday, importHealthDays]);
+
   const quickJournal = (tagId: string, value: 'yes' | 'no') => {
     state.addJournal(today, tagId, value);
     const tag = state.journalTags.find((t) => t.id === tagId);
@@ -126,7 +148,8 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="screen home-screen">
+    <PullToRefresh onRefresh={refresh}>
+      <div className="screen home-screen">
       <div className="home-top">
         <div className="home-top__left">
           <button className={`status-chip ${status !== 'active' ? 'status-chip--alert' : ''}`} onClick={() => setStatusOpen(true)}>
@@ -485,7 +508,8 @@ export function HomeScreen() {
           </div>
         </Sheet>
       ) : null}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }
 
