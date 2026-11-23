@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HealthSample, SleepStage, Workout as HealthWorkout } from '@capgo/capacitor-health';
 import type { DayRecord, ISODate } from '../domain/types';
-import { platform, platformLabel, toSleepSession } from './health';
+import { checkAccess, platform, platformLabel, requestAccess, toSleepSession } from './health';
 
 /**
  * health.ts is the seam between the phone's health store and Bene's own shapes.
@@ -25,6 +25,12 @@ const device = vi.hoisted(() => ({
   readCalls: [] as { dataType: string; startDate?: string; endDate?: string; limit?: number }[],
   workoutCalls: [] as { startDate?: string; endDate?: string }[],
   fail: false,
+  /** What the SDK status probe answers. It is a hint, not the truth. */
+  available: true,
+  /** Why the probe says no, when it says no. */
+  reason: undefined as string | undefined,
+  /** Whether the real read/write calls throw. */
+  authFails: false,
 }));
 
 /**
@@ -41,9 +47,15 @@ vi.mock('@capacitor/core', async (importOriginal) => {
 
 vi.mock('@capgo/capacitor-health', () => ({
   Health: {
-    isAvailable: async () => ({ available: true }),
-    requestAuthorization: async () => ({ readAuthorized: [], readDenied: [] }),
-    checkAuthorization: async () => ({ readAuthorized: [], readDenied: [] }),
+    isAvailable: async () => ({ available: device.available, reason: device.reason }),
+    requestAuthorization: async (opts: { read?: string[] }) => {
+      if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
+      return { readAuthorized: opts.read ?? [], readDenied: [] };
+    },
+    checkAuthorization: async (opts: { read?: string[] }) => {
+      if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
+      return { readAuthorized: opts.read ?? [], readDenied: [] };
+    },
     openHealthConnectSettings: async () => undefined,
     readSamples: async (opts: { dataType: string; startDate?: string; endDate?: string; limit?: number }) => {
       if (device.fail) throw new Error('permission revoked');
@@ -815,3 +827,59 @@ function hasEvidence(record: DayRecord): boolean {
     record.metrics.hrSamples.length > 0
   );
 }
+
+
+/**
+ * A phone with Health Connect built into the system — a Samsung on One UI 6,
+ * for instance — can answer "unavailable" to the SDK status probe while the
+ * store itself answers perfectly well and the user has already granted read
+ * access. Gating the whole feature on that probe made Bene insist there was no
+ * health store on a device whose settings screen it could open.
+ */
+describe('availability: the probe is a hint, not the truth', () => {
+  afterEach(() => {
+    device.platform = 'web';
+    device.available = true;
+    device.reason = undefined;
+    device.authFails = false;
+  });
+
+  it('reads the store even when the probe says unavailable', async () => {
+    device.platform = 'android';
+    device.available = false;
+    device.reason = 'Health Connect is unavailable on this device.';
+
+    const status = await checkAccess();
+
+    expect(status.available).toBe(true);
+    expect(status.readAuthorized.length).toBeGreaterThan(0);
+  });
+
+  it('prompts for access even when the probe says unavailable', async () => {
+    device.platform = 'android';
+    device.available = false;
+
+    const status = await requestAccess();
+
+    expect(status.available).toBe(true);
+    expect(status.readAuthorized.length).toBeGreaterThan(0);
+  });
+
+  it('reports unavailable only when the store itself refuses', async () => {
+    device.platform = 'android';
+    device.authFails = true;
+    device.available = false;
+    device.reason = 'Health Connect needs an update.';
+
+    const status = await checkAccess();
+
+    expect(status.available).toBe(false);
+    expect(status.reason).toMatch(/update/i);
+  });
+
+  it('still reports unavailable in a browser', async () => {
+    device.platform = 'web';
+    const status = await checkAccess();
+    expect(status.available).toBe(false);
+  });
+});

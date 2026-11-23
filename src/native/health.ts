@@ -58,27 +58,62 @@ export interface HealthStatus {
   reason?: string;
 }
 
+/**
+ * Why the store said no, when it says no.
+ *
+ * isAvailable() is a hint, never a gate. On phones where Health Connect is
+ * built into the system rather than installed as an app — a Samsung on One UI
+ * 6 at Android 14, for one — the SDK status probe can report unavailable while
+ * the store answers perfectly well and the user has already granted read
+ * access. Trusting the probe there made Bene claim there was no health store
+ * directly above a settings screen that opened that same store.
+ *
+ * So the real call is attempted first and availability is inferred from it
+ * succeeding. The probe is consulted afterwards, only to explain a failure.
+ */
+async function availabilityReason(): Promise<string | undefined> {
+  try {
+    const probe = await Health.isAvailable();
+    return probe.available ? undefined : probe.reason;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The bridge rejects with a plain object or an Error depending on the plugin. */
+function messageOf(error: unknown): string | undefined {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
+  return undefined;
+}
+
 /** Ask the OS for read access. The permission sheet appears once. */
 export async function requestAccess(): Promise<HealthStatus> {
   const p = platform();
   if (p === 'unavailable') {
     return { available: false, platform: p, readAuthorized: [], readDenied: [] };
   }
-  const probe = await Health.isAvailable();
-  if (!probe.available) {
-    return { available: false, platform: p, readAuthorized: [], readDenied: [], reason: probe.reason };
+  try {
+    // Android caps reads to ~30 days without history access; iOS ignores the flag.
+    const status = await Health.requestAuthorization({
+      read: READ_TYPES,
+      requestHistoryAccess: true,
+    });
+    return {
+      available: true,
+      platform: p,
+      readAuthorized: status.readAuthorized,
+      readDenied: status.readDenied,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      platform: p,
+      readAuthorized: [],
+      readDenied: [],
+      reason: (await availabilityReason()) ?? messageOf(error),
+    };
   }
-  // Android caps reads to ~30 days without history access; iOS ignores the flag.
-  const status = await Health.requestAuthorization({
-    read: READ_TYPES,
-    requestHistoryAccess: true,
-  });
-  return {
-    available: true,
-    platform: p,
-    readAuthorized: status.readAuthorized,
-    readDenied: status.readDenied,
-  };
 }
 
 /** Check access without prompting, for the settings screen's status row. */
@@ -88,10 +123,6 @@ export async function checkAccess(): Promise<HealthStatus> {
     return { available: false, platform: p, readAuthorized: [], readDenied: [] };
   }
   try {
-    const probe = await Health.isAvailable();
-    if (!probe.available) {
-      return { available: false, platform: p, readAuthorized: [], readDenied: [], reason: probe.reason };
-    }
     const status = await Health.checkAuthorization({ read: READ_TYPES });
     return {
       available: true,
@@ -99,8 +130,14 @@ export async function checkAccess(): Promise<HealthStatus> {
       readAuthorized: status.readAuthorized,
       readDenied: status.readDenied,
     };
-  } catch {
-    return { available: false, platform: p, readAuthorized: [], readDenied: [] };
+  } catch (error) {
+    return {
+      available: false,
+      platform: p,
+      readAuthorized: [],
+      readDenied: [],
+      reason: (await availabilityReason()) ?? messageOf(error),
+    };
   }
 }
 

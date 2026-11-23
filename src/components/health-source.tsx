@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronRight, Heart, Loader2, RefreshCw, Settings2, Smartphone, ExternalLink } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Heart, Loader2, RefreshCw, Settings2, Smartphone } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { ListRow } from './ui';
 import { showToast } from './toast';
@@ -122,23 +122,26 @@ export function HealthSourceCard({
         <>
           <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
             {p === 'health-connect'
-              ? 'Health Connect is a separate component on Android and this phone is not reporting it as available, so there is nothing to read yet. Anything you log by hand is real, stored on this device, and needs no account.'
+              ? 'Bene could not read Health Connect. Open Health Connect settings and check that Bene is allowed to read sleep, heart rate and activity. Anything you log by hand is real, stored on this device, and needs no account.'
               : p === 'apple-health'
                 ? 'HealthKit is not reachable on this device, so there is nothing to read yet. Anything you log by hand is real, stored on this device, and needs no account.'
                 : 'Bene runs in this browser with no health store behind it, so the connect action stays honest rather than pretending. On a phone it reads Apple Health on iOS and Health Connect on Android, straight from the device. Anything you log by hand is real, stored on this device, and needs no account.'}
           </p>
           {p === 'health-connect' ? (
             <div className="health-source__actions">
+              {/* One button, because there are two very different phones. Where
+                  Health Connect is built into the system — Samsung on One UI 6,
+                  for one — opening its settings works and a Play Store listing
+                  is nonsense. Where it is genuinely absent the intent fails, so
+                  the store is opened instead. */}
               <button
                 className="btn btn--soft btn--block"
-                onClick={() => window.open(HEALTH_CONNECT_PLAY, '_blank', 'noopener')}
-              >
-                <ExternalLink size={16} /> Get Health Connect
-              </button>
-              <button
-                className="btn btn--soft btn--block mt-8"
-                onClick={() => {
-                  openSettings().catch(() => showToast('Health Connect settings could not be opened'));
+                onClick={async () => {
+                  try {
+                    await openSettings();
+                  } catch {
+                    window.open(HEALTH_CONNECT_PLAY, '_blank', 'noopener');
+                  }
                 }}
               >
                 <Settings2 size={16} /> Open Health Connect settings
