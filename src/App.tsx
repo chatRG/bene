@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
 import type { ThemeMode } from './domain/types';
-import { useNativeBackButton } from './native';
+import { TAB_ROOTS, useNativeBackButton } from './native';
 import { TabBar } from './components/ui';
-import { ToastHost } from './components/toast';
+import { ToastHost, showToast } from './components/toast';
 import { HomeScreen } from './screens/HomeScreen';
 import { RecoveryScreen } from './screens/RecoveryScreen';
 import { SleepScreen } from './screens/SleepScreen';
@@ -21,7 +21,10 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { WorkoutDetailScreen } from './screens/WorkoutDetailScreen';
 import { RecordsScreen } from './screens/RecordsScreen';
 
-const TABS = ['/', '/fitness', '/journal', '/biology', '/intelligence'];
+// The tab roots, plus the chat screen, which keeps the bar so a conversation
+// can still be left by tapping a tab. Both come from one list: the shell's idea
+// of a tab and the back gesture's idea of the top of the app must not drift.
+const CHAT = '/chat/';
 
 const THEME_COLOR: Record<string, string> = {
   light: '#F7F6F2',
@@ -48,8 +51,16 @@ function ThemeSync() {
   return null;
 }
 
-function BackToPreviousScreen() {
-  useNativeBackButton();
+/**
+ * Mounts the shell's back behaviour. Named for what it replaces: the web view's
+ * own idea of going back to the previous page.
+ *
+ * The toast is the same one the app uses everywhere else, so the prompt before
+ * closing looks like the rest of the app rather than a system dialog.
+ */
+function NativeBack() {
+  const promptExit = useCallback(() => showToast('Press back again to exit'), []);
+  useNativeBackButton(promptExit);
   return null;
 }
 
@@ -61,7 +72,7 @@ function Shell() {
   const lastBackupAt = useAppStore((s) => s.settings.lastBackupAt);
   const backupNow = useAppStore((s) => s.backupNow);
   const activeTabs = useAppStore((s) => s.settings.activeTabs);
-  const isTab = TABS.includes(location.pathname) || location.pathname.startsWith('/chat/');
+  const isTab = TAB_ROOTS.includes(location.pathname) || location.pathname.startsWith(CHAT);
   const isOnboarding = location.pathname === '/onboarding';
 
   useEffect(() => {
@@ -96,7 +107,6 @@ function Shell() {
 
   return (
     <div className="app-shell">
-      <BackToPreviousScreen />
       <Routes>
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/" element={<HomeScreen />} />
@@ -127,6 +137,7 @@ export default function App() {
   return (
     <HashRouter>
       <ThemeSync />
+      <NativeBack />
       <Shell />
     </HashRouter>
   );

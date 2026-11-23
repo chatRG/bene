@@ -6,11 +6,13 @@ import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
+import { useGoBack } from '../native';
 import type { Workout } from '../domain/types';
 
 export function WorkoutDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const back = useGoBack();
   const state = useAppStore();
   const routine = state.routines.find((r) => r.id === id);
   const workout = useMemo(() => {
@@ -34,7 +36,7 @@ export function WorkoutDetailScreen() {
   if (!routine && !workout) {
     return (
       <div className="screen screen--detail">
-        <div className="detail-head"><button className="icon-btn" onClick={() => navigate(-1)}><ChevronLeft size={20} /></button><div className="detail-head__title">Workout</div><div /></div>
+        <div className="detail-head"><button className="icon-btn" onClick={() => back()}><ChevronLeft size={20} /></button><div className="detail-head__title">Workout</div><div /></div>
         <div className="empty">Workout not found.</div>
       </div>
     );
@@ -45,7 +47,7 @@ export function WorkoutDetailScreen() {
     return (
       <div className="screen screen--detail" style={{ background: 'var(--bg)' }}>
         <div className="detail-head">
-          <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Close"><ChevronLeft size={20} /></button>
+          <button className="icon-btn icon-btn--soft" onClick={() => back()} aria-label="Close"><ChevronLeft size={20} /></button>
           <div />
           <div className="detail-head__right">
             <button className="icon-btn icon-btn--soft" onClick={() => setMenuOpen(true)} aria-label="More"><MoreHorizontal size={19} /></button>
@@ -188,7 +190,7 @@ export function WorkoutDetailScreen() {
   return (
     <div className="screen screen--detail">
       <div className="detail-head">
-        <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
+        <button className="icon-btn icon-btn--soft" onClick={() => back()} aria-label="Back"><ChevronLeft size={20} /></button>
         <div className="detail-head__title">{w.kind === 'strength' ? 'Strength' : 'Cardio'}</div>
         <div />
       </div>

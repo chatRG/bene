@@ -7,39 +7,54 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    // True while the web layer is answering a press. A second press that arrives
+    // before the answer would pop two screens for one gesture.
+    private boolean asking = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // The web view's own canGoBack() is not the question we need answered.
-        // It reports true for the entry the router is already sitting on, so
-        // pressing back popped a no-op and the screen did not change: the first
-        // press did nothing visible and the second one left. The web layer
-        // publishes a function that reads the router's real position, and it is
-        // asked on every press rather than cached, since a press can land
-        // before any state refresh.
+        // The back gesture belongs to the app, not to the web view. Capacitor's
+        // default would walk the web view's history, which is browser history:
+        // it includes every tab the person has visited, so back from Home went
+        // to whichever tab was open before instead of closing the app.
+        //
+        // The web layer owns the rule — it knows whether a sheet is open, and how
+        // deep the current screen is — so each press is asked one question:
+        // "handled, or leave?" Only this class can leave, because leaving means
+        // finishing the activity.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 WebView webView = getBridge() != null ? getBridge().getWebView() : null;
                 if (webView == null) {
-                    fallThrough();
+                    leave();
                     return;
                 }
+                if (asking) {
+                    return;
+                }
+                asking = true;
+                // The answer is the string 'handled' or 'exit'. A missing bridge
+                // (the page has not loaded yet) reads as 'exit', which is the same
+                // thing the platform would do.
                 webView.evaluateJavascript(
-                        "(function(){var f=window.__beneCanGoBack;return f&&f()?'1':'0';})()",
+                        "(function(){var f=window.__beneBack;return f?f():'exit';})()",
                         value -> {
-                            if ("\"1\"".equals(value)) {
-                                webView.evaluateJavascript("history.back()", null);
-                            } else {
-                                fallThrough();
+                            asking = false;
+                            if (value == null || !value.contains("handled")) {
+                                leave();
                             }
                         });
             }
 
-            private void fallThrough() {
-                // Nothing behind this screen: hand the press back to the system
-                // so the app closes the way it always did.
+            private void leave() {
+                // Disabling this callback hands the press back to the platform, so
+                // the app closes with the system's own exit, exactly as it would
+                // from any other app. Re-enabling afterwards keeps the activity
+                // usable if it is still alive (it is finishing, so this is a no-op
+                // in practice).
                 setEnabled(false);
                 getOnBackPressedDispatcher().onBackPressed();
                 setEnabled(true);
