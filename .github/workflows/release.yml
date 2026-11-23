@@ -204,6 +204,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the changelog is a git log between the previous tag
+          # and this commit.
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v4
         with:
@@ -212,23 +216,44 @@ jobs:
       - name: List what will be published
         run: ls -la dist-assets/*/*
 
+      - name: Compose release notes
+        # GitHub's generated notes append "by @<handle> in #<n>" to every line.
+        # The changelog is built here instead, from the commit subjects, so no
+        # handle appears in a published release.
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.prepare.outputs.sha }}"
+          PREV=$(git describe --tags --abbrev=0 "${SHA}^" 2>/dev/null || true)
+
+          {
+            echo "Android APK and unsigned iOS IPA for ${{ needs.prepare.outputs.tag }}."
+            echo
+            echo '- **Android** — installable on Android 14+ (`minSdk 34`), release-signed.'
+            echo "  Installs over an earlier build of the same app."
+            echo "- **iOS** — unsigned. Install it with AltStore, SideStore or Sideloadly,"
+            echo '  which re-sign it on your device with your own Apple ID. No `.ipa`'
+            echo "  installs without a signature; an App Store build needs an Apple"
+            echo "  Developer account and review."
+            echo
+            echo "Everything in the app runs offline. No account, no telemetry."
+            if [ -n "$PREV" ]; then
+              echo
+              echo "## Changes since $PREV"
+              echo
+              git log --no-merges --pretty='* %s' "${PREV}..${SHA}"
+              echo
+              echo "**Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${PREV}...${{ needs.prepare.outputs.tag }}"
+            fi
+          } > release-notes.md
+
+          cat release-notes.md
+
       - name: Create the release and its tag
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           target_commitish: ${{ needs.prepare.outputs.sha }}
           name: Bene ${{ needs.prepare.outputs.version }}
-          generate_release_notes: true
           prerelease: ${{ inputs.prerelease }}
           files: dist-assets/*/*
-          body: |
-            Android APK and unsigned iOS IPA for ${{ needs.prepare.outputs.tag }}.
-
-            - **Android** — installable on Android 14+ (`minSdk 34`), release-signed.
-              Installs over an earlier build of the same app.
-            - **iOS** — unsigned. Install it with AltStore, SideStore or Sideloadly,
-              which re-sign it on your device with your own Apple ID. No `.ipa`
-              installs without a signature; an App Store build needs an Apple
-              Developer account and review.
-
-            Everything in the app runs offline. No account, no telemetry.
+          body_path: release-notes.md
