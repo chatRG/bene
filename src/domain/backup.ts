@@ -1,6 +1,12 @@
 import type { AppStateData } from './types';
 
 export const BACKUP_APP = 'bene';
+/**
+ * On-disk contract: stamped into every backup file and the on-device snapshot.
+ * Files with an older version are accepted and must be normalised inside
+ * parseBackup — RETIRED_SETTING_KEYS is the working example; files from a
+ * newer build are rejected loudly. Bump only together with that normalisation.
+ */
 export const BACKUP_VERSION = 1;
 export const SNAPSHOT_KEY = 'bene-snapshot';
 
