@@ -40,7 +40,13 @@ export function initialLink(p: HealthPlatform = platform()): HealthLink {
     phase: p === 'unavailable' ? 'unavailable' : 'checking',
     platform: p,
     platformLabel: label(p),
-    available: p !== 'unavailable',
+    /* Not yet known, and this used to claim otherwise: `p !== 'unavailable'`
+       meant "this is an Android phone", so the status showed a connected dot
+       before anything had been asked of Health Connect. Tapping it then probed
+       the store, found nothing, and flipped to unavailable — the app asserting
+       a connection it had never made. Availability is only true once
+       Health.isAvailable() has said so. */
+    available: false,
     days: 0,
     syncedAt: null,
     detail: p === 'unavailable' ? unavailableDetail(p) : 'Checking access…',
@@ -55,7 +61,10 @@ function unavailableDetail(p: HealthPlatform): string {
     return 'Apple Health is not reachable on this device. You can log everything by hand.';
   }
   if (p === 'health-connect') {
-    return 'Health Connect is not reachable on this device. You can log everything by hand.';
+    /* Two causes, and the user can act on one of them: Health Connect may not
+       be installed on this phone at all. Saying "in this build" blamed the app
+       for something it cannot fix. */
+    return 'Health Connect is not installed or not available on this phone. Install Health Connect from the Play Store to import sleep, heart rate and activity. Until then you can log everything by hand.';
   }
   return 'Bene opens on a phone to read Apple Health or Health Connect — until then everything here is logged by hand.';
 }

@@ -49,8 +49,7 @@ function ThemeSync() {
 }
 
 function BackToPreviousScreen() {
-  const location = useLocation();
-  useNativeBackButton(location.pathname);
+  useNativeBackButton();
   return null;
 }
 

@@ -76,7 +76,7 @@ export function SettingsScreen() {
 
         <GroupLabel>App</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.3.2 · Noncommercial" onClick={() => navigate('/settings/about')} />
+          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.3.3 · Noncommercial" onClick={() => navigate('/settings/about')} />
         </div>
 
         <div className="settings-footer">Bene is a local-first health app.<br />Health estimates are wellness only, not medical advice.</div>
@@ -254,7 +254,12 @@ function DataSourceScreen() {
 
   return (
     <>
-      <HealthSourceCard variant="settings" probe />
+      {/* Every other section opens with a GroupLabel, which carries a 24px gap
+          below the header. This one opens with the card itself, so the gap has
+          to come from here or the card sits flush under the back arrow. */}
+      <div className="settings-lede">
+        <HealthSourceCard variant="settings" probe />
+      </div>
       <GroupLabel>Health SDK</GroupLabel>
       <div className="list-card">
         {SOURCES.map((src) => (
@@ -610,7 +615,7 @@ function About() {
           <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
-        <div className="caption mt-4">Version 0.3.2</div>
+        <div className="caption mt-4">Version 0.3.3</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           <span className="pill pill--sm pill--flat">Noncommercial</span>

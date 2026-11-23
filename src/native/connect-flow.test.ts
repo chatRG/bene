@@ -147,6 +147,19 @@ describe('health link flow', () => {
     expect(initialLink('health-connect').platformLabel).toBe('Health Connect');
   });
 
+  it('never claims a connection before the store has answered', () => {
+    /* Being on Android is not evidence that Health Connect exists. The status
+       used to report available on platform alone, which showed a connected dot
+       and then flipped to unavailable when the user tapped it. */
+    expect(initialLink('health-connect').available).toBe(false);
+    expect(initialLink('apple-health').available).toBe(false);
+  });
+
+  it('tells an Android user the store may need installing, not that the app is broken', () => {
+    const detail = initialLink('unavailable').detail;
+    expect(detail).not.toMatch(/build/i);
+  });
+
   it('uses the same sentence for one day and many', () => {
     expect(sentence(1)).toBe('Connected — 1 day of history read on this device.');
     expect(none().available).toBe(false);
