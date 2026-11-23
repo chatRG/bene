@@ -39,25 +39,12 @@ Most health apps put the interpretation of your data behind a subscription and a
 
 ## Screens
 
-Six slides, side by side, in the light and the dark theme. Every capture shown is a real screen from the app.
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/store/preview-dark.png">
-    <img src="docs/screenshots/store/preview-light.png" alt="Six Bene screens side by side: scores, on-device data, one model, score breakdowns, a file as your account, and the feature index" width="100%">
+    <img src="docs/screenshots/store/preview-light.png" alt="Bene screens" width="100%">
   </picture>
 </p>
-
-| Slide | Screen |
-|---|---|
-| **01** Every score, finally yours | [Home](docs/screenshots/store/light-01-hero.png) |
-| **02** Your data never leaves the device | [Recovery](docs/screenshots/store/light-02-data.png) |
-| **03** One model, not five silos | [Fitness](docs/screenshots/store/light-03-model.png) |
-| **04** See the work behind the score | [Biological age](docs/screenshots/store/light-04-work.png) |
-| **05** One file is your account | [Journal and Nutrition](docs/screenshots/store/light-05-account.png) |
-| **06** Wellness, not a subscription | Feature index |
-
-The deck is rendered by [`scripts/store-screenshots.mjs`](scripts/store-screenshots.mjs) at the 6.9 inch App Store size, 1290 × 2796, into `docs/screenshots/store/`. Run `bun run shots:store` after a screen changes.
 
 ## Quick start
 

@@ -34,13 +34,15 @@ const SHOTS = path.join(APP, 'docs/screenshots');
 const W = 1290;
 const H = 2796;
 
-/* The README row. GitHub renders a README image at roughly 880 px, so six
- * slides at 146 px with an 8 px gap come to 876 px — the widest row that still
- * shows all six at once without the reader having to open the file. */
-const SLIDE_W = 146;
+/* The README rows. Six slides in one 876 px row meant 146 px per slide, which
+ * is too small to read — the copy and even the device edge turned to mush.
+ * Two rows of three at 286 px keeps the whole deck on screen and leaves each
+ * slide legible. Captured at 3x so the downscale still lands on real pixels. */
+const SLIDE_W = 286;
 const ROW_GAP = 8;
+const PER_ROW = 3;
 const SLIDE_H = Math.round((H * SLIDE_W) / W);
-const ROW_W = SLIDE_W * 6 + ROW_GAP * 5;
+const ROW_W = SLIDE_W * PER_ROW + ROW_GAP * (PER_ROW - 1);
 
 const THEMES = {
   light: {
@@ -364,28 +366,23 @@ function documentHTML(preview = false) {
   .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
   ${preview
-    ? `/* Six slides in one horizontal row. GitHub renders a README image at up to
-         about 880 px wide, so each slide is 146 px wide: the row stays inside
-         that limit and every slide survives the thumbnail test.
-         Each cell is a real box of the scaled size, and the slide is drawn at
-         full size inside it and scaled from the top-left — a scale transform
-         alone would leave the cell at its unscaled height and collapse the row. */
-       .row {
-         display: flex;
-         flex-direction: row;
-         align-items: flex-start;
+    ? `/* Two rows of three. Each cell is a real box of the scaled size and the
+         slide is drawn at full size inside it, scaled from the top-left — a
+         scale transform alone leaves the cell at its unscaled height. */
+       .grid {
+         display: grid;
+         grid-template-columns: repeat(${PER_ROW}, ${SLIDE_W}px);
          gap: ${ROW_GAP}px;
          width: ${ROW_W}px;
          background: #f1ece2;
        }
-       .row .cell {
+       .grid .cell {
          position: relative;
          width: ${SLIDE_W}px;
          height: ${SLIDE_H}px;
-         flex: 0 0 ${SLIDE_W}px;
          overflow: hidden;
        }
-       .row .slide {
+       .grid .slide {
          position: absolute;
          top: 0;
          left: 0;
@@ -401,7 +398,7 @@ function documentHTML(preview = false) {
 ${['light', 'dark']
   .map(
     (theme) =>
-      `<div class="row" id="row-${theme}">${SLIDES.map(
+      `<div class="grid" id="row-${theme}">${SLIDES.map(
         (slide) => `<div class="cell">${slideHTML(slide, theme)}</div>`,
       ).join('\n')}</div>`,
   )
@@ -462,12 +459,11 @@ async function main() {
     }
   }
 
-  // The README rows: six slides side by side, captured at 2x so the small
-  // tiles stay crisp on a retina screen. Each row is one element, so nothing
-  // can be clipped and the row is exactly ROW_W wide however it is displayed.
+  // The README grids: three slides per row, captured at 3x so a 286 px slide
+  // is backed by 858 real pixels and stays sharp when the README scales it.
   const rowPage = await browser.newPage({
     viewport: { width: ROW_W, height: 800 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 3,
   });
   await rowPage.goto(`file://${previewFile}`);
   await settle(rowPage);
