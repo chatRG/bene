@@ -1,52 +1,64 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 
 /* ==========================================================================
    Native shell behaviour.
 
    Android closes the app on back unless the web view has history behind it.
-   So every screen the user navigates into leaves a marker entry in the
-   history; back pops the marker, which returns to the previous screen. A tab
-   has no marker, so its back press falls through and closes the app.
+   The router already leaves a real history entry behind every screen the user
+   navigates into, so the honest question is "does the router have somewhere
+   to go back to" rather than "does the web view have a spare entry".
 
-   MainActivity asks the web view's own canGoBack() for that decision, so this
-   file keeps no native state and there is nothing to drift out of sync.
+   The first attempt here pushed a marker entry per screen and relied on
+   goBack() to walk it. That was wrong: the marker consumed the back press and
+   the page never changed, so a nested screen needed two presses — one to eat
+   the marker, one to actually leave. It could also strand the app on a screen
+   with no route back.
+
+   A popstate listener now answers the question directly. MainActivity asks
+   history.state for a router index: below 1 the user is on the first entry the
+   app pushed, so back falls through and closes the app.
    ========================================================================== */
 
 export const isNativeShell = () => Capacitor.isNativePlatform();
 
-/** The five tabs. Everything else is a screen the user navigated into. */
-const TABS = ['/', '/fitness', '/journal', '/biology', '/intelligence'] as const;
-
 /**
- * A screen the user navigated into, as opposed to one of the five tabs.
- * Compared against the tab list rather than by counting slashes, because
- * `/settings` and `/recovery` are top-level paths that are still pushed
- * screens.
+ * Tells the native shell whether the router can go back one screen.
+ *
+ * React Router keeps its own position in `history.state.idx`. Exposing that
+ * as a plain global keeps MainActivity free of any assumption about route
+ * names: it asks one question and gets one answer.
  */
-export function isPushed(path: string): boolean {
-  if (path.startsWith('/chat/')) return true;
-  return !(TABS as readonly string[]).includes(path);
+const BACK_STATE_KEY = '__beneCanGoBack';
+
+type BackState = Window & { [BACK_STATE_KEY]?: () => boolean };
+
+export function canGoBackInRouter(history: History = window.history): boolean {
+  const idx = (history.state as { idx?: number } | null)?.idx;
+  return typeof idx === 'number' && idx > 0;
 }
 
-const hasShadow = () => (window.history.state as { beneShadow?: boolean } | null)?.beneShadow === true;
-
-export function useNativeBackButton(path: string) {
-  const pushed = isPushed(path);
+export function useNativeBackButton() {
+  const installed = useRef(false);
 
   useEffect(() => {
-    if (!isNativeShell()) return undefined;
-    if (!pushed) {
-      // Back on a tab: drop any marker a thread or detail screen left behind,
-      // so this tab's back press closes the app rather than revisiting it.
-      if (hasShadow()) window.history.replaceState(null, '');
-      return undefined;
-    }
-    // Leave a marker behind the current entry. Pushed in the same tick as the
-    // navigation, so a back press straight after it cannot outrun the marker.
-    if (!hasShadow()) window.history.pushState({ beneShadow: true }, '');
-    return () => {
-      if (hasShadow()) window.history.replaceState(null, '');
+    if (!isNativeShell() || installed.current) return undefined;
+    installed.current = true;
+
+    const publish = () => {
+      (window as BackState)[BACK_STATE_KEY] = canGoBackInRouter;
     };
-  }, [path, pushed]);
+    publish();
+
+    // The router updates history.state on a navigation but does not fire an
+    // event the shell can see, so the getter is a function rather than a
+    // cached boolean. MainActivity calls it per press and always reads truth.
+    const onPop = () => publish();
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      delete (window as BackState)[BACK_STATE_KEY];
+      installed.current = false;
+    };
+  }, []);
 }
