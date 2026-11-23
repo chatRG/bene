@@ -1,16 +1,12 @@
 /**
  * Store screenshots.
  *
- * Renders the six-slide App Store deck from the captures in
- * `docs/screenshots/`, at 1290 × 2796 — the 6.9 inch iPhone size App Store
- * Connect asks for. Both themes come from the same document, so the light and
- * the dark deck can never drift apart.
+ * Renders three slides — two in the light theme and one in the dark — from the
+ * captures in `docs/screenshots/`, at 1290 × 2796, the 6.9 inch iPhone size
+ * App Store Connect asks for. Each slide carries its own theme, so the two
+ * light slides and the dark one come out of the same document and stay in step.
  *
- * Output:
- *   docs/screenshots/store/light-NN-*.png     full size, per slide
- *   docs/screenshots/store/dark-NN-*.png
- *   docs/screenshots/store/preview-light.png  README strip, 352 px per slide
- *   docs/screenshots/store/preview-dark.png
+ * Output: docs/screenshots/store/<theme>-<id>.png
  *
  * The slides borrow the app's own tokens from `src/styles/base.css`: page,
  * card, ink, muted, hairline, the oxide accent and the Allo face. A store slide
@@ -24,7 +20,7 @@
  */
 
 import { chromium } from 'playwright';
-import { mkdir, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdir, writeFile, rm, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 const APP = path.resolve(import.meta.dirname, '..');
@@ -33,16 +29,6 @@ const SHOTS = path.join(APP, 'docs/screenshots');
 
 const W = 1290;
 const H = 2796;
-
-/* The README rows. Six slides in one 876 px row meant 146 px per slide, which
- * is too small to read — the copy and even the device edge turned to mush.
- * Two rows of three at 286 px keeps the whole deck on screen and leaves each
- * slide legible. Captured at 3x so the downscale still lands on real pixels. */
-const SLIDE_W = 286;
-const ROW_GAP = 8;
-const PER_ROW = 3;
-const SLIDE_H = Math.round((H * SLIDE_W) / W);
-const ROW_W = SLIDE_W * PER_ROW + ROW_GAP * (PER_ROW - 1);
 
 const THEMES = {
   light: {
@@ -80,58 +66,34 @@ const THEMES = {
 };
 
 /**
- * `capture` names a PNG in docs/screenshots with no theme prefix; the dark
- * deck reads `dark-<capture>.png`. `layout` is `stacked` (copy, then one large
- * device), `duo` (two phones, fanned) or `closer` (feature index, no device).
+ * Two light slides and one dark. `theme` decides which capture is used
+ * (`<capture>.png` or `dark-<capture>.png`) and which palette the slide wears,
+ * so the mistake of pairing a light frame with a dark capture cannot happen.
  */
 const SLIDES = [
   {
     id: '01-hero',
-    index: '01 / 06',
+    theme: 'light',
+    index: '01 / 03',
     headline: ['Every score,', 'finally yours{em:yours}.'],
     note: 'Recovery, sleep, strain and biology on one page. No account, no cloud.',
     capture: 'home',
-    layout: 'stacked',
   },
   {
-    id: '02-data',
-    index: '02 / 06',
-    headline: ['Your data never', 'leaves the device{em:device}.'],
-    note: 'No account. No telemetry. No network call. Aeroplane mode is the normal case.',
-    capture: 'recovery',
-    layout: 'stacked',
-  },
-  {
-    id: '03-model',
-    index: '03 / 06',
-    headline: ['One model,', 'not five silos{em:silos}.'],
-    note: 'Sleep, strain and nutrition feed each other, so the advice is the sum.',
-    capture: 'fitness',
-    layout: 'stacked',
-  },
-  {
-    id: '04-work',
-    index: '04 / 06',
+    id: '02-work',
+    theme: 'light',
+    index: '02 / 03',
     headline: ['See the work{em:work}', 'behind the score.'],
     note: 'Every number opens into the readings, baselines and weights that built it.',
     capture: 'biology',
-    layout: 'stacked',
   },
   {
-    id: '05-account',
-    index: '05 / 06',
-    headline: ['One file is', 'your account{em:account}.'],
-    note: 'A plain-JSON snapshot, written daily and verified before any restore.',
-    capture: 'nutrition',
-    layout: 'duo',
-  },
-  {
-    id: '06-closer',
-    index: '06 / 06',
-    headline: ['Wellness,', 'not a subscription{em:subscription}.'],
-    note: '',
-    capture: null,
-    layout: 'closer',
+    id: '03-model',
+    theme: 'dark',
+    index: '03 / 03',
+    headline: ['One model,', 'not five silos{em:silos}.'],
+    note: 'Sleep, strain and nutrition feed each other, so the advice is the sum.',
+    capture: 'fitness',
   },
 ];
 
@@ -165,11 +127,10 @@ function rich(text) {
 
 const lines = (slide) => slide.headline.map((line) => `<span>${rich(line)}</span>`).join('');
 
-function device(theme, capture, cls = '') {
-  if (!capture) return '';
+function device(theme, capture) {
   const file = theme === 'dark' ? `dark-${capture}.png` : `${capture}.png`;
   return `
-    <div class="device ${cls}">
+    <div class="device">
       <div class="device-body">
         <div class="device-screen">
           <img src="${SHOTS}/${file}" alt="" />
@@ -179,68 +140,10 @@ function device(theme, capture, cls = '') {
     </div>`;
 }
 
-const eyebrow = (slide) => `
-    <div class="eyebrow">
-      <span class="eyebrow-rule"></span>
-      <span class="eyebrow-text">${slide.index}</span>
-    </div>`;
-
-const note = (slide) => (slide.note ? `<p class="note">${dec(slide.note)}</p>` : '');
-
-function featureWall() {
-  const items = [
-    ['Recovery', 'HRV, resting HR, sleep and load, in one reading'],
-    ['Sleep', 'Stages, need, debt and a 7-day bank'],
-    ['Strain', 'Cardio and muscular load, against a daily target'],
-    ['Nutrition', 'Calories, macros and 11 quality contributors'],
-    ['Journal', 'Tags that correlate after 5 + 5 entries'],
-    ['Biology', 'A ± 3 year estimate and its contributors'],
-    ['Coach', 'Composed on device, from your own numbers'],
-  ];
-  return `<ul class="wall">${items
-    .map(
-      ([name, detail]) =>
-        `<li class="wall-row"><span class="wall-name">${name}</span><span class="wall-detail">${detail}</span></li>`,
-    )
-    .join('')}</ul>`;
-}
-
-function body(slide, theme) {
-  const copy = `
-          <div class="stack-copy">
-            ${eyebrow(slide)}
-            <h1 class="headline">${lines(slide)}</h1>
-            ${note(slide)}
-          </div>`;
-  switch (slide.layout) {
-    case 'stacked':
-      return `${copy}
-          <div class="stack-stage">
-            <div class="stage-print"></div>
-            ${device(theme, slide.capture, 'device-md')}
-          </div>`;
-    case 'duo':
-      return `${copy}
-          <div class="duo-stage">
-            ${device(theme, 'journal', 'device-sm back')}
-            ${device(theme, slide.capture, 'device-sm front')}
-          </div>`;
-    case 'closer':
-      return `
-          <div class="closer-copy">
-            ${eyebrow(slide)}
-            <h1 class="headline closer-headline">${lines(slide)}</h1>
-            ${featureWall()}
-          </div>`;
-    default:
-      throw new Error(`unknown layout: ${slide.layout}`);
-  }
-}
-
-function slideHTML(slide, theme) {
-  const t = THEMES[theme];
+function slideHTML(slide) {
+  const t = THEMES[slide.theme];
   return `
-    <section class="slide" data-theme="${theme}" id="${theme}-${slide.id}" style="
+    <section class="slide" id="${slide.theme}-${slide.id}" style="
       --bg:${t.bg}; --card:${t.card}; --card2:${t.card2}; --text:${t.text};
       --text2:${t.text2}; --muted:${t.muted}; --hairline:${t.hairline};
       --accent:${t.accent}; --print:${t.print}; --device-shadow:${t.shadow};
@@ -253,14 +156,25 @@ function slideHTML(slide, theme) {
         <span class="chrome-tag">Local-first health</span>
       </header>
       <div class="rule"></div>
-      ${body(slide, theme)}
+      <div class="copy">
+        <div class="eyebrow">
+          <span class="eyebrow-rule"></span>
+          <span class="eyebrow-text">${slide.index}</span>
+        </div>
+        <h1 class="headline">${lines(slide)}</h1>
+        <p class="note">${dec(slide.note)}</p>
+      </div>
+      <div class="stage">
+        <div class="stage-print"></div>
+        ${device(slide.theme, slide.capture)}
+      </div>
       <footer class="colophon">
         <span>Bene</span><span class="dot"></span><span>Source available</span>
       </footer>
     </section>`;
 }
 
-function documentHTML(preview = false) {
+function documentHTML() {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><style>
   @font-face {
@@ -289,6 +203,7 @@ function documentHTML(preview = false) {
   .chrome-tag { font-size: 22px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
   .rule { position: relative; z-index: 4; height: 1px; background: var(--hairline); }
 
+  .copy { position: relative; z-index: 3; padding-top: 126px; }
   .eyebrow { display: flex; align-items: center; gap: 20px; margin-bottom: 38px; }
   .eyebrow-rule { width: 68px; height: 2px; background: var(--accent); }
   .eyebrow-text { font-size: 25px; font-weight: 560; letter-spacing: 0.2em; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -296,21 +211,19 @@ function documentHTML(preview = false) {
   .headline { font-size: 122px; line-height: 1.04; font-weight: 600; letter-spacing: -0.03em; }
   .headline span { display: block; }
   .headline em { font-style: normal; color: var(--accent); }
-  .closer-headline { font-size: 112px; }
 
   .note { margin-top: 32px; max-width: 930px; font-size: 33px; line-height: 1.42; font-weight: 430; color: var(--text2); }
 
-  .stack-copy { position: relative; z-index: 3; padding-top: 126px; }
-  .stack-stage { position: relative; z-index: 2; margin-top: 84px; display: flex; justify-content: center; }
+  .stage { position: relative; z-index: 2; margin-top: 84px; display: flex; justify-content: center; }
   .stage-print {
     position: absolute; left: 40px; top: -130px; width: 660px; height: 660px;
     border: 1px solid var(--hairline); border-radius: 50%; z-index: 0;
   }
 
-  .device { position: relative; z-index: 2; }
-  /* The frame is drawn, not a bare rectangle: a dark bezel with real corner
-     radius, a hairline highlight along the top edge and side keys, so the
-     capture reads as a phone held in the hand rather than a floating panel. */
+  /* The frame is drawn, not a bare rectangle: a bezel with its own tone, side
+     keys and a camera cutout, so the capture reads as a phone rather than a
+     floating panel. */
+  .device { position: relative; z-index: 2; width: 640px; }
   .device-body {
     position: relative; padding: 14px; border-radius: 78px;
     background: var(--bezel);
@@ -321,7 +234,6 @@ function documentHTML(preview = false) {
   }
   .device-body::before,
   .device-body::after {
-    /* side keys */
     content: ''; position: absolute; width: 3px; border-radius: 2px;
     background: var(--bezel-edge);
   }
@@ -332,7 +244,6 @@ function documentHTML(preview = false) {
     background: var(--card2);
   }
   .device-screen img { display: block; width: 100%; height: auto; }
-  /* camera cutout: a real notch, not a decoration, so the status bar sits clear */
   .device-notch {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
     width: 132px; height: 34px; border-radius: 18px;
@@ -344,19 +255,6 @@ function documentHTML(preview = false) {
     border-radius: 50%; background: #10141a;
     box-shadow: inset 0 0 0 2px #05070a;
   }
-  .device-md { width: 640px; }
-
-  .duo-stage { position: relative; z-index: 2; margin-top: 96px; height: 900px; }
-  .duo-stage .device { position: absolute; }
-  .device-sm { width: 560px; }
-  .duo-stage .back { left: 22px; top: 0; transform: rotate(-5deg); }
-  .duo-stage .front { right: 22px; top: 92px; transform: rotate(4deg); z-index: 3; }
-
-  .closer-copy { position: relative; z-index: 3; padding-top: 236px; }
-  .wall { list-style: none; margin-top: 84px; border-top: 1px solid var(--hairline); }
-  .wall-row { display: flex; align-items: baseline; gap: 38px; padding: 70px 0 68px; border-bottom: 1px solid var(--hairline); }
-  .wall-name { flex: 0 0 286px; width: 286px; font-size: 46px; font-weight: 600; letter-spacing: -0.02em; }
-  .wall-detail { font-size: 29px; line-height: 1.32; font-weight: 430; color: var(--muted); }
 
   .colophon {
     position: absolute; left: 96px; right: 96px; bottom: 58px; z-index: 5;
@@ -364,45 +262,9 @@ function documentHTML(preview = false) {
     font-size: 21px; font-weight: 520; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
   }
   .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-
-  ${preview
-    ? `/* Two rows of three. Each cell is a real box of the scaled size and the
-         slide is drawn at full size inside it, scaled from the top-left — a
-         scale transform alone leaves the cell at its unscaled height. */
-       .grid {
-         display: grid;
-         grid-template-columns: repeat(${PER_ROW}, ${SLIDE_W}px);
-         gap: ${ROW_GAP}px;
-         width: ${ROW_W}px;
-         background: #f1ece2;
-       }
-       .grid .cell {
-         position: relative;
-         width: ${SLIDE_W}px;
-         height: ${SLIDE_H}px;
-         overflow: hidden;
-       }
-       .grid .slide {
-         position: absolute;
-         top: 0;
-         left: 0;
-         width: ${W}px;
-         height: ${H}px;
-         padding: 0;
-         transform: scale(${SLIDE_W / W});
-         transform-origin: top left;
-       }`
-    : ''}
 </style></head>
-<body${preview ? ' class="preview"' : ''}>
-${['light', 'dark']
-  .map(
-    (theme) =>
-      `<div class="grid" id="row-${theme}">${SLIDES.map(
-        (slide) => `<div class="cell">${slideHTML(slide, theme)}</div>`,
-      ).join('\n')}</div>`,
-  )
-  .join('\n')}
+<body>
+${SLIDES.map(slideHTML).join('\n')}
 </body></html>`;
 }
 
@@ -417,66 +279,51 @@ const launchOptions = {
 };
 if (CHROMIUM_PATH) launchOptions.executablePath = CHROMIUM_PATH;
 
-async function settle(page) {
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForFunction(
-    () => [...document.images].every((img) => img.complete && img.naturalWidth > 0),
-    null,
-    { timeout: 20000 },
-  );
-}
-
 async function main() {
   // Fail loudly if a capture the deck names is not on disk.
   const present = new Set(await readdir(SHOTS));
-  const missing = SLIDES.flatMap((slide) => {
-    if (!slide.capture) return [];
-    const extra = slide.layout === 'duo' ? ['journal'] : [];
-    return [...new Set([slide.capture, ...extra])].flatMap((name) => [`${name}.png`, `dark-${name}.png`]);
-  }).filter((file) => !present.has(file));
+  const missing = SLIDES.map((slide) =>
+    slide.theme === 'dark' ? `dark-${slide.capture}.png` : `${slide.capture}.png`,
+  ).filter((file) => !present.has(file));
   if (missing.length) {
     throw new Error(`missing captures in docs/screenshots: ${missing.join(', ')}`);
   }
 
   await mkdir(OUT, { recursive: true });
   const deckFile = path.join(OUT, '.deck.html');
-  const previewFile = path.join(OUT, '.preview.html');
-  await writeFile(deckFile, documentHTML(false));
-  await writeFile(previewFile, documentHTML(true));
+  await writeFile(deckFile, documentHTML());
 
   const browser = await chromium.launch(launchOptions);
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await page.goto(`file://${deckFile}`);
-  await settle(page);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(
+    () => [...document.images].every((img) => img.complete && img.naturalWidth > 0),
+    null,
+    { timeout: 20000 },
+  );
 
   const written = [];
-  for (const theme of ['light', 'dark']) {
-    for (const slide of SLIDES) {
-      const element = await page.$(`#${theme}-${slide.id}`);
-      const file = path.join(OUT, `${theme}-${slide.id}.png`);
-      await element.screenshot({ path: file });
-      written.push(path.relative(APP, file));
-    }
-  }
-
-  // The README grids: three slides per row, captured at 3x so a 286 px slide
-  // is backed by 858 real pixels and stays sharp when the README scales it.
-  const rowPage = await browser.newPage({
-    viewport: { width: ROW_W, height: 800 },
-    deviceScaleFactor: 3,
-  });
-  await rowPage.goto(`file://${previewFile}`);
-  await settle(rowPage);
-  for (const theme of ['light', 'dark']) {
-    const file = path.join(OUT, `preview-${theme}.png`);
-    await (await rowPage.$(`#row-${theme}`)).screenshot({ path: file, type: 'png' });
+  for (const slide of SLIDES) {
+    const element = await page.$(`#${slide.theme}-${slide.id}`);
+    const file = path.join(OUT, `${slide.theme}-${slide.id}.png`);
+    await element.screenshot({ path: file });
     written.push(path.relative(APP, file));
   }
-  await rowPage.close();
 
   await browser.close();
   await rm(deckFile, { force: true });
-  await rm(previewFile, { force: true });
+
+  // Remove slides from earlier decks so the folder holds exactly what the
+  // README shows; a stale capture left behind is how a README drifts.
+  const keep = new Set(written.map((file) => path.basename(file)));
+  for (const file of await readdir(OUT)) {
+    if (file.endsWith('.png') && !keep.has(file)) {
+      await unlink(path.join(OUT, file));
+      written.push(`removed ${path.relative(APP, path.join(OUT, file))}`);
+    }
+  }
+
   console.log(written.join('\n'));
 }
 

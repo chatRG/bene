@@ -40,10 +40,9 @@ Most health apps put the interpretation of your data behind a subscription and a
 ## Screens
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/store/preview-dark.png">
-    <img src="docs/screenshots/store/preview-light.png" alt="Bene screens" width="100%">
-  </picture>
+  <img src="docs/screenshots/store/light-01-hero.png" width="250" alt="Bene home, light theme">
+  <img src="docs/screenshots/store/light-02-work.png" width="250" alt="Bene biological age, light theme">
+  <img src="docs/screenshots/store/dark-03-model.png" width="250" alt="Bene fitness, dark theme">
 </p>
 
 ## Quick start
