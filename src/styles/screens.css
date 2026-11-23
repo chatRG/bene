@@ -2094,6 +2094,13 @@
   margin-top: 14px;
 }
 
+/* The Data sources section opens with a card rather than a group label, so it
+   sets its own gap below the header. Matches the 24px the labels use, which
+   keeps every settings screen starting on the same line. */
+.settings-lede {
+  margin-top: 24px;
+}
+
 .settings-group-label {
   font-size: 12px;
   font-weight: 500;
