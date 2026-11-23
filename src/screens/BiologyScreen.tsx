@@ -72,7 +72,7 @@ export function BiologyScreen() {
   }, [state.biomarkers]);
 
   return (
-    <div className="screen biology-page">
+    <div className="screen biology-page screen--enter">
       <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
         <div />
         <div>

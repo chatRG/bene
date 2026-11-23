@@ -72,7 +72,7 @@ export function JournalScreen() {
   })).filter((g) => g.tags.length > 0);
 
   return (
-    <div className="screen">
+    <div className="screen screen--enter">
       <div className="app-header">
         <div>
           <div className="h1">Journal</div>
