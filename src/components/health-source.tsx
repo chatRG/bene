@@ -4,7 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { ListRow } from './ui';
 import { showToast } from './toast';
 import { openSettings, platform, platformLabel, type HealthPlatform } from '../native/health';
-import { connectAndImport, initialLink, probeAccess, readAndImport, statusWord, type HealthLink } from '../native/link';
+import { connectAndImport, initialLink, probeAccess, readAndImport, statusWord, storeRowSubtitle, type HealthLink } from '../native/link';
 
 /**
  * Health Connect is a separate install on most phones: on Android 14+ it is a
@@ -112,7 +112,7 @@ export function HealthSourceCard({
           <ListRow
             icon={<Smartphone size={16} />}
             title={name}
-            subtitle={link.phase === 'connected' ? 'Read on this device · read-only' : 'Sleep, HRV, resting heart rate, steps, workouts'}
+            subtitle={storeRowSubtitle(link.phase)}
             right={<span className={pillClass}>{statusWord(link)}</span>}
           />
         </div>

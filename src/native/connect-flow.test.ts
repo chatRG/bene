@@ -23,7 +23,7 @@ vi.mock('./health', () => ({
   openSettings: vi.fn(),
 }));
 
-const { connectAndImport, describe: sentence, initialLink, probeAccess, readAndImport, statusWord } = await import('./link');
+const { connectAndImport, describe: sentence, initialLink, probeAccess, readAndImport, statusWord, storeRowSubtitle } = await import('./link');
 
 const day = (date: string): DayRecord => ({
   date,
@@ -189,6 +189,18 @@ describe('health link flow', () => {
     expect(link.phase).toBe('unavailable');
     expect(link.detail).toMatch(/install/i);
     expect(link.detail).toMatch(/unavailable on this device/i);
+  });
+
+  it('never advertises readable data for a store that is unavailable', () => {
+    /* The card used to say "Sleep, HRV, resting heart rate, steps, workouts"
+       under an unavailable store, contradicting the banner right below it. */
+    expect(storeRowSubtitle('unavailable')).toBe('Not available on this device');
+    expect(storeRowSubtitle('unavailable')).not.toMatch(/sleep|hrv|steps/i);
+  });
+
+  it('describes the row by what the row is actually in', () => {
+    expect(storeRowSubtitle('connected')).toMatch(/read-only/);
+    expect(storeRowSubtitle('denied')).toMatch(/not granted/);
   });
 
   it('uses the same sentence for one day and many', () => {

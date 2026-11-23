@@ -82,6 +82,21 @@ function deniedDetail(p: HealthPlatform): string {
   return `${label(p)} read access was not granted, so no data was imported. Bene only reads — it never writes back.`;
 }
 
+/**
+ * The subtitle under the store's name on the card.
+ *
+ * It used to be a fixed capability list ("Sleep, HRV, resting heart rate,
+ * steps, workouts") whatever the state, so a store reporting unavailable still
+ * advertised everything it could read, directly above a banner saying there was
+ * nothing to read. It now says what is true for the current phase.
+ */
+export function storeRowSubtitle(phase: HealthPhase): string {
+  if (phase === 'connected') return 'Read on this device · read-only';
+  if (phase === 'unavailable') return 'Not available on this device';
+  if (phase === 'denied') return 'Read access not granted';
+  return 'Sleep, HRV, resting heart rate, steps, workouts';
+}
+
 /** The one sentence shown for a status result, whatever surface asked. */
 export function describe(days: number): string {
   if (days > 0) {
