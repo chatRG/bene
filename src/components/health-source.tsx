@@ -81,7 +81,7 @@ export function HealthSourceCard({
     link.phase === 'connected' && link.days > 0 ? <Check size={17} /> : link.phase === 'checking' ? <Loader2 size={17} className="spin" /> : <AlertCircle size={17} />;
   const bannerStrong =
     link.phase === 'unavailable'
-      ? 'No health store in this build.'
+      ? 'No health store on this device.'
       : link.phase === 'denied'
         ? 'Permission not granted.'
         : link.phase === 'connected'
@@ -165,7 +165,7 @@ export function HealthSourceRow({ onClick }: { onClick: () => void }) {
     : link.phase === 'connected'
       ? `${link.platformLabel} connected`
       : link.phase === 'unavailable'
-        ? 'No health store in this build · manual logs'
+        ? 'No health store · manual logs'
         : 'Not connected · manual logs';
   return <ListRow icon={<Heart size={16} />} title="Data sources" subtitle={subtitle} right={<ChevronRight size={17} className="chevron" />} onClick={onClick} />;
 }
