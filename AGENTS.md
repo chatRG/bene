@@ -43,7 +43,7 @@ CI (`.github/workflows/ci.yml`) runs, in order: `bun install --frozen-lockfile` 
 
 ## Pitfalls
 
-- `STORE_KEY = 'bene-v1'` and `BACKUP_VERSION = 1` are on-disk contracts. Renaming the key or bumping the version without a migration silently drops existing user data.
+- `STORE_KEY = 'bene-v1'` and `BACKUP_VERSION = 1` are on-disk contracts. Rename the store key only by adding the old key to `LEGACY_STORE_KEYS` in `src/store/useAppStore.ts` (adoption moves the blob); bump `STORE_VERSION` or `BACKUP_VERSION` only with the matching migration (`STORE_MIGRATIONS` entry in the store, normalisation in `parseBackup`) — the store tests fail a bump that ships without one.
 - Tests, lint and build are fast (~1s); the Playwright suites are not — they need a server already listening on 5173 (or `4173` for `test:pwa`) and fail with a connection error otherwise. Override with `BASE_URL`.
 - `bun run shots` writes `docs/screenshots`; `shots-app/` and `dist/` are gitignored build output. Do not hand-edit `dist/sw.js` — Vite stamps `__BENE_RELEASE__` at build time.
 - Android builds in this container: set `JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=$SCRATCH/tmp` (Room dies otherwise), gradle `-Xmx1280m --no-daemon --max-workers=1`, and `QEMU_LD_PREFIX=/opt/data/cache/scratch/x86_64-root` for the x86-64 `aapt2` under qemu. Signed releases need `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.

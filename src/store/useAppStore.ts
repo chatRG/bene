@@ -21,7 +21,71 @@ import { dateOf } from '../domain/derive';
 import { generateCoachReply, ghostExpiry } from '../domain/coach';
 import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
 
+/**
+ * On-disk contracts, read by every existing install:
+ *
+ * - STORE_KEY is the localStorage key the persisted store lives under. To
+ *   rename it, keep the blob: add the old key to LEGACY_STORE_KEYS and the
+ *   adoption step below moves it across before the store hydrates.
+ * - STORE_VERSION is stamped inside that blob. Bump it only with a matching
+ *   entry in STORE_MIGRATIONS; a missing step throws at hydration instead of
+ *   quietly seeding a fresh account over a person's data.
+ */
 export const STORE_KEY = 'bene-v1';
+export const STORE_VERSION = 1;
+
+/** localStorage keys the store lived under before STORE_KEY, oldest first. */
+const LEGACY_STORE_KEYS: readonly string[] = [];
+
+/** One entry per version bump: STORE_MIGRATIONS[1] moves a version-1 blob to version 2. */
+const STORE_MIGRATIONS: Record<number, (state: AppStateData) => AppStateData> = {};
+
+/**
+ * Runs before the persist middleware reads storage, so a renamed key adopts
+ * its old blob instead of booting a fresh account over it. Newest legacy blob
+ * wins; any failure leaves storage untouched.
+ */
+export function adoptLegacyStoreKey(key: string, legacyKeys: readonly string[]): void {
+  try {
+    if (localStorage.getItem(key) !== null) return;
+    let blob: string | null = null;
+    let found: string | null = null;
+    for (const legacy of legacyKeys) {
+      const value = localStorage.getItem(legacy);
+      if (value !== null) {
+        blob = value;
+        found = legacy;
+      }
+    }
+    if (!blob || !found) return;
+    localStorage.setItem(key, blob);
+    localStorage.removeItem(found);
+  } catch {
+    // Missing storage or a full quota: leave the old blob where it is.
+  }
+}
+adoptLegacyStoreKey(STORE_KEY, LEGACY_STORE_KEYS);
+
+/**
+ * The persist middleware calls this only when a blob's version differs from
+ * STORE_VERSION. It refuses to guess: a version without a migration step, or
+ * one written by a newer build, throws — hydration aborts and the blob stays
+ * on disk rather than being seeded over.
+ */
+export function migrateStoreState(persisted: unknown, fromVersion: number): AppStateData {
+  if (fromVersion > STORE_VERSION) {
+    throw new Error(`Store version ${fromVersion} is newer than this build (${STORE_VERSION}).`);
+  }
+  let state = persisted as AppStateData;
+  for (let version = fromVersion; version < STORE_VERSION; version += 1) {
+    const step = STORE_MIGRATIONS[version];
+    if (!step) {
+      throw new Error(`No store migration from version ${version}; add STORE_MIGRATIONS[${version}].`);
+    }
+    state = step(state);
+  }
+  return state;
+}
 
 /**
  * Advanced whenever the whole store is cleared.
@@ -392,7 +456,8 @@ export const useAppStore = create<AppStore>()(
     {
       name: STORE_KEY,
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: STORE_VERSION,
+      migrate: migrateStoreState,
       // Settings gained keys over time (nutrition joined activeTabs). A stored
       // snapshot without them would read back `undefined`, which every toggle
       // and switch treats as off — so fill defaults in rather than guess.

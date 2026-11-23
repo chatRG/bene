@@ -42,6 +42,10 @@ The document has this shape. The example lists a subset of the settings and of `
 }
 ```
 
+## Version bumps
+
+`version` is `BACKUP_VERSION`. A build accepts files with an equal or older version and normalises older shapes inside `parseBackup()` — retired settings keys are the working example. Files from a newer build are rejected with an error. Bumping `BACKUP_VERSION` must ship with that normalisation.
+
 ## Validation
 
 `parseBackup()` runs these steps in order:
