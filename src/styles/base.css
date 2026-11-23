@@ -932,16 +932,22 @@ ul {
   grid-auto-columns: minmax(0, 1fr);
   gap: 2px;
   border-radius: 999px;
-  border: 1px solid var(--nav-edge);
-  background:
-    radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
-    linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
-  box-shadow:
-    inset 0 1px 0 var(--nav-sheen),
-    inset 0 -1px 0 var(--nav-edge-lo),
-    var(--nav-shadow);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  backdrop-filter: blur(26px) saturate(180%);
+  border: none;
+  /* Liquid glass, built the way the material is specified: blur on the
+     element, tint and specular light on a pseudo-element above it.
+
+     Blur and displacement live on separate layers for a reason. A browser
+     treats a combined `url(#f) blur()` chain as inert until the filter
+     resolves, so a single-layer build pops in late. Split, the surface is
+     frosted on the first frame and the highlight fades in over it.
+
+     The tint is what carries legibility, not the blur: a lens over a flat
+     colour shows you that flat colour, so on midnight the blur has nothing to
+     bend and the tint alone keeps the labels readable. */
+  background: transparent;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
+  backdrop-filter: blur(24px) saturate(190%) brightness(1.06);
+  box-shadow: var(--nav-shadow);
   z-index: 40;
   isolation: isolate;
   transition: transform 0.24s var(--ease), opacity 0.2s var(--ease);
@@ -961,13 +967,29 @@ ul {
   }
 }
 
+/* Tint and specular light: the layer above the blur and below the labels.
+   The radial highlight at the top-left is the rim catching light; the bottom
+   wash is the edge turning away from it, which is what stops the capsule
+   reading as a flat cut-out. Both are gradients over the blurred backdrop
+   rather than borders, so the surface gains depth without gaining an outline. */
 .navbar::before {
   content: '';
   position: absolute;
-  inset: 2px;
+  inset: 0;
   border-radius: inherit;
-  border: 1px solid var(--nav-inner-rim);
   pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(120% 190% at 24% -70%, var(--nav-sheen) 0%, transparent 58%),
+    linear-gradient(180deg, var(--nav-fill-hi) 0%, var(--nav-fill) 52%, var(--nav-fill-lo) 100%);
+}
+
+/* Fallback for engines without backdrop-filter: the tint becomes the surface,
+   so it has to be opaque or the labels float on nothing. */
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .navbar::before {
+    background: var(--nav-solid);
+  }
 }
 
 .nav-item {
@@ -981,7 +1003,7 @@ ul {
   min-width: 0;
   min-height: 42px;
   padding: 4px 2px 4px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 999px;
   color: var(--nav-ink);
   font-size: 10.5px;
@@ -989,7 +1011,7 @@ ul {
   line-height: 1.15;
   letter-spacing: 0.005em;
   transition: color 0.16s var(--ease), background-color 0.16s var(--ease),
-    box-shadow 0.16s var(--ease), border-color 0.16s var(--ease);
+    box-shadow 0.16s var(--ease);
 }
 
 .nav-item__icon {
@@ -1011,13 +1033,13 @@ ul {
 .nav-item--active {
   color: var(--nav-ink-active);
   font-weight: 600;
-  border-color: var(--nav-active-edge);
+  /* No border and no inset rims: the selection is carried by the lift in the
+     fill and the drop shadow under it. An outline on top of a translucent
+     capsule reads as a second edge and makes the bar look boxed. */
   background:
     radial-gradient(130% 150% at 28% -30%, var(--nav-active-hi) 0%, transparent 62%),
     linear-gradient(180deg, var(--nav-active-hi) 0%, var(--nav-active-lo) 100%);
   box-shadow:
-    inset 0 1px 0 var(--nav-active-edge),
-    inset 0 -1px 0 var(--nav-active-edge-lo),
     0 3px 10px -3px rgba(0, 0, 0, 0.22),
     0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -1244,12 +1266,17 @@ ul {
 }
 
 .list-title {
+  /* Block, not inline. These are spans because they sit inside a button, and
+     an inline span drops the title and the subtitle onto one line: "Active" and
+     "Training as planned" rendered as "ActiveTraining as planned". */
+  display: block;
   font-size: 15px;
   font-weight: 400;
   letter-spacing: 0;
 }
 
 .list-sub {
+  display: block;
   font-size: 12.5px;
   color: var(--muted);
   margin-top: 1px;
