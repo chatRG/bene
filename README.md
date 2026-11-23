@@ -100,7 +100,7 @@ Each tagged release attaches an Android APK and an unsigned iOS IPA.
 - **Android.** Install the APK directly. The APK is release-signed, so it updates over itself on Android 14 or later.
 - **iOS.** Install the unsigned IPA with AltStore, SideStore or Sideloadly. Those tools sign it again on your device with your own Apple account. You cannot publish an `.ipa` with a signature, because a signature belongs to one developer identity and one provisioning profile. An App Store build needs a paid Apple Developer account and a review.
 
-The `iOS unsigned` workflow builds the IPA on a macOS runner with `CODE_SIGNING_ALLOWED=NO` in the Release configuration. A Debug build fails after the tools sign it again, because it carries the `get-task-allow` entitlement.
+The `Release` workflow builds the IPA on a macOS runner with `CODE_SIGNING_ALLOWED=NO` in the Release configuration. A Debug build fails after the tools sign it again, because it carries the `get-task-allow` entitlement.
 
 You do not need a native build for development. The web target has the shortest development loop, and the screenshot suite uses the web target.
 
