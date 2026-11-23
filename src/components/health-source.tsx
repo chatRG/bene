@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronRight, Heart, Loader2, RefreshCw, Settings2, Smartphone } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Heart, Loader2, RefreshCw, Settings2, Smartphone, ExternalLink } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { ListRow } from './ui';
 import { showToast } from './toast';
 import { openSettings, platform, platformLabel, type HealthPlatform } from '../native/health';
 import { connectAndImport, initialLink, probeAccess, readAndImport, statusWord, type HealthLink } from '../native/link';
+
+/**
+ * Health Connect is a separate install on most phones: on Android 14+ it is a
+ * system module that OEM builds often ship stale or disabled, and below that it
+ * is an app from the Play Store. Either way the fix is outside Bene, so the
+ * store listing is linked rather than described.
+ */
+const HEALTH_CONNECT_PLAY = 'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata';
 
 /**
  * The one health-source card. Onboarding and Settings both mount this, so the
@@ -111,11 +119,33 @@ export function HealthSourceCard({
       )}
 
       {link.phase === 'unavailable' ? (
-        <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
-          Bene runs on this browser with no health store behind it, so the connect action stays honest rather than pretending. On a phone
-          it reads Apple Health on iOS and Health Connect on Android, straight from the device. Anything you log by hand is real, stored on
-          this device, and needs no account.
-        </p>
+        <>
+          <p className="caption mt-16" style={{ lineHeight: 1.6 }}>
+            {p === 'health-connect'
+              ? 'Health Connect is a separate component on Android and this phone is not reporting it as available, so there is nothing to read yet. Anything you log by hand is real, stored on this device, and needs no account.'
+              : p === 'apple-health'
+                ? 'HealthKit is not reachable on this device, so there is nothing to read yet. Anything you log by hand is real, stored on this device, and needs no account.'
+                : 'Bene runs in this browser with no health store behind it, so the connect action stays honest rather than pretending. On a phone it reads Apple Health on iOS and Health Connect on Android, straight from the device. Anything you log by hand is real, stored on this device, and needs no account.'}
+          </p>
+          {p === 'health-connect' ? (
+            <div className="health-source__actions">
+              <button
+                className="btn btn--soft btn--block"
+                onClick={() => window.open(HEALTH_CONNECT_PLAY, '_blank', 'noopener')}
+              >
+                <ExternalLink size={16} /> Get Health Connect
+              </button>
+              <button
+                className="btn btn--soft btn--block mt-8"
+                onClick={() => {
+                  openSettings().catch(() => showToast('Health Connect settings could not be opened'));
+                }}
+              >
+                <Settings2 size={16} /> Open Health Connect settings
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="health-source__actions">
           {link.phase === 'connected' ? (
