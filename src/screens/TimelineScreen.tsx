@@ -9,10 +9,12 @@ import { dateAtTime } from '../domain/time';
 import { Sheet } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
+import { useGoBack } from '../native';
 import type { WorkoutKind } from '../domain/types';
 
 export function TimelineScreen() {
   const navigate = useNavigate();
+  const back = useGoBack();
   const state = useAppStore();
   const [selected, setSelected] = useState(new Date());
   const selectedKey = dateKey(selected);
@@ -81,7 +83,7 @@ export function TimelineScreen() {
   return (
     <div className="screen screen--detail">
       <div className="detail-head">
-        <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
+        <button className="icon-btn icon-btn--soft" onClick={() => back()} aria-label="Back"><ChevronLeft size={20} /></button>
         <div>
           <div className="detail-head__title">Timeline</div>
           <div className="detail-head__sub">{format(selected, 'EEEE, MMMM d')}</div>

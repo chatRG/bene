@@ -17,6 +17,7 @@
     "shots:dark": "SHOT_THEME=dark bun scripts/screenshots.mjs",
     "shots:store": "bun scripts/store-screenshots.mjs",
     "test:e2e": "bun scripts/e2e.mjs",
+    "test:back": "bun scripts/e2e-back.mjs",
     "test:backup": "bun scripts/e2e-backup.mjs",
     "test:empty": "bun scripts/e2e-empty.mjs",
     "test:pwa": "bun scripts/e2e-pwa.mjs",

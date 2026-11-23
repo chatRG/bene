@@ -33,6 +33,7 @@ jobs:
           bun run test:e2e
           bun run test:empty
           bun run test:backup
+          bun run test:back
       - name: Offline PWA test
         run: |
           bun run preview > /tmp/bene-preview.log 2>&1 &

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { BookOpen, ChevronLeft, ChevronRight, Dna, Dumbbell, House, MessageCircle, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import { registerOverlay, removeOverlay, useGoBack } from '../native';
 
 /* ---------------- Ring ---------------- */
 
@@ -61,12 +62,12 @@ export function DetailHeader({
   onBack?: () => void;
   transparent?: boolean;
 }) {
-  const navigate = useNavigate();
+  const back = useGoBack();
   return (
     <div className="detail-head">
       <button
         className={`icon-btn ${transparent ? 'glass' : ''}`}
-        onClick={() => (onBack ? onBack() : navigate(-1))}
+        onClick={() => (onBack ? onBack() : back())}
         aria-label="Back"
         style={{ marginLeft: 0 }}
       >
@@ -115,6 +116,10 @@ export function TabBar() {
           key={item.to}
           to={item.to}
           end={item.end}
+          // Tabs are switched, not stacked. A push here would leave the tab the
+          // person just left in the web view's history, and the back gesture
+          // would then return to it instead of closing the app.
+          replace
           className={({ isActive }) => `nav-item ${isActive ? 'nav-item--active' : ''}`}
         >
           <span className="nav-item__icon">{item.icon}</span>
@@ -140,6 +145,22 @@ export function Sheet({
   children: ReactNode;
   full?: boolean;
 }) {
+  // A sheet covers the screen, so the back gesture closes it rather than
+  // leaving the screen underneath. Without this, back on a sheet left the whole
+  // screen and lost whatever was being filled in.
+  //
+  // Registered once and unmounted once; `onClose` is usually a fresh arrow on
+  // every render, so the latest one is read through a ref instead of making the
+  // registration churn.
+  const token = useRef(Symbol('sheet'));
+  const close = useRef(onClose);
+  close.current = onClose;
+
+  useEffect(() => {
+    registerOverlay(token.current, () => close.current());
+    return () => removeOverlay(token.current);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
