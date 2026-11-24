@@ -208,6 +208,13 @@ export const useAppStore = create<AppStore>()(
       // the health fields but keep anything logged by hand: a meal, a journal
       // entry or a workout the person added themselves is never overwritten by
       // a sync.
+      //
+      // Exercise minutes get one extra guard. Health Connect has no
+      // exercise-time record, so an imported Android day always carries zero —
+      // an unsupported metric, not a measured zero. Swapping that in would
+      // erase the total a manually logged workout contributed, so when the
+      // incoming day marks exercise as unsupported the day's existing total is
+      // kept and only the measured fields are replaced.
       importHealthDays: (records) =>
         set((s) => {
           if (!records.length) return s;
@@ -219,9 +226,12 @@ export const useAppStore = create<AppStore>()(
               ? {
                   ...existing,
                   sleep: incoming.sleep ?? existing.sleep,
-                  metrics: incoming.metrics.steps || incoming.metrics.hrSamples.length
-                    ? incoming.metrics
-                    : existing.metrics,
+                  metrics:
+                    incoming.metrics.steps || incoming.metrics.hrSamples.length
+                      ? incoming.metrics.exerciseUnsupported
+                        ? { ...incoming.metrics, exerciseMinutes: existing.metrics.exerciseMinutes }
+                        : incoming.metrics
+                      : existing.metrics,
                   workouts: [
                     ...existing.workouts.filter((w) => !w.imported),
                     ...incoming.workouts,

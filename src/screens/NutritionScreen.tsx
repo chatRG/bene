@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { Apple, Barcode, ChevronRight, Flame, Image as ImageIcon, Info, Plus, Search, Share2, Utensils } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
+import { kcal } from '../domain/time';
 import { deriveDay } from '../domain/derive';
 import { DotMatrix, RangeBar } from '../components/charts';
 import { SectionHead, Sheet, Segmented, Ring } from '../components/ui';
@@ -161,7 +162,7 @@ export function NutritionScreen() {
           <button className="icon-btn icon-btn--soft" onClick={() => showToast('Net energy = intake − burn')} aria-label="Info"><Info size={16} /></button>
         </div>
         <div className="net-energy-row">
-          <span><Flame size={14} color="var(--muted)" /> Burn {d.record.metrics.totalCalories.toLocaleString()}</span>
+          <span><Flame size={14} color="var(--muted)" /> Burn {kcal(d.record.metrics.totalCalories)}</span>
           <span><Apple size={14} color="var(--muted)" /> Intake {n.totals.calories.toLocaleString()}</span>
         </div>
         <div className="mt-12">
