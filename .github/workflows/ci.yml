@@ -28,6 +28,8 @@ jobs:
         run: |
           bun run dev > /tmp/bene-dev.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:5173/ && break; sleep 1; done
+          # The loop above exits 0 even if the server never answered; fail loudly here.
+          curl -sf http://localhost:5173/ || { echo "::error::Dev server did not come up on :5173. Last lines of /tmp/bene-dev.log:"; tail -20 /tmp/bene-dev.log; exit 1; }
       - name: Browser tests
         run: |
           bun run test:e2e
@@ -38,4 +40,6 @@ jobs:
         run: |
           bun run preview > /tmp/bene-preview.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:4173/ && break; sleep 1; done
+          # The loop above exits 0 even if the server never answered; fail loudly here.
+          curl -sf http://localhost:4173/ || { echo "::error::Preview server did not come up on :4173. Last lines of /tmp/bene-preview.log:"; tail -20 /tmp/bene-preview.log; exit 1; }
           bun run test:pwa
