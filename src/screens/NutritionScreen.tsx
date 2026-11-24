@@ -100,6 +100,20 @@ export function NutritionScreen() {
 
   const filtered = FOODS.filter((f) => f.name.toLowerCase().includes(query.toLowerCase()));
 
+  const shareCard = async () => {
+    const text = `Nutrition today — ${n.totals.calories.toLocaleString()} kcal · P ${Math.round(n.totals.proteinG)}g · C ${Math.round(n.totals.carbsG)}g · F ${Math.round(n.totals.fatG)}g · net energy ${n.netEnergy != null ? `${n.netEnergy > 0 ? '+' : ''}${n.netEnergy}` : '—'} kcal.`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'My Nutrition', text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        showToast('Share card copied');
+      }
+    } catch {
+      showToast('Share cancelled');
+    }
+  };
+
   return (
     <div className="screen nutrition-page screen--enter">
       <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
@@ -110,7 +124,7 @@ export function NutritionScreen() {
         </div>
         <div className="detail-head__right">
           <div className="row gap-6">
-            <button className="icon-btn icon-btn--soft" onClick={() => showToast('Share card copied')} aria-label="Share"><Share2 size={17} /></button>
+            <button className="icon-btn icon-btn--soft" onClick={shareCard} aria-label="Share"><Share2 size={17} /></button>
             <button className="icon-btn icon-btn--soft" onClick={() => setLogOpen(true)} aria-label="Log food"><Plus size={19} /></button>
           </div>
         </div>

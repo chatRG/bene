@@ -230,6 +230,7 @@ export function TimelineScreen() {
                 className="btn btn--block mt-16"
                 onClick={() => {
                   setAddOpen(false);
+                  state.logNap(selectedKey);
                   showToast('Nap logged');
                 }}
               >

@@ -33,6 +33,8 @@ export function FitnessScreen() {
     .reduce((a, w) => a + w.durationMin, 0);
   const recent = [...state.dayOrder.slice(-8)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
   const nextRoutine = state.routines.find((r) => r.scheduledDates.some((x) => x >= today)) ?? state.routines[0];
+  // Show the first scheduled date from today on; scheduledDates[0] can be in the past.
+  const nextDate = nextRoutine ? nextRoutine.scheduledDates.find((x) => x >= today) ?? nextRoutine.scheduledDates[0] : undefined;
   const calibrated = load.status !== 'Calibrating';
 
   return (
@@ -94,7 +96,7 @@ export function FitnessScreen() {
                 <div className="card-title" style={{ fontSize: 16 }}>{nextRoutine.name}</div>
                 <div className="card-sub">
                   {nextRoutine.subtitle} · {nextRoutine.durationMin} min
-                  {nextRoutine.scheduledDates[0] ? ` · ${format(new Date(`${nextRoutine.scheduledDates[0]}T12:00:00`), 'EEE, MMM d')}` : ''}
+                  {nextDate ? ` · ${format(new Date(`${nextDate}T12:00:00`), 'EEE, MMM d')}` : ''}
                 </div>
               </div>
               <span className="pill pill--sm pill--dark"><Play size={11} fill="currentColor" /> Start</span>

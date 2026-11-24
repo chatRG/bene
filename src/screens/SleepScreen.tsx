@@ -63,7 +63,10 @@ export function SleepScreen() {
       .filter((start): start is string => !!start)
       .map((start) => {
         const d = new Date(start);
-        return d.getHours() * 60 + d.getMinutes();
+        // Re-anchor each bedtime on a linear scale that does not wrap at
+        // midnight (minutes since 18:00 of the previous afternoon); averaging
+        // raw minutes-since-midnight breaks for bedtimes around 00:00.
+        return (d.getHours() * 60 + d.getMinutes() + 360) % 1440;
       });
     if (starts.length < 3) return null;
     const mean = starts.reduce((a, b) => a + b, 0) / starts.length;
@@ -71,11 +74,21 @@ export function SleepScreen() {
     return Math.round(Math.max(0, Math.min(100, 100 - mad / 2)));
   })();
 
-  const hist = state.dayOrder.slice(-14).map((date) => {
-    const rec = state.days[date];
-    const s = rec?.sleep;
-    return s ? Math.round(stageTotals(s).asleepMin / 6) / 10 : 0;
+  // The last 14 day keys, kept in full so the x-axis stays truthful: labels are
+  // computed from the nights actually plotted rather than hardcoded, so after
+  // filtering empty nights the rightmost dot is never mislabelled as last night.
+  const trendDays = state.dayOrder.slice(-14);
+  const trend = trendDays.map((date) => {
+    const s = state.days[date]?.sleep;
+    return { date, hours: s ? Math.round(stageTotals(s).asleepMin / 6) / 10 : 0 };
   });
+  const trendNights = trend.filter((t) => t.hours > 0);
+  const trendValues = trendNights.map((t) => t.hours);
+  const trendAvg = trendValues.length ? trendValues.reduce((a, b) => a + b, 0) / trendValues.length : 0;
+  const trendLabels: [string, string] = [
+    trendNights.length ? format(new Date(`${trendNights[0].date}T12:00:00`), 'M/d') : '',
+    trendNights.length ? format(new Date(`${trendNights[trendNights.length - 1].date}T12:00:00`), 'M/d') : '',
+  ];
 
   return (
     <div>
@@ -169,8 +182,8 @@ export function SleepScreen() {
             <span className="caption">Last 14 nights</span>
           </div>
           <div className="chart-card">
-            {hist.filter((v) => v > 0).length >= 2 ? (
-              <LineChart values={hist.filter((v) => v > 0)} yMax={10} yTicks={[10, 7, 4]} color="var(--sleep)" height={150} avg={hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)} avgLabel={`Avg ${(hist.filter((v) => v > 0).reduce((a, b) => a + b, 0) / Math.max(1, hist.filter((v) => v > 0).length)).toFixed(1)}h`} xLabels={['2 weeks ago', 'Last night']} />
+            {trendValues.length >= 2 ? (
+              <LineChart values={trendValues} yMax={10} yTicks={[10, 7, 4]} color="var(--sleep)" height={150} avg={trendAvg} avgLabel={`Avg ${trendAvg.toFixed(1)}h`} xLabels={trendLabels} />
             ) : (
               <div className="empty" style={{ padding: '18px 12px' }}>Two nights of sleep unlock the trend.</div>
             )}
@@ -288,6 +301,7 @@ function AlarmSheet({
 }) {
   const [type, setType] = useState<AlarmType>(initial?.type ?? 'smart');
   const [time, setTime] = useState(initial?.time ?? '07:30');
+  const [windowMin, setWindowMin] = useState(initial?.windowMin ?? 30);
   const options: { value: AlarmType; label: string; desc: string }[] = [
     { value: 'smart', label: 'Smart alarm', desc: 'Wake in your lightest phase within a window' },
     { value: 'regular', label: 'Regular alarm', desc: 'Wake at the same time every day' },
@@ -313,7 +327,7 @@ function AlarmSheet({
           </div>
           <div style={{ width: 120 }}>
             <div className="field-label">Window</div>
-            <select className="text-input" defaultValue="30">
+            <select className="text-input" value={String(windowMin)} onChange={(e) => setWindowMin(Number(e.target.value))}>
               <option value="15">15 min</option>
               <option value="30">30 min</option>
               <option value="45">45 min</option>
@@ -324,7 +338,7 @@ function AlarmSheet({
       <p className="caption mt-16" style={{ lineHeight: 1.5 }}>
         Time to Fall Asleep is measured from when the Bene alarm is armed to your first detected sleep stage. Apple's Clock alarm does not count.
       </p>
-      <button className="btn btn--block mt-20" onClick={() => onSave({ type, time, windowMin: 30, enabled: type !== 'none' })}>
+      <button className="btn btn--block mt-20" onClick={() => onSave({ type, time, windowMin, enabled: type !== 'none' })}>
         Save to Watch
       </button>
     </Sheet>
