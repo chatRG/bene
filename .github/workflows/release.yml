@@ -73,6 +73,34 @@ jobs:
           test -n "$CODE" || { echo "::error::No versionCode found in android/app/build.gradle"; exit 1; }
           echo "versionCode   $CODE"
 
+          # The same rule against the previous release. The tag before this
+          # commit carries the build.gradle that shipped last time; if this
+          # build would not install over it, say so before anything is built.
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD 2>/dev/null || true)
+          PREV_CODE=$(git show "$PREV_TAG:android/app/build.gradle" 2>/dev/null | sed -nE 's/.*versionCode ([0-9]+).*/\1/p' | head -1)
+          if [ -n "$PREV_CODE" ] && [ "$CODE" -le "$PREV_CODE" ]; then
+            echo "::error::versionCode must increase. $PREV_TAG shipped versionCode $PREV_CODE, this release would ship $CODE. Bump versionCode in android/app/build.gradle."
+            exit 1
+          fi
+
+          # The IPA carries whatever the Xcode project says, not package.json.
+          # The project pins its own MARKETING_VERSION/CURRENT_PROJECT_VERSION,
+          # so if they drift every published IPA reports the wrong version.
+          XCODE_VERSION=$(sed -nE 's/.*MARKETING_VERSION = ([^;]+);.*/\1/p' ios/App/App.xcodeproj/project.pbxproj | head -1)
+          XCODE_BUILD=$(sed -nE 's/.*CURRENT_PROJECT_VERSION = ([^;]+);.*/\1/p' ios/App/App.xcodeproj/project.pbxproj | head -1)
+          echo "project.pbxproj  $XCODE_VERSION ($XCODE_BUILD)"
+
+          if [ "$VERSION" != "$XCODE_VERSION" ]; then
+            echo "::error::Version mismatch. package.json says $VERSION, the iOS project says MARKETING_VERSION ${XCODE_VERSION:-unset}. Bump both in the release commit."
+            exit 1
+          fi
+
+          test -n "$XCODE_BUILD" || { echo "::error::No CURRENT_PROJECT_VERSION found in ios/App/App.xcodeproj/project.pbxproj"; exit 1; }
+          if [ "$XCODE_BUILD" -lt "$CODE" ]; then
+            echo "::error::CURRENT_PROJECT_VERSION ($XCODE_BUILD) is below the Android versionCode ($CODE). The IPA would report an older build than the APK. Bump the iOS project."
+            exit 1
+          fi
+
           if [ "${{ inputs.dry_run }}" != "true" ] && git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
             echo "::error::Tag v$VERSION already exists. Bump the version in package.json and android/app/build.gradle, then run again."
             exit 1

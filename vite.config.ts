@@ -6,10 +6,12 @@ import { join } from 'node:path';
 
 /**
  * Stamps the service worker with a release identifier after the bundle is
- * written. The hash covers the built assets, so any change to the app produces
- * a new cache name and the previous cache is evicted on activate. Without this
- * the worker's cache name is a constant, nothing is ever evicted, and a
- * returning user keeps the old bundle until they clear app data.
+ * written. The hash covers the built assets, index.html and the top-level
+ * files copied from public/ (favicon, manifest, icons, privacypolicy), so any
+ * change to the app produces a new cache name and the previous cache is
+ * evicted on activate. Without this the worker's cache name is a constant,
+ * nothing is ever evicted, and a returning user keeps the old bundle until
+ * they clear app data.
  */
 function stampServiceWorker(): Plugin {
   return {
@@ -24,9 +26,22 @@ function stampServiceWorker(): Plugin {
       const assets = existsSync(assetsDir) ? readdirSync(assetsDir).sort() : [];
       const digest = createHash('sha256');
       for (const file of assets) digest.update(file);
+      // The assets are hashed by name only, and index.html plus everything
+      // copied from public/ (favicon, manifest, icons, privacypolicy) sit
+      // beside them under unhashed names. Digest those by name AND bytes:
+      // a build that changes only a public file would otherwise stamp an
+      // identical release and the worker would keep serving the old cache.
+      // sw.js is skipped — it carries the stamp itself.
+      const topFiles = readdirSync(dist, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name !== 'sw.js')
+        .map((entry) => entry.name)
+        .sort();
+      for (const file of topFiles) {
+        digest.update(file);
+        digest.update(readFileSync(join(dist, file)));
+      }
       // The lockfile-stable version is not enough on its own: two builds of the
       // same version with different code must still invalidate the cache.
-      digest.update(readFileSync(join(dist, 'index.html')));
       const release = digest.digest('hex').slice(0, 12);
 
       const source = readFileSync(swPath, 'utf8');

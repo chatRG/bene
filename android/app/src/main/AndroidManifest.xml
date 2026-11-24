@@ -63,12 +63,13 @@
 
     <!-- Health Connect. Bene only reads, and only these types (see READ_TYPES in
          src/native/health.ts): steps, sleep, heart rate, HRV, resting heart rate,
-         respiratory rate, oxygen saturation, body temperature, calories, workouts
-         (read as Health Connect exercise sessions), weight and height. 'exerciseTime'
-         is HealthKit-only and never asked here (see readTypes() in health.ts).
-         No WRITE_* permissions are declared because Bene never writes to the store.
-         Names follow the Health Connect permission constants the plugin builds from
-         its record classes (HealthDataType.kt:37-56 via HealthPermission.getReadPermission). -->
+         respiratory rate, oxygen saturation, body temperature, active calories,
+         total calories, workouts (read as Health Connect exercise sessions).
+         'exerciseTime' is HealthKit-only and never asked here (see readTypes() in
+         health.ts). No WRITE_* permissions are declared because Bene never writes
+         to the store. Names follow the Health Connect permission constants the
+         plugin builds from its record classes (HealthDataType.kt:37-56 via
+         HealthPermission.getReadPermission). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
@@ -78,9 +79,8 @@
     <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
-    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
-    <uses-permission android:name="android.permission.health.READ_HEIGHT" />
     <!-- Required by the plugin for requestHistoryAccess (history beyond Health Connect's
          30-day read window); HealthManager.kt:1248, and requestAccess() in
          src/native/health.ts passes it. Health Connect only shows permissions that are
@@ -88,11 +88,25 @@
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
 
 
-    <!-- The health plugin's own manifest declares every write scope it supports.
-         Bene only reads, so the merger is told to drop them: a permission that is
-         declared but never requested still appears on the Health Connect consent
-         screen, and asking for write access to someone's health record to run a
-         read-only app is not a fair ask. -->
+    <!-- The health plugin's own manifest declares every read and write scope it
+         supports. Bene only asks for the read types above and never writes, so
+         the merger is told to drop the rest: a permission that is declared but
+         never requested still appears on the Health Connect consent screen, and
+         asking for access to someone's health data the app never uses is not a
+         fair ask. -->
+    <uses-permission android:name="android.permission.health.READ_BASAL_BODY_TEMPERATURE" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_BASAL_METABOLIC_RATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_HEIGHT" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_HYDRATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_MINDFULNESS" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_NUTRITION" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_VO2_MAX" tools:node="remove" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_BASAL_BODY_TEMPERATURE" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_BASAL_METABOLIC_RATE" tools:node="remove" />
