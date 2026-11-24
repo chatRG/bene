@@ -22,8 +22,8 @@ const device = vi.hoisted(() => ({
   platform: 'web' as 'ios' | 'android' | 'web',
   samples: [] as unknown[],
   workouts: [] as unknown[],
-  readCalls: [] as { dataType: string; startDate?: string; endDate?: string; limit?: number }[],
-  workoutCalls: [] as { startDate?: string; endDate?: string }[],
+  readCalls: [] as { dataType: string; startDate?: string; endDate?: string; limit?: number; ascending?: boolean }[],
+  workoutCalls: [] as { startDate?: string; endDate?: string; limit?: number; ascending?: boolean }[],
   fail: false,
   /** What the SDK status probe answers. It is a hint, not the truth. */
   available: true,
@@ -80,10 +80,16 @@ vi.mock('@capgo/capacitor-health', () => ({
       const limit = opts.limit ?? inWindow.length;
       return { samples: inWindow.slice(0, limit) };
     },
-    queryWorkouts: async (opts: { startDate?: string; endDate?: string }) => {
+    queryWorkouts: async (opts: { startDate?: string; endDate?: string; limit?: number; ascending?: boolean }) => {
       if (device.fail) throw new Error('permission revoked');
       device.workoutCalls.push({ ...opts });
-      return { workouts: device.workouts as HealthWorkout[] };
+      // Honour the sort order and cap the caller asked for, the way the plugin
+      // does: sort by start date, then take(limit) — so an ascending ask
+      // really would drop the newest workouts once the cap hits.
+      const sorted = [...(device.workouts as HealthWorkout[])].sort((a, b) => at(a.startDate) - at(b.startDate));
+      const ordered = opts.ascending === false ? sorted.reverse() : sorted;
+      const limit = opts.limit ?? ordered.length;
+      return { workouts: ordered.slice(0, limit) };
     },
   },
 }));
@@ -444,6 +450,7 @@ describe('readDays: queries', () => {
     const types = new Set(device.readCalls.map((c) => c.dataType));
     expect([...types].sort()).toEqual(
       [
+        'basalCalories',
         'bodyTemperature',
         'calories',
         'exerciseTime',
@@ -466,12 +473,19 @@ describe('readDays: queries', () => {
 
     const first = device.readCalls.find((c) => c.dataType === 'sleep')!;
     const span = at(first.endDate!) - at(first.startDate!);
-    // `start` is counted back from end-of-today, so the window is at least
-    // `days` long and reaches the end of today or last night's tail is missed.
+    // The window runs from local midnight `days` back to end-of-today: at
+    // least `days` long, so last night's tail is never missed, and less than
+    // `days + 1`.
     expect(span).toBeGreaterThanOrEqual(7 * 86400000);
     expect(span).toBeLessThan(8 * 86400000);
     const end = new Date(first.endDate!);
     expect([end.getHours(), end.getMinutes(), end.getSeconds()]).toEqual([23, 59, 59]);
+    // The start is a local midnight, not a raw millisecond offset from
+    // end-of-today — a raw offset lands an hour past the oldest local
+    // midnight after a DST fall-back and drops that local day.
+    const began = new Date(first.startDate!);
+    expect([began.getHours(), began.getMinutes(), began.getSeconds()]).toEqual([0, 0, 0]);
+    expect(isoKey(began)).toBe(isoKey(shiftDays(7)));
   });
 
   it('asks Health Connect nothing it cannot answer', async () => {
@@ -481,9 +495,11 @@ describe('readDays: queries', () => {
     const types = new Set(device.readCalls.map((c) => c.dataType));
     // 'exerciseTime' is a HealthKit type with no Health Connect record: asking
     // the store for it rejects the whole permission list and made every Android
-    // phone read as "no health store". Nothing else in the ask may go either.
+    // phone read as "no health store". 'basalCalories' is a BMR *rate* there,
+    // so the total comes from 'totalCalories' instead. Nothing else may go.
     expect(types.has('exerciseTime')).toBe(false);
-    for (const type of ['sleep', 'heartRate', 'heartRateVariability', 'restingHeartRate', 'respiratoryRate', 'oxygenSaturation', 'bodyTemperature', 'steps', 'calories']) {
+    expect(types.has('basalCalories')).toBe(false);
+    for (const type of ['sleep', 'heartRate', 'heartRateVariability', 'restingHeartRate', 'respiratoryRate', 'oxygenSaturation', 'bodyTemperature', 'steps', 'calories', 'totalCalories']) {
       expect(types.has(type)).toBe(true);
     }
   });
@@ -565,6 +581,7 @@ describe('readDays: unit conversion on workouts', () => {
   it('maps the workout types Bene knows and keeps unknown ones inside WorkoutKind', async () => {
     await onDevice();
     const cases: [string, string][] = [
+      // The names Bene's map was first written against.
       ['running', 'run'],
       ['walking', 'walk'],
       ['hiking', 'hike'],
@@ -574,9 +591,23 @@ describe('readDays: unit conversion on workouts', () => {
       ['traditionalStrengthTraining', 'strength'],
       ['highIntensityIntervalTraining', 'hiit'],
       ['yoga', 'yoga'],
+      // The names the plugin actually *emits* — Android's
+      // WorkoutType.toWorkoutTypeString and iOS's fromHKWorkoutActivityType —
+      // which used to fall through to 'walk' and inflate cardio-goal minutes.
+      ['strengthTraining', 'strength'],
+      ['weightlifting', 'strength'],
+      ['crossTraining', 'hiit'],
+      ['swimmingPool', 'swim'],
+      ['swimmingOpenWater', 'swim'],
+      ['waterFitness', 'swim'],
+      ['bikingStationary', 'cycle'],
+      ['elliptical', 'cycle'],
+      ['rowing', 'cycle'],
+      ['rowingMachine', 'cycle'],
+      ['runningTreadmill', 'run'],
       // WorkoutKind is a closed set with no 'other'. An unrecognised type must
       // still land on a real member, or the bundle fails to type-check.
-      ['rowing', 'walk'],
+      ['rowingUnknownSport', 'walk'],
       ['unknownFutureType', 'walk'],
     ];
     device.workouts = cases.map(([type], i) =>
@@ -630,6 +661,9 @@ describe('readDays: daily aggregation', () => {
     const byDate = Object.fromEntries((await readDays(3)).map((d) => [d.date, d]));
 
     expect(byDate[yesterday()].metrics.steps).toBe(2000);
+    // 'calories' is active energy, and with no basal samples total stays at
+    // active rather than dropping to zero.
+    expect(byDate[yesterday()].metrics.activeCalories).toBe(151);
     expect(byDate[yesterday()].metrics.totalCalories).toBe(151);
     expect(byDate[today()].metrics.steps).toBe(400);
     // Sleep is filed under the morning it ends on, not the evening it began.
@@ -797,6 +831,9 @@ describe('readDays: heart rate is never silently truncated', () => {
       const window = at(call.endDate!) - at(call.startDate!);
       expect(window).toBeGreaterThan(0);
       expect(window).toBeLessThanOrEqual(86400000);
+      // Local calendar days, not millisecond offsets: each window starts at a
+      // local midnight so a DST shift cannot slide one off the day.
+      expect([new Date(call.startDate!).getHours(), new Date(call.startDate!).getMinutes()]).toEqual([0, 0]);
     }
     // The windows must tile the range without gaps or overlap.
     for (let i = 1; i < hrCalls.length; i += 1) {
@@ -916,7 +953,7 @@ describe('access: the ask matches what the store can answer', () => {
     device.authCalls = [];
   });
 
-  it('leaves the HealthKit-only type out on Android', async () => {
+  it('leaves the HealthKit-only type and the BMR rate out of the Android ask', async () => {
     device.platform = 'android';
     device.authCalls = [];
 
@@ -925,11 +962,11 @@ describe('access: the ask matches what the store can answer', () => {
 
     expect(device.authCalls.length).toBeGreaterThan(0);
     for (const call of device.authCalls) {
-      expect(call.read).toEqual(READ_TYPES.filter((t) => t !== 'exerciseTime'));
+      expect(call.read).toEqual(READ_TYPES.filter((t) => t !== 'exerciseTime' && t !== 'basalCalories'));
     }
   });
 
-  it('keeps the full list on iOS', async () => {
+  it('asks iOS for basal calories but not for the double-counting total', async () => {
     device.platform = 'ios';
     device.authCalls = [];
 
@@ -938,7 +975,195 @@ describe('access: the ask matches what the store can answer', () => {
 
     expect(device.authCalls.length).toBeGreaterThan(0);
     for (const call of device.authCalls) {
-      expect(call.read).toEqual(READ_TYPES);
+      expect(call.read).toEqual(READ_TYPES.filter((t) => t !== 'totalCalories'));
+      expect(call.read).toContain('exerciseTime');
+      expect(call.read).toContain('basalCalories');
     }
+  });
+});
+
+describe('toSleepSession: the per-segment shape iOS emits', () => {
+  it('merges many one-stage samples into the one night they compose', () => {
+    const samples = [
+      sleepSample('2026-11-13T23:00:00.000Z', '2026-11-14T01:00:00.000Z', [
+        stage('2026-11-13T23:00:00.000Z', '2026-11-14T01:00:00.000Z', 'light'),
+      ], { platformId: 'seg-1', sourceName: 'Apple Watch' }),
+      sleepSample('2026-11-14T01:00:00.000Z', '2026-11-14T03:00:00.000Z', [
+        stage('2026-11-14T01:00:00.000Z', '2026-11-14T03:00:00.000Z', 'deep'),
+      ], { platformId: 'seg-2' }),
+      sleepSample('2026-11-14T03:00:00.000Z', '2026-11-14T06:50:00.000Z', [
+        stage('2026-11-14T03:00:00.000Z', '2026-11-14T06:50:00.000Z', 'rem'),
+      ], { platformId: 'seg-3' }),
+      sleepSample('2026-11-14T06:50:00.000Z', '2026-11-14T07:00:00.000Z', [
+        stage('2026-11-14T06:50:00.000Z', '2026-11-14T07:00:00.000Z', 'awake'),
+      ], { platformId: 'seg-4' }),
+    ];
+
+    const session = toSleepSession(samples, DATE)!;
+
+    // One session whose bounds are the union, not the longest single segment.
+    expect(session.start).toBe(new Date('2026-11-13T23:00:00.000Z').toISOString());
+    expect(session.end).toBe(new Date('2026-11-14T07:00:00.000Z').toISOString());
+    // Identity and provenance come from the first sample in the store's order.
+    expect(session.id).toBe('seg-1');
+    expect(session.source).toBe('Apple Watch');
+    // Every stage survives, sorted by when it happened, in minutes from the
+    // merged start.
+    expect(session.stages).toEqual([
+      { stage: 'core', startMin: 0, endMin: 120 },
+      { stage: 'deep', startMin: 120, endMin: 240 },
+      { stage: 'rem', startMin: 240, endMin: 470 },
+      { stage: 'awake', startMin: 470, endMin: 480 },
+    ]);
+  });
+
+  it('keeps the longest-sample behaviour when the samples are not all per-segment', () => {
+    // A Health Connect morning: a stage-less nap and a stage-bearing night.
+    const nap = sleepSample('2026-11-14T06:00:00.000Z', '2026-11-14T06:20:00.000Z', undefined, { platformId: 'nap' });
+    const night = sleepSample('2026-11-13T23:00:00.000Z', '2026-11-14T07:00:00.000Z', [
+      stage('2026-11-13T23:00:00.000Z', '2026-11-14T03:00:00.000Z', 'deep'),
+      stage('2026-11-14T03:00:00.000Z', '2026-11-14T07:00:00.000Z', 'light'),
+    ], { platformId: 'night' });
+
+    const session = toSleepSession([nap, night], DATE)!;
+
+    expect(session.id).toBe('night');
+    expect(session.start).toBe(new Date('2026-11-13T23:00:00.000Z').toISOString());
+  });
+});
+
+describe('readDays: the energy split', () => {
+  it('reads active and basal energy separately on iOS and adds them', async () => {
+    await onDevice('ios');
+    device.samples = [
+      sample('steps', 100, day(yesterday(), '09:00')),
+      sample('calories', 710, day(yesterday(), '12:00'), 'kilocalorie'),
+      sample('basalCalories', 1900, day(yesterday(), '00:00'), 'kilocalorie'),
+    ];
+
+    const d = (await readDays(2)).find((x) => x.date === yesterday())!;
+
+    expect(d.metrics.activeCalories).toBe(710);
+    expect(d.metrics.totalCalories).toBe(2610);
+  });
+
+  it('keeps totalCalories at active when the store has no basal samples', async () => {
+    await onDevice('ios');
+    device.samples = [
+      sample('steps', 100, day(yesterday(), '09:00')),
+      sample('calories', 710, day(yesterday(), '12:00'), 'kilocalorie'),
+    ];
+
+    const d = (await readDays(2)).find((x) => x.date === yesterday())!;
+
+    expect(d.metrics.activeCalories).toBe(710);
+    expect(d.metrics.totalCalories).toBe(710);
+  });
+
+  it('reads the total directly from Health Connect on Android', async () => {
+    await onDevice('android');
+    device.samples = [
+      sample('steps', 100, day(yesterday(), '09:00')),
+      sample('calories', 710, day(yesterday(), '12:00'), 'kilocalorie'),
+      sample('totalCalories', 2610, day(yesterday(), '12:00'), 'kilocalorie'),
+    ];
+
+    const d = (await readDays(2)).find((x) => x.date === yesterday())!;
+
+    expect(d.metrics.activeCalories).toBe(710);
+    expect(d.metrics.totalCalories).toBe(2610);
+  });
+});
+
+describe('readDays: a capped page is re-read, not summed as complete', () => {
+  it('falls back to per-day reads when a single query hits its cap', async () => {
+    await onDevice();
+    // A heavy month of steps: the range query returns exactly its 2000-sample
+    // cap, which is the only signal Bene gets that days were dropped.
+    const heavy: HealthSample[] = [];
+    for (let d = 0; d < 30; d += 1) {
+      for (let k = 0; k < 67; k += 1) {
+        const minute = k * 20;
+        heavy.push(sample('steps', 100, day(isoKey(shiftDays(d)), `${Math.floor(minute / 60)}:${String(minute % 60).padStart(2, '0')}`)));
+      }
+    }
+    device.samples = heavy;
+
+    const days = await readDays(30);
+    const byDate = Object.fromEntries(days.map((x) => [x.date, x]));
+
+    // The fallback re-reads each local day, so no single query is at the cap.
+    const stepCalls = device.readCalls.filter((c) => c.dataType === 'steps');
+    expect(stepCalls.length).toBeGreaterThan(1);
+    for (const call of stepCalls.slice(1)) {
+      expect(at(call.endDate!) - at(call.startDate!)).toBeLessThanOrEqual(86400000);
+    }
+    // And the day sums are complete: 67 samples × 100 each.
+    expect(byDate[yesterday()].metrics.steps).toBe(6700);
+  });
+
+  it('keeps the single-query fast path when the cap is not reached', async () => {
+    await onDevice();
+    device.samples = [sample('steps', 100, day(yesterday(), '09:00'))];
+
+    await readDays(7);
+
+    expect(device.readCalls.filter((c) => c.dataType === 'steps')).toHaveLength(1);
+  });
+});
+
+describe('readDays: sleep survives its own cap', () => {
+  it('re-reads per morning and dedupes the overlapping windows', async () => {
+    await onDevice('ios');
+    // iOS emits one sample per stage segment. Nights of 80 segments each are
+    // enough that the whole month overruns the 2000-sample cap.
+    const nights: HealthSample[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      const morning = shiftDays(i);
+      for (let k = 0; k < 80; k += 1) {
+        const start = new Date(morning.getFullYear(), morning.getMonth(), morning.getDate() - 1, 23, 0, 0);
+        start.setMinutes(k * 6);
+        const end = new Date(start.getTime() + 6 * 60000);
+        nights.push(sleepSample(start.toISOString(), end.toISOString(), [stage(start.toISOString(), end.toISOString(), 'light')], { platformId: `n${i}-s${k}` }));
+      }
+    }
+    device.samples = nights;
+
+    const days = await readDays(30);
+    const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+
+    // The single capped query alone would have kept only the oldest nights.
+    const sleepCalls = device.readCalls.filter((c) => c.dataType === 'sleep');
+    expect(sleepCalls.length).toBeGreaterThan(1);
+
+    // Last night is whole: bounds span the full night and every one of its 80
+    // segments is present exactly once — the re-read windows overlap by a
+    // night, so without deduping the merged session would double them.
+    const session = byDate[yesterday()].sleep!;
+    expect(session.stages).toHaveLength(80);
+    // The whole night sits on one day record: it starts the evening before
+    // yesterday and every segment of it is present, not split across two days.
+    expect(session.start).toBe(new Date(day(isoKey(shiftDays(2)), '23:00')).toISOString());
+    expect(session.stages.reduce((n, b) => n + (b.endMin - b.startMin), 0)).toBe(480);
+  });
+});
+
+describe('readDays: the workout ask', () => {
+  it('sorts descending so a capped query keeps the newest workouts', async () => {
+    await onDevice();
+    device.workouts = [
+      workout({ workoutType: 'running', duration: 600, startDate: day(threeAgo(), '07:00'), endDate: day(threeAgo(), '07:10'), platformId: 'old' }),
+      workout({ workoutType: 'running', duration: 600, startDate: day(yesterday(), '07:00'), endDate: day(yesterday(), '07:10'), platformId: 'newest' }),
+    ];
+
+    await readDays(3);
+
+    // The plugin sorts then take(limit): ascending would have dropped
+    // 'newest' once the cap hit, so Bene must ask for descending.
+    expect(device.workoutCalls).toHaveLength(1);
+    expect(device.workoutCalls[0].ascending).toBe(false);
+    expect(device.workoutCalls[0].limit).toBe(200);
+    // And the newest one is what came back and was filed.
+    expect((await readDays(3)).flatMap((d) => d.workouts).map((w) => w.id)).toContain('newest');
   });
 });
