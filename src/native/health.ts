@@ -44,6 +44,21 @@ export function platformLabel(p: HealthPlatform = platform()): string {
   return 'Not available on this device';
 }
 
+/**
+ * The types to ask the store about, trimmed to the current platform.
+ *
+ * 'exerciseTime' is a HealthKit type — Apple's exercise minutes — and the
+ * plugin has no Health Connect record for it. Passing it to Health Connect's
+ * permission calls makes the whole list reject with "Unsupported data type",
+ * which Bene then reports as "no health store" on every Android phone,
+ * including ones where the store works fine. So on Android the ask is what
+ * Health Connect can actually answer; the permission the store wants for
+ * workouts is requested through 'workouts' itself.
+ */
+export function readTypes(): HealthDataType[] {
+  return platform() === 'health-connect' ? READ_TYPES.filter((t) => t !== 'exerciseTime') : READ_TYPES;
+}
+
 export interface HealthStatus {
   available: boolean;
   platform: HealthPlatform;
@@ -96,7 +111,7 @@ export async function requestAccess(): Promise<HealthStatus> {
   try {
     // Android caps reads to ~30 days without history access; iOS ignores the flag.
     const status = await Health.requestAuthorization({
-      read: READ_TYPES,
+      read: readTypes(),
       requestHistoryAccess: true,
     });
     return {
@@ -123,7 +138,7 @@ export async function checkAccess(): Promise<HealthStatus> {
     return { available: false, platform: p, readAuthorized: [], readDenied: [] };
   }
   try {
-    const status = await Health.checkAuthorization({ read: READ_TYPES });
+    const status = await Health.checkAuthorization({ read: readTypes() });
     return {
       available: true,
       platform: p,
@@ -356,7 +371,12 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     Health.readSamples({ dataType: 'steps', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
     Health.readSamples({ dataType: 'calories', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
     readHeartRateByDay(start, days),
-    Health.readSamples({ dataType: 'exerciseTime', ...range, limit: 500 }).catch(() => ({ samples: [] })),
+    // exerciseTime is HealthKit-only (see readTypes): Health Connect has no
+    // such record, so there is nothing to query for. Exercise minutes stay 0
+    // on Android, exactly as a store without the record would report.
+    p === 'apple-health'
+      ? Health.readSamples({ dataType: 'exerciseTime', ...range, limit: 500 }).catch(() => ({ samples: [] }))
+      : Promise.resolve({ samples: [] }),
     Health.queryWorkouts({ ...range, limit: 200, ascending: true }).catch(() => ({ workouts: [] })),
   ]);
 

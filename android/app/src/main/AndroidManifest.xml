@@ -63,9 +63,10 @@
 
     <!-- Health Connect. Bene only reads, and only these types (see READ_TYPES in
          src/native/health.ts): steps, sleep, heart rate, HRV, resting heart rate,
-         respiratory rate, oxygen saturation, body temperature, calories, exercise
-         (exerciseTime + workouts), weight and height. No WRITE_* permissions are
-         declared because Bene never writes to the store.
+         respiratory rate, oxygen saturation, body temperature, calories, workouts
+         (read as Health Connect exercise sessions), weight and height. 'exerciseTime'
+         is HealthKit-only and never asked here (see readTypes() in health.ts).
+         No WRITE_* permissions are declared because Bene never writes to the store.
          Names follow the Health Connect permission constants the plugin builds from
          its record classes (HealthDataType.kt:37-56 via HealthPermission.getReadPermission). -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />

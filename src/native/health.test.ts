@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HealthSample, SleepStage, Workout as HealthWorkout } from '@capgo/capacitor-health';
 import type { DayRecord, ISODate } from '../domain/types';
-import { checkAccess, platform, platformLabel, requestAccess, toSleepSession } from './health';
+import { READ_TYPES, checkAccess, platform, platformLabel, requestAccess, toSleepSession } from './health';
 
 /**
  * health.ts is the seam between the phone's health store and Bene's own shapes.
@@ -31,6 +31,8 @@ const device = vi.hoisted(() => ({
   reason: undefined as string | undefined,
   /** Whether the real read/write calls throw. */
   authFails: false,
+  /** What Bene asked the store for, so tests can pin the ask itself. */
+  authCalls: [] as { op: 'request' | 'check'; read?: string[] }[],
 }));
 
 /**
@@ -49,10 +51,12 @@ vi.mock('@capgo/capacitor-health', () => ({
   Health: {
     isAvailable: async () => ({ available: device.available, reason: device.reason }),
     requestAuthorization: async (opts: { read?: string[] }) => {
+      device.authCalls.push({ op: 'request', read: opts.read });
       if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
       return { readAuthorized: opts.read ?? [], readDenied: [] };
     },
     checkAuthorization: async (opts: { read?: string[] }) => {
+      device.authCalls.push({ op: 'check', read: opts.read });
       if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
       return { readAuthorized: opts.read ?? [], readDenied: [] };
     },
@@ -469,6 +473,20 @@ describe('readDays: queries', () => {
     const end = new Date(first.endDate!);
     expect([end.getHours(), end.getMinutes(), end.getSeconds()]).toEqual([23, 59, 59]);
   });
+
+  it('asks Health Connect nothing it cannot answer', async () => {
+    await onDevice('android');
+    await readDays(7);
+
+    const types = new Set(device.readCalls.map((c) => c.dataType));
+    // 'exerciseTime' is a HealthKit type with no Health Connect record: asking
+    // the store for it rejects the whole permission list and made every Android
+    // phone read as "no health store". Nothing else in the ask may go either.
+    expect(types.has('exerciseTime')).toBe(false);
+    for (const type of ['sleep', 'heartRate', 'heartRateVariability', 'restingHeartRate', 'respiratoryRate', 'oxygenSaturation', 'bodyTemperature', 'steps', 'calories']) {
+      expect(types.has(type)).toBe(true);
+    }
+  });
 });
 
 describe('readDays: unit conversion on workouts', () => {
@@ -881,5 +899,46 @@ describe('availability: the probe is a hint, not the truth', () => {
     device.platform = 'web';
     const status = await checkAccess();
     expect(status.available).toBe(false);
+  });
+});
+
+/**
+ * The ask itself. 'exerciseTime' is a HealthKit type the plugin has no Health
+ * Connect record for, so putting it in the Android permission list rejects the
+ * whole call with "Unsupported data type" — which Bene then reported as "no
+ * health store" on a phone whose store was fine. Health Connect only shows the
+ * permissions that are asked, so whatever reaches the store must be exactly
+ * what the platform can grant.
+ */
+describe('access: the ask matches what the store can answer', () => {
+  afterEach(() => {
+    device.platform = 'web';
+    device.authCalls = [];
+  });
+
+  it('leaves the HealthKit-only type out on Android', async () => {
+    device.platform = 'android';
+    device.authCalls = [];
+
+    await checkAccess();
+    await requestAccess();
+
+    expect(device.authCalls.length).toBeGreaterThan(0);
+    for (const call of device.authCalls) {
+      expect(call.read).toEqual(READ_TYPES.filter((t) => t !== 'exerciseTime'));
+    }
+  });
+
+  it('keeps the full list on iOS', async () => {
+    device.platform = 'ios';
+    device.authCalls = [];
+
+    await checkAccess();
+    await requestAccess();
+
+    expect(device.authCalls.length).toBeGreaterThan(0);
+    for (const call of device.authCalls) {
+      expect(call.read).toEqual(READ_TYPES);
+    }
   });
 });
