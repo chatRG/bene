@@ -107,6 +107,25 @@ describe('entry-level validation', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('rejects a workout whose nullable readings are neither null nor numbers', () => {
+    const { file, result } = withFirstDay((day) => {
+      (day.workouts as Record<string, unknown>[])[0].distanceKm = '5';
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain(file.data.dayOrder[0]);
+  });
+
+  it('accepts a workout whose nullable readings are null or finite numbers', () => {
+    const { result } = withFirstDay((day) => {
+      const workout = (day.workouts as Record<string, unknown>[])[0];
+      workout.distanceKm = null;
+      workout.avgHr = 132;
+      workout.maxHr = null;
+      workout.calories = 312.4;
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects a sleep session missing its window', () => {
     const { result } = withFirstDay((day) => {
       delete (day.sleep as Record<string, unknown>).start;
@@ -114,14 +133,28 @@ describe('entry-level validation', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('rejects a day present in days but missing from dayOrder', () => {
-    // The restore replaces the whole days map, so an unlisted day would come
-    // back as an invisible orphan — rejected rather than half-restored.
+  it('accepts a version-1 backup whose day is missing from dayOrder and lists it', () => {
+    // Older builds could create a day on an unseen date without adding it to
+    // dayOrder, and exportBackupJson writes the whole days map — so a version-1
+    // file can legitimately hold such a day. It is normalized in rather than
+    // rejecting a restorable file; the day then faces the same validation as
+    // every other day.
     const file = validBackup();
+    file.version = 1;
     file.data.days['2020-01-01'] = JSON.parse(JSON.stringify(file.data.days[file.data.dayOrder[0]]));
     file.data.days['2020-01-01'].date = '2020-01-01';
     const result = parseBackup(JSON.stringify(file));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.dayOrder).toContain('2020-01-01');
+    expect(result.data.dayOrder).toEqual([...result.data.dayOrder].sort());
+  });
+
+  it('still rejects a dayOrder date with no matching day', () => {
+    const file = validBackup();
+    file.data.dayOrder = [...file.data.dayOrder, '2019-06-01'];
+    const result = parseBackup(JSON.stringify(file));
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('2020-01-01');
+    if (!result.ok) expect(result.error).toContain('2019-06-01');
   });
 });

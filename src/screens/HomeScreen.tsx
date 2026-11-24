@@ -512,7 +512,16 @@ export function HomeScreen() {
                   <ChevronRight size={16} className="chevron" />
                 </button>
               ))}
-            {Object.keys(CARD_META).every((id) => draft.includes(id) || (id !== 'journal' && id !== 'fitness' && id !== 'nutrition') || !state.settings.activeTabs[id as 'journal' | 'fitness' | 'nutrition']) ? <div className="empty">Every card is already on your Home screen.</div> : null}
+            {(() => {
+              const available = Object.entries(CARD_META).filter(([id]) => {
+                if (draft.includes(id)) return false;
+                if (id === 'journal' && !state.settings.activeTabs.journal) return false;
+                if (id === 'fitness' && !state.settings.activeTabs.fitness) return false;
+                if (id === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
+                return true;
+              });
+              return available.length === 0 ? <div className="empty">Every card is already on your Home screen.</div> : null;
+            })()}
           </div>
         </Sheet>
       ) : null}

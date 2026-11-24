@@ -110,8 +110,15 @@ export function NutritionScreen() {
         await navigator.clipboard.writeText(text);
         showToast('Share card copied');
       }
-    } catch {
-      showToast('Share cancelled');
+    } catch (error) {
+      // The Web Share API separates user cancellation (AbortError) from a
+      // transmission failure (e.g. DataError); reporting a failure as
+      // "cancelled" leaves the person thinking they backed out themselves.
+      if ((error as { name?: string } | null)?.name === 'AbortError') {
+        showToast('Share cancelled');
+      } else {
+        showToast('Could not share. Please try again.');
+      }
     }
   };
 

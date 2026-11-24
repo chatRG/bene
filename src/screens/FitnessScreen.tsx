@@ -33,8 +33,12 @@ export function FitnessScreen() {
     .reduce((a, w) => a + w.durationMin, 0);
   const recent = [...state.dayOrder.slice(-8)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
   const nextRoutine = state.routines.find((r) => r.scheduledDates.some((x) => x >= today)) ?? state.routines[0];
-  // Show the first scheduled date from today on; scheduledDates[0] can be in the past.
-  const nextDate = nextRoutine ? nextRoutine.scheduledDates.find((x) => x >= today) ?? nextRoutine.scheduledDates[0] : undefined;
+  // The earliest scheduled date from today on; scheduledDates can arrive
+  // unsorted through a backup restore, and scheduledDates[0] can be in the
+  // past. filter copies, so the stored routine is not mutated.
+  const nextDate = nextRoutine
+    ? nextRoutine.scheduledDates.filter((x) => x >= today).sort()[0] ?? nextRoutine.scheduledDates[0]
+    : undefined;
   const calibrated = load.status !== 'Calibrating';
 
   return (

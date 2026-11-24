@@ -82,6 +82,13 @@ const NULLABLE_METRIC_FIELDS = ['daytimeHrvMs', 'tempDeviationC'] as const;
 /** Meal fields screens read directly when they render a log. */
 const NUMERIC_MEAL_FIELDS = ['calories', 'proteinG', 'carbsG', 'fatG', 'fiberG'] as const;
 
+/** Workout readings the store types as `number | null`. */
+const NULLABLE_NUMBER_WORKOUT_FIELDS = ['distanceKm', 'avgHr', 'maxHr', 'calories'] as const;
+
+function isNullableNumber(value: unknown): boolean {
+  return value === null || isNumber(value);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -125,9 +132,13 @@ function isWorkoutEntry(value: unknown): boolean {
   if (typeof value.date !== 'string' || typeof value.start !== 'string') return false;
   if (!isNumber(value.durationMin)) return false;
   // Six zone buckets, every one a number — scoring indexes into them.
-  return (
-    Array.isArray(value.zoneMinutes) && value.zoneMinutes.length === 6 && value.zoneMinutes.every(isNumber)
-  );
+  if (!Array.isArray(value.zoneMinutes) || value.zoneMinutes.length !== 6 || !value.zoneMinutes.every(isNumber)) {
+    return false;
+  }
+  // The optional readings are `number | null` in the store: TimelineScreen
+  // calls methods on the numbers, so a string that slipped through here
+  // would throw after the restore. Valid nulls and numbers both stay.
+  return NULLABLE_NUMBER_WORKOUT_FIELDS.every((field) => isNullableNumber(value[field]));
 }
 
 function isMealEntry(value: unknown): boolean {
@@ -153,10 +164,11 @@ const damaged = (date: string, what: string) => `Backup has damaged ${what} on $
  * backup whose workout is missing zoneMinutes, or whose metrics.steps is a
  * string, used to pass validation and brick every screen after the restore.
  *
- * Days present in `days` but missing from `dayOrder` are rejected too: the
- * store replaces the whole days map on restore, so an unlisted day would
- * come back as an invisible orphan at best and a broken day at worst. Every
- * writer in the store keeps the two in step.
+ * A day present in `days` but missing from `dayOrder` is normalized in rather
+ * than rejected: older builds could create a day on an unseen date without
+ * adding it to dayOrder, and exportBackupJson writes the whole days map, so a
+ * version-1 backup can legitimately hold such a day. Rejecting the file would
+ * leave a restorable backup unrestored.
  *
  * Returns null when the day is usable, otherwise an error naming the day.
  */
@@ -204,6 +216,22 @@ export function parseBackup(raw: string): ParseResult {
     return { ok: false, error: 'Backup contains no days of data.' };
   }
   const days = data.days as Record<string, unknown>;
+  // Normalize before validating: a version-1 backup can contain days its
+  // dayOrder never names (older writers created the day without listing it).
+  // Every day key joins the list, the list is sorted like the store keeps it,
+  // and the normalized list is written back so the restored state keeps the
+  // day. A listed day that is missing from days stays an error.
+  const dayOrder = new Set<string>(data.dayOrder as string[]);
+  let addedUnlisted = false;
+  for (const date of Object.keys(days)) {
+    if (!dayOrder.has(date)) {
+      dayOrder.add(date);
+      addedUnlisted = true;
+    }
+  }
+  if (addedUnlisted) {
+    data.dayOrder = [...dayOrder].sort();
+  }
   const listed = new Set<string>();
   for (const date of data.dayOrder) {
     if (typeof date !== 'string' || !hasOwn(days, date)) {
@@ -212,11 +240,6 @@ export function parseBackup(raw: string): ParseResult {
     const dayError = dayRecordError(date, days[date]);
     if (dayError) return { ok: false, error: dayError };
     listed.add(date);
-  }
-  for (const date of Object.keys(days)) {
-    if (!listed.has(date)) {
-      return { ok: false, error: `Backup contains a day that is not listed in dayOrder (${date}).` };
-    }
   }
   // Calculation methods are fixed now, not user settings. Older backups still
   // carry them; drop them so the restored state matches today's shape.

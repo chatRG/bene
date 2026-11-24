@@ -167,6 +167,41 @@ describe('hydration safety', () => {
       warn.mockRestore();
     }
   });
+
+  it('unblocks persistence after an accepted explicit restore', async () => {
+    storage.set(STORE_KEY, '{"state":{"profile":{"name":"Kept"}},"version":99}');
+    const { fresh, warn } = await importFreshStore();
+    try {
+      // No snapshot: recovery leaves every write held back.
+      expect(fresh.isPersistWriteBlocked()).toBe(true);
+      // The person then restores a backup file by hand — an accepted act.
+      const file = backupJson(stateWithWeekOfData(new Date('2026-11-14T13:20:00')));
+      expect(fresh.useAppStore.getState().importBackupJson(file).ok).toBe(true);
+      expect(fresh.isPersistWriteBlocked()).toBe(false);
+      // And writes after it really land in storage.
+      const before = JSON.parse(storage.get(STORE_KEY) ?? '{}');
+      fresh.useAppStore.getState().ensureToday();
+      const after = JSON.parse(storage.get(STORE_KEY) ?? '{}');
+      expect(Object.keys(after.state.days).length).toBeGreaterThan(Object.keys(before.state.days).length);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('keeps persistence blocked while an import is rejected', async () => {
+    storage.set(STORE_KEY, '{"state":{"profile":{"name":"Kept"}},"version":99}');
+    const { fresh, warn } = await importFreshStore();
+    try {
+      expect(fresh.isPersistWriteBlocked()).toBe(true);
+      const result = fresh.useAppStore.getState().importBackupJson('{"app":"bene","version":99,"data":{}}');
+      expect(result.ok).toBe(false);
+      expect(fresh.isPersistWriteBlocked()).toBe(true);
+      // And the damaged blob is still untouched.
+      expect(storage.get(STORE_KEY)).toBe('{"state":{"profile":{"name":"Kept"}},"version":99}');
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe('persist write failures', () => {
@@ -339,6 +374,28 @@ describe('health import merging', () => {
     expect(day.metrics.daylightMinutes).toBe(35);
   });
 
+  it('keeps the manual total stable when the same Android day syncs twice', () => {
+    const date = '2026-03-04';
+    useAppStore.setState((s) => ({ days: { ...s.days, [date]: { ...emptyDay(date) } }, dayOrder: [...s.dayOrder, date] }));
+    useAppStore.getState().logWorkout(workoutOn(date));
+    // The Android-shaped read has no exercise-time record, so it reports 0.
+    const incoming: DayRecord = {
+      ...emptyDay(date),
+      metrics: { ...emptyDay(date).metrics, steps: 4000, exerciseMinutes: 0 },
+      workouts: [],
+    };
+
+    useAppStore.getState().importHealthDays([incoming]);
+    useAppStore.getState().importHealthDays([incoming]);
+
+    const day = useAppStore.getState().days[date];
+    // Neither dropped by the first sync nor inflated by the second.
+    expect(day.metrics.exerciseMinutes).toBe(40);
+    expect(day.metrics.steps).toBe(4000);
+    expect(day.workouts).toHaveLength(1);
+    expect(day.workouts.map((w) => w.id)).toEqual(['w-hand']);
+  });
+
   it('registers an off-timeline date in dayOrder when a log creates the day', () => {
     useAppStore.getState().logWorkout(workoutOn('2020-05-05'));
     expect(useAppStore.getState().dayOrder).toContain('2020-05-05');
@@ -367,6 +424,19 @@ describe('naps', () => {
     expect(session?.hrvMs).toBeNull();
     expect(session?.alarm).toBeNull();
     expect(useAppStore.getState().dayOrder).toContain('2026-11-20');
+  });
+
+  it('falls on the selected local date when the Timeline shows a past day', () => {
+    const selected = '2020-05-05';
+    useAppStore.getState().logNap(selected);
+    const session = useAppStore.getState().days[selected].sleep!;
+    // The session ends on the selected date, at the current time of day —
+    // not on today's date with a date label from 2020.
+    const end = new Date(session.end);
+    const [y, m, d] = selected.split('-').map(Number);
+    expect([end.getFullYear(), end.getMonth(), end.getDate()]).toEqual([y, m - 1, d]);
+    expect(new Date(session.end).getTime() - new Date(session.start).getTime()).toBe(20 * 60000);
+    expect(session.date).toBe(selected);
   });
 
   it('leaves an existing night of sleep alone', () => {

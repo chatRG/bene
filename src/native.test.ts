@@ -278,4 +278,34 @@ describe('pops in flight', () => {
     popCurrentScreen(navigate, '/sleep');
     expect(navigate).toHaveBeenCalledWith('/', { replace: true });
   });
+
+  it('a header back tap does not double-pop after a system press of the same motion', () => {
+    const win = stubHistory(2);
+    seedStack();
+
+    // The system press starts the pop; the header tap lands before the
+    // navigation is recorded.
+    expect(handleBack(1_000)).toBe('handled');
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    popCurrentScreen(navigate, '/sleep');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(win.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('two header back taps before the navigation lands pop only one screen', () => {
+    const win = stubHistory(2);
+    seedStack();
+
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    popCurrentScreen(navigate, '/sleep');
+    popCurrentScreen(navigate, '/sleep');
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(win.back).not.toHaveBeenCalled();
+
+    // Once the pop has landed, the next tap goes through again.
+    recordNavigation('/', 'POP');
+    recordNavigation('/sleep', 'PUSH');
+    popCurrentScreen(navigate, '/sleep');
+    expect(navigate).toHaveBeenCalledTimes(2);
+  });
 });

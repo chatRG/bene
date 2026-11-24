@@ -63,15 +63,25 @@ export function SleepScreen() {
       .filter((start): start is string => !!start)
       .map((start) => {
         const d = new Date(start);
-        // Re-anchor each bedtime on a linear scale that does not wrap at
-        // midnight (minutes since 18:00 of the previous afternoon); averaging
-        // raw minutes-since-midnight breaks for bedtimes around 00:00.
-        return (d.getHours() * 60 + d.getMinutes() + 360) % 1440;
+        return d.getHours() * 60 + d.getMinutes();
       });
     if (starts.length < 3) return null;
-    const mean = starts.reduce((a, b) => a + b, 0) / starts.length;
-    const mad = starts.reduce((a, b) => a + Math.abs(b - mean), 0) / starts.length;
-    return Math.round(Math.max(0, Math.min(100, 100 - mad / 2)));
+    // A bedtime is a point on a 24-hour circle, so both the mean and the
+    // distances to it are circular: any linear re-anchoring just moves the
+    // wraparound somewhere else (bedtimes at 17:55/18:00/18:05 broke at 18:00,
+    // midnight-adjacent bedtimes broke at 00:00).
+    const angles = starts.map((m) => (m / 1440) * 2 * Math.PI);
+    const sinMean = angles.reduce((a, t) => a + Math.sin(t), 0) / angles.length;
+    const cosMean = angles.reduce((a, t) => a + Math.cos(t), 0) / angles.length;
+    const meanAngle = Math.atan2(sinMean, cosMean);
+    const madRadians =
+      angles.reduce((a, t) => {
+        let diff = Math.abs(t - meanAngle);
+        if (diff > Math.PI) diff = 2 * Math.PI - diff;
+        return a + diff;
+      }, 0) / angles.length;
+    const madMinutes = (madRadians / (2 * Math.PI)) * 1440;
+    return Math.round(Math.max(0, Math.min(100, 100 - madMinutes / 2)));
   })();
 
   // The last 14 day keys, kept in full so the x-axis stays truthful: labels are

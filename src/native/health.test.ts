@@ -485,8 +485,15 @@ describe('readDays: queries', () => {
     const hrCalls = device.readCalls.filter((c) => c.dataType === 'heartRate');
     expect(hrCalls).toHaveLength(8);
     for (const call of hrCalls) {
-      const day = at(call.endDate!) - at(call.startDate!);
-      expect(day).toBeLessThanOrEqual(86400000);
+      // Calendar bounds, not elapsed time: a local day containing a DST
+      // fall-back is 25 hours long, so a fixed 24-hour ceiling would fail a
+      // correct read.
+      const from = new Date(call.startDate!);
+      const to = new Date(call.endDate!);
+      expect([from.getHours(), from.getMinutes(), from.getSeconds()]).toEqual([0, 0, 0]);
+      expect([to.getHours(), to.getMinutes(), to.getSeconds()]).toEqual([23, 59, 59]);
+      expect(isoKey(from)).toBe(isoKey(to));
+      expect(at(call.endDate!)).toBeGreaterThan(at(call.startDate!));
     }
     expect(device.workoutCalls).toHaveLength(1);
 
@@ -938,12 +945,16 @@ describe('readDays: heart rate is never silently truncated', () => {
     const hrCalls = device.readCalls.filter((c) => c.dataType === 'heartRate');
     expect(hrCalls).toHaveLength(8);
     for (const call of hrCalls) {
-      const window = at(call.endDate!) - at(call.startDate!);
-      expect(window).toBeGreaterThan(0);
-      expect(window).toBeLessThanOrEqual(86400000);
-      // Local calendar days, not millisecond offsets: each window starts at a
-      // local midnight so a DST shift cannot slide one off the day.
-      expect([new Date(call.startDate!).getHours(), new Date(call.startDate!).getMinutes()]).toEqual([0, 0]);
+      // Calendar bounds, not elapsed time: a local day containing a DST
+      // fall-back is 25 hours long, so a fixed 24-hour ceiling would fail a
+      // correct read. Each window starts at a local midnight and ends on the
+      // same local calendar day.
+      const from = new Date(call.startDate!);
+      const to = new Date(call.endDate!);
+      expect([from.getHours(), from.getMinutes(), from.getSeconds()]).toEqual([0, 0, 0]);
+      expect([to.getHours(), to.getMinutes(), to.getSeconds()]).toEqual([23, 59, 59]);
+      expect(isoKey(from)).toBe(isoKey(to));
+      expect(at(call.endDate!)).toBeGreaterThan(at(call.startDate!));
     }
     // The windows must tile the range without gaps or overlap.
     for (let i = 1; i < hrCalls.length; i += 1) {
@@ -1231,10 +1242,35 @@ describe('readDays: a capped page is re-read, not summed as complete', () => {
     const stepCalls = device.readCalls.filter((c) => c.dataType === 'steps');
     expect(stepCalls.length).toBeGreaterThan(1);
     for (const call of stepCalls.slice(1)) {
-      expect(at(call.endDate!) - at(call.startDate!)).toBeLessThanOrEqual(86400000);
+      // Calendar bounds, not elapsed time — see the note in the window test.
+      const from = new Date(call.startDate!);
+      const to = new Date(call.endDate!);
+      expect([from.getHours(), from.getMinutes(), from.getSeconds()]).toEqual([0, 0, 0]);
+      expect([to.getHours(), to.getMinutes(), to.getSeconds()]).toEqual([23, 59, 59]);
+      expect(isoKey(from)).toBe(isoKey(to));
     }
     // And the day sums are complete: 67 samples × 100 each.
     expect(byDate[yesterday()].metrics.steps).toBe(6700);
+  });
+
+  it('re-reads the oldest requested day when the range query hits its cap', async () => {
+    await onDevice();
+    // A heavy month of steps, plus one sample on the very first requested
+    // date. The fallback windows must cover it too, or that day silently
+    // vanishes whenever the single range read is discarded at the cap.
+    const heavy: HealthSample[] = [sample('steps', 700, day(isoKey(shiftDays(30)), '12:00'))];
+    for (let d = 0; d < 30; d += 1) {
+      for (let k = 0; k < 67; k += 1) {
+        const minute = k * 20;
+        heavy.push(sample('steps', 100, day(isoKey(shiftDays(d)), `${Math.floor(minute / 60)}:${String(minute % 60).padStart(2, '0')}`)));
+      }
+    }
+    device.samples = heavy;
+
+    const days = await readDays(30);
+    const byDate = Object.fromEntries(days.map((x) => [x.date, x]));
+
+    expect(byDate[isoKey(shiftDays(30))].metrics.steps).toBe(700);
   });
 
   it('keeps the single-query fast path when the cap is not reached', async () => {
@@ -1280,6 +1316,70 @@ describe('readDays: sleep survives its own cap', () => {
     // yesterday and every segment of it is present, not split across two days.
     expect(session.start).toBe(new Date(day(isoKey(shiftDays(2)), '23:00')).toISOString());
     expect(session.stages.reduce((n, b) => n + (b.endMin - b.startMin), 0)).toBe(480);
+  });
+});
+
+describe('readDays: sleep clusters stay separate', () => {
+  it('does not merge a daytime nap into the overnight session', async () => {
+    await onDevice('ios');
+    device.samples = [
+      // The night, as iOS emits it: one sample per segment.
+      sleepSample(day(twoAgo(), '23:00'), day(yesterday(), '01:00'), [stage(day(twoAgo(), '23:00'), day(yesterday(), '01:00'), 'light')], { platformId: 'n1' }),
+      sleepSample(day(yesterday(), '01:00'), day(yesterday(), '07:00'), [stage(day(yesterday(), '01:00'), day(yesterday(), '07:00'), 'deep')], { platformId: 'n2' }),
+      // A separate nap that ends on the same morning's date.
+      sleepSample(day(yesterday(), '14:00'), day(yesterday(), '15:00'), undefined, { platformId: 'nap' }),
+      // A resting reading inside the daytime gap: it belongs to neither block.
+      sample('restingHeartRate', 50, day(yesterday(), '12:00'), 'bpm'),
+    ];
+
+    const session = (await readDays(3)).find((d) => d.date === yesterday())!.sleep!;
+
+    // The session is the night, not a 16-hour stretch through the nap.
+    expect(session.start).toBe(day(twoAgo(), '23:00'));
+    expect(session.end).toBe(day(yesterday(), '07:00'));
+    expect(session.stages).toHaveLength(2);
+    // The overnight metric windows do not reach across the daytime gap.
+    expect(session.rhrBpm).toBeNull();
+  });
+
+  it('keeps the longer cluster when two end on the same morning', async () => {
+    await onDevice('ios');
+    device.samples = [
+      // A short doze ending in the small hours...
+      sleepSample(day(yesterday(), '00:30'), day(yesterday(), '01:00'), undefined, { platformId: 'doze' }),
+      // ...and the real night, ending on the same date.
+      sleepSample(day(yesterday(), '02:00'), day(yesterday(), '08:00'), undefined, { platformId: 'night' }),
+    ];
+
+    const session = (await readDays(2)).find((d) => d.date === yesterday())!.sleep!;
+
+    expect(session.start).toBe(day(yesterday(), '02:00'));
+    expect(session.end).toBe(day(yesterday(), '08:00'));
+  });
+});
+
+describe('readDays: a sleep window that is still capped after splitting', () => {
+  it('withholds the session rather than scoring a shortened night', async () => {
+    await onDevice('ios');
+    // One night whose segment count is so high that even a slice a few hours
+    // wide still fills the 500-sample per-window cap after the full splitting
+    // depth: the read cannot vouch for the night's completeness.
+    const segments: HealthSample[] = [];
+    const nightStart = new Date(shiftDays(1).getFullYear(), shiftDays(1).getMonth(), shiftDays(1).getDate() - 1, 21, 0, 0);
+    for (let k = 0; k < 6000; k += 1) {
+      const start = new Date(nightStart.getTime() + k * 6000);
+      const end = new Date(start.getTime() + 6000);
+      segments.push(sleepSample(start.toISOString(), end.toISOString(), [stage(start.toISOString(), end.toISOString(), 'light')], { platformId: `s${k}` }));
+    }
+    device.samples = segments;
+
+    const days = await readDays(3);
+    const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+
+    // The read ran the fallback (the single range query was capped)...
+    expect(device.readCalls.filter((c) => c.dataType === 'sleep').length).toBeGreaterThan(1);
+    // ...and still could not complete the night, so no session is claimed.
+    expect(byDate[yesterday()].sleep).toBeNull();
   });
 });
 

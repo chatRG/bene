@@ -459,6 +459,17 @@ async function readWindows(
 }
 
 /**
+ * Wall-clock span of a sleep cluster, oldest start to latest end. The longer
+ * of two clusters ending on the same morning is the night; the shorter is a
+ * nap.
+ */
+function nightSpan(samples: HealthSample[]): number {
+  const starts = samples.map((s) => new Date(s.startDate).getTime());
+  const ends = samples.map((s) => new Date(s.endDate ?? s.startDate).getTime());
+  return Math.max(...ends) - Math.min(...starts);
+}
+
+/**
  * The single-query fast path: one range read, and only when it returns exactly
  * the cap — the plugin has no continuation token for samples, so a page at the
  * limit may have dropped the oldest days of a heavy month — fall back to
@@ -507,7 +518,51 @@ async function readHeartRateByDay(days: number): Promise<{ samples: HealthSample
  * ascending order would keep the oldest nights and silently drop the newest.
  * The cap triggers per-morning re-reads, whose windows overlap by design, so
  * the pages are deduped by record identity before they are returned.
+ *
+ * A per-morning window can itself hit the cap (a night with more stage
+ * segments than the cap). It is not accepted as complete: it is bisected and
+ * the halves re-read, so a heavy morning still arrives whole. A window still
+ * capped after the splitting limit marks its dates truncated, and readDays
+ * withholds the affected session rather than scoring a silently shortened
+ * night.
  */
+const SLEEP_SPLIT_DEPTH = 3;
+const SLEEP_WINDOW_LIMIT = 500;
+
+async function readSleepWindow(
+  from: Date,
+  to: Date,
+  depth: number,
+): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  const page = await Health.readSamples({
+    dataType: 'sleep',
+    startDate: from.toISOString(),
+    endDate: to.toISOString(),
+    limit: SLEEP_WINDOW_LIMIT,
+    ascending: true,
+  }).catch(() => ({ samples: [] as HealthSample[] }));
+  if (page.samples.length < SLEEP_WINDOW_LIMIT) return { samples: page.samples, truncated: new Set() };
+
+  // Capped even after the limit: the page is genuinely incomplete. Its dates
+  // are marked so the caller withholds them; the samples are still returned
+  // for the caller to decide.
+  if (depth >= SLEEP_SPLIT_DEPTH) {
+    const truncated = new Set<string>();
+    for (const s of page.samples) truncated.add(dateKey(new Date(s.startDate)));
+    return { samples: page.samples, truncated };
+  }
+
+  const mid = new Date(Math.round((from.getTime() + to.getTime()) / 2) + 1);
+  const [lo, hi] = await Promise.all([
+    readSleepWindow(from, new Date(mid.getTime() - 1), depth + 1),
+    readSleepWindow(mid, to, depth + 1),
+  ]);
+  return {
+    samples: dedupeByIdentity([...lo.samples, ...hi.samples]),
+    truncated: new Set([...lo.truncated, ...hi.truncated]),
+  };
+}
+
 async function readSleep(
   range: { startDate: string; endDate: string },
   days: number,
@@ -517,8 +572,13 @@ async function readSleep(
     () => ({ samples: [] as HealthSample[] }),
   );
   if (page.samples.length < LIMIT) return { samples: page.samples, truncated: new Set() };
-  const { samples, truncated } = await readWindows('sleep', sleepWindows(days), 500);
-  return { samples: dedupeByIdentity(samples), truncated };
+  const results = await Promise.all(
+    sleepWindows(days).map(({ from, to }) => readSleepWindow(from, to, 0)),
+  );
+  return {
+    samples: dedupeByIdentity(results.flatMap((r) => r.samples)),
+    truncated: new Set(results.flatMap((r) => [...r.truncated])),
+  };
 }
 
 /** An aggregated day bucket, reshaped into the sample shape the daily fold reads. */
@@ -641,9 +701,19 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   for (const night of nights) {
     const ended = Math.max(...night.map((s) => new Date(s.endDate ?? s.startDate).getTime()));
     const d = dateKey(new Date(ended));
-    sleepByDate.set(d, [...(sleepByDate.get(d) ?? []), ...night]);
+    const current = sleepByDate.get(d);
+    // Two clusters can end on the same morning — an overnight night and a
+    // separate nap. They must stay separate: merging them would stretch the
+    // session and the overnight metric queries across the daytime gap. Bene
+    // keeps one session per day, so the longer cluster is the night and the
+    // shorter one is not scored as sleep that day.
+    if (!current || nightSpan(night) > nightSpan(current)) sleepByDate.set(d, night);
   }
   for (const [date, samples] of sleepByDate) {
+    // A night whose read window was still capped after splitting is missing an
+    // unknown number of segments. Withhold the session rather than score a
+    // silently shortened night as complete.
+    if (samples.some((s) => sleep.truncated.has(dateKey(new Date(s.startDate))))) continue;
     const session = toSleepSession(samples, date);
     if (!session) continue;
     const day = dayFor(date);

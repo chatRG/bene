@@ -156,7 +156,7 @@ export function dayHasData(rec: DayRecord | undefined): boolean {
   return (
     m.steps > 0 ||
     m.activeCalories > 0 ||
-    m.totalCalories > 0 ||
+    (m.totalCalories ?? 0) > 0 ||
     m.exerciseMinutes > 0 ||
     m.daylightMinutes > 0 ||
     m.hydrationMl > 0 ||
@@ -287,6 +287,12 @@ function recoverFromUnreadableBlob(seedSettings: AppSettings, error: unknown): v
  * the save failed.
  */
 function finishRestore(): { ok: boolean; error?: string } {
+  // An accepted restore is an explicit act: whatever blocked persistence after
+  // a failed hydration, the person has chosen this state as the one to keep.
+  // Clear the flag before the first write, so the fresh snapshot and every
+  // later change persist instead of being silently discarded. A rejected
+  // import never gets here, and stays blocked.
+  persistWritesBlocked = false;
   const snap = saveSnapshot(useAppStore.getState());
   useAppStore.setState((s) => ({ settings: { ...s.settings, lastBackupAt: snap.at } }));
   return { ok: true };
@@ -494,11 +500,17 @@ export const useAppStore = create<AppStore>()(
           const existing = s.days[date];
           if (existing?.sleep) return s;
           const now = new Date();
+          // The nap belongs to the selected date: its end timestamp falls on
+          // that local day (SleepSession is filed under the date it ends on),
+          // at the current time of day — which is simply `now` when the
+          // selected date is today.
+          const [y, mo, d] = date.split('-').map(Number);
+          const end = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
           const session: SleepSession = {
             id: uid('nap-'),
             date,
-            start: new Date(now.getTime() - 20 * 60000).toISOString(),
-            end: now.toISOString(),
+            start: new Date(end.getTime() - 20 * 60000).toISOString(),
+            end: end.toISOString(),
             stages: [{ stage: 'core', startMin: 0, endMin: 20 }],
             source: 'Bene',
             hrvMs: null,
@@ -642,6 +654,9 @@ export const useAppStore = create<AppStore>()(
       exportBackupJson: () => backupJson(get()),
 
       clearAll: () => {
+        // An explicit reset is also an accepted act: unblock persistence so
+        // the cleared state actually saves.
+        persistWritesBlocked = false;
         clearGeneration += 1;
         localStorage.removeItem(SNAPSHOT_KEY);
         const now = new Date().toISOString();

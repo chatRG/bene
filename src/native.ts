@@ -327,6 +327,11 @@ export function useNativeBackButton(onExitPrompt?: () => void) {
  * handleBack instead of popping a second screen.
  */
 export function popCurrentScreen(navigate: NavigateFunction, pathname: string): void {
+  // A pop already on its way — started by the system back press of the same
+  // motion, or by a first header tap before the navigation has landed — must
+  // not start a second one: beginPop() would replace the pending stamp and
+  // navigate(-1) would pop another screen.
+  if (popPending) return;
   if (stack.length > 1 && historyBehind()) {
     beginPop();
     navigate(-1);
