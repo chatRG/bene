@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { buildSeed, dateKey } from './seed';
 import { mealsFor, sleepFor, stateWithWeekOfData } from './fixtures';
-import { deriveDay } from './derive';
+import { deriveDay, recentStrains, recoveryBaselineFor, sleepNeedFor } from './derive';
 import { nutritionFor } from './scoring/nutrition';
 import { maxHrFor, zoneIndex, type ZoneConfig } from './scoring/zones';
 import { biologicalAge, lifestyleYears, sumContributors, vo2MaxFromDays } from './scoring/biology';
 import { ageFromBirthDate, stageTotals } from './math';
 import { freshnessBand } from './scoring/load';
-import { strainFromTrimp, targetStrain } from './scoring/strain';
-import { recoveryScore } from './scoring/recovery';
-import { sleepScore } from './scoring/sleep';
+import { computeStrain, strainFromTrimp, targetStrain } from './scoring/strain';
+import { baselineFromSessions, recoveryScore } from './scoring/recovery';
+import { sleepNeedMinutes, sleepScore } from './scoring/sleep';
 import { createBackup, parseBackup } from './backup';
 
 const NOW = new Date('2026-11-14T13:20:00');
@@ -178,6 +178,121 @@ describe('audit regressions', () => {
     expect(vo2MaxFromDays([])).toBeNull();
     const noData = lifestyleYears([], 30, null);
     expect(noData.fitnessYears).toBeGreaterThan(-3.5);
+  });
+
+  it('does not score Recovery 100 when the baseline nights lack HRV and RHR', () => {
+    // Six stage-only nights plus tonight with HRV: the old behaviour passed the
+    // nights>=5 gate on nights the baseline could not z-score against and
+    // saturated the logistic at 100.
+    const stageOnly = (date: string) => {
+      const s = sleepFor(date);
+      return { ...s, hrvMs: null, rhrBpm: null, respiratoryRate: null, wristTempC: null };
+    };
+    const baseline = baselineFromSessions([0, 1, 2, 3, 4, 5].map((i) => stageOnly(`2026-11-${String(4 + i).padStart(2, '0')}`)));
+    expect(baseline.nights).toBe(6);
+    expect(baseline.hrvNights).toBe(0);
+    const result = recoveryScore({
+      sleep: sleepFor('2026-11-10'),
+      sleepScore: 85,
+      stagedNights: 7,
+      baseline,
+      hasHrv: true,
+      hasRhr: true,
+    });
+    expect(result.status).toBe('calibrating');
+    expect(result.score).not.toBe(100);
+  });
+
+  it('drops a Recovery term whose baseline never measured it and renormalises', () => {
+    const nights = [0, 1, 2, 3, 4, 5].map((i) => {
+      const s = sleepFor(`2026-11-${String(4 + i).padStart(2, '0')}`);
+      return { ...s, respiratoryRate: null, wristTempC: null };
+    });
+    const baseline = baselineFromSessions(nights);
+    expect(baseline.rrNights).toBe(0);
+    expect(baseline.tempNights).toBe(0);
+    const result = recoveryScore({
+      sleep: sleepFor('2026-11-10'),
+      sleepScore: 85,
+      stagedNights: 7,
+      baseline,
+      hasHrv: true,
+      hasRhr: true,
+    });
+    expect(result.status).toBe('scored');
+    expect(result.components.map((c) => c.key)).toEqual(['hrv', 'rhr', 'sleep']);
+    expect(result.components.map((c) => c.weight)).toEqual([0.61, 0.22, 0.17]);
+  });
+
+  it('does not tax the Energy Bank for a night too short to score', () => {
+    const short = { ...sleepFor(TODAY), stages: [{ stage: 'core' as const, startMin: 0, endMin: 40 }] };
+    const withShort = stateWithWeekOfData(NOW);
+    withShort.days[TODAY] = { ...withShort.days[TODAY], sleep: short };
+    const withNone = stateWithWeekOfData(NOW);
+    withNone.days[TODAY] = { ...withNone.days[TODAY], sleep: null };
+    const shortDay = deriveDay(withShort, TODAY, NOW);
+    expect(shortDay.sleepScore?.status).toBe('insufficient');
+    // Neutral sleep credit: (60 − 50) × 0.5 over an empty stress exposure.
+    expect(shortDay.stress.energyBank).toBe(77);
+    expect(shortDay.stress.energyBank).toBe(deriveDay(withNone, TODAY, NOW).stress.energyBank);
+  });
+
+  it('scores a day with workout windows the same as computeStrain', () => {
+    const data = stateWithWeekOfData(NOW);
+    const yesterday = data.dayOrder[data.dayOrder.length - 2];
+    const rec = data.days[yesterday];
+    const workoutStart = new Date(rec.workouts[0].start);
+    const startMin = workoutStart.getHours() * 60 + workoutStart.getMinutes();
+    const inWindow = (m: number) => m >= startMin && m <= startMin + rec.workouts[0].durationMin;
+    rec.metrics.hrSamples = [
+      { minute: 100, bpm: 70 },
+      { minute: startMin + 10, bpm: 160 }, // inside the logged window
+      { minute: startMin + 30, bpm: 150 }, // inside the logged window
+      { minute: 600, bpm: 95 },
+      { minute: 900, bpm: 130 },
+    ];
+    const age = ageFromBirthDate(data.profile.birthDate, yesterday) ?? 30;
+    const expected = computeStrain({
+      workouts: rec.workouts,
+      hrSamples: rec.metrics.hrSamples,
+      restingHr: Math.round(recoveryBaselineFor(data, yesterday).rhrBpm || 55),
+      recovery: null,
+      recentStrainAvg: 0,
+      recentStrainRange: [],
+      age,
+      maxHr: Math.round(208 - 0.7 * age),
+    }).score;
+    const strains = recentStrains(data, TODAY);
+    expect(strains[strains.length - 1]).toBe(expected);
+    // Skipping the window is part of the agreement: removing those samples
+    // cannot change the score.
+    rec.metrics.hrSamples = rec.metrics.hrSamples.filter((s) => !inWindow(s.minute));
+    const strainsWithout = recentStrains(data, TODAY);
+    expect(strainsWithout[strainsWithout.length - 1]).toBe(expected);
+  });
+
+  it('does not sum sleep debt over the whole history for a date off the timeline', () => {
+    const data = stateWithWeekOfData(NOW);
+    // Every night 252 min short of the goal: reading all of history as "the
+    // last seven nights" would bottom out the debt term.
+    for (const d of data.dayOrder) {
+      data.days[d] = { ...data.days[d], sleep: { ...data.days[d].sleep!, stages: [{ stage: 'core' as const, startMin: 0, endMin: 180 }] } };
+    }
+    const future = '2026-11-21';
+    const age = ageFromBirthDate(data.profile.birthDate, future) ?? 30;
+    const noDebt = sleepNeedMinutes({
+      age,
+      sex: data.profile.sex,
+      recentDebtMin: 0,
+      yesterdayStrain: 0,
+      sleepGoalMin: data.settings.sleepGoalMin,
+    });
+    expect(sleepNeedFor(data, future)).toBe(noDebt);
+  });
+
+  it('clamps the fitness-years term symmetrically at ±3.5', () => {
+    expect(lifestyleYears([], 30, 100).fitnessYears).toBe(-3.5);
+    expect(lifestyleYears([], 30, 0).fitnessYears).toBe(3.5);
   });
 });
 

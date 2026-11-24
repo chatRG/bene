@@ -85,7 +85,9 @@ export function lifestyleYears(days: DayRecord[], chronologicalAge: number, vo2m
   const sleepYears = clamp(((avgSleep - 95) / 6) * 1.0, -2.5, 3);
   const activityYears = clamp(((stepTarget - avgSteps) / 1000) * 0.93 + ((OPTIMAL.zone2MinPerWeek - weeklyZone2) / 60) * 0.3, -2.5, 3.5);
   const medianVo2 = chronologicalAge < 30 ? 45 : chronologicalAge < 40 ? 42 : chronologicalAge < 50 ? 38 : 33;
-  const fitnessYears = clamp(((medianVo2 - (vo2max ?? medianVo2)) / 4) * 2 + ((OPTIMAL.strengthMinPerWeek - weeklyStrength) / 30) * 0.3, -3.5, 3);
+  // Clamped symmetric ±3.5: a very high VO₂ max should no more than halve a
+  // decade of fitness age, and the floor mirrors the ceiling (docs/SCORING.md).
+  const fitnessYears = clamp(((medianVo2 - (vo2max ?? medianVo2)) / 4) * 2 + ((OPTIMAL.strengthMinPerWeek - weeklyStrength) / 30) * 0.3, -3.5, 3.5);
 
   const contributorDetails = {
     sleep: `${Math.round(avgSleep)} sleep score avg`,

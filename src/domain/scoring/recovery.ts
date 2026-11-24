@@ -15,6 +15,14 @@ export interface RecoveryBaseline {
   rrSpread: number;
   tempC: number;
   nights: number;
+  /** Nights that actually carried each metric. A term whose count is 0 has
+   *  no baseline; z-scoring it against 0 would saturate the logistic, so the
+   *  term is dropped and the weights renormalised. Optional so hand-built
+   *  baselines stay valid — an absent count means "every night carried it". */
+  hrvNights?: number;
+  rhrNights?: number;
+  rrNights?: number;
+  tempNights?: number;
 }
 
 const mad = (xs: number[], fallback: number) => {
@@ -38,6 +46,10 @@ export function baselineFromSessions(sessions: SleepSession[]): RecoveryBaseline
     rrSpread: mad(rr, 0.8),
     tempC: mean(temp),
     nights: sessions.length,
+    hrvNights: hrv.length,
+    rhrNights: rhr.length,
+    rrNights: rr.length,
+    tempNights: temp.length,
   };
 }
 
@@ -86,11 +98,25 @@ export interface RecoveryResult {
 const zScore = (value: number, m: number, spread: number) => (value - m) / Math.max(1.253 * spread, 1e-9);
 const logistic = (z: number) => 100 / (1 + Math.exp(-RECOVERY_CONSTANTS.logisticK * (z - RECOVERY_CONSTANTS.logisticZ0)));
 
+/** Nights of the baseline that carried a metric. Hand-built baselines without
+ *  the per-metric counts are treated as if every baseline night carried it. */
+function carriedNights(input: RecoveryInput, metric: 'hrv' | 'rhr' | 'rr' | 'temp'): number {
+  const b = input.baseline;
+  switch (metric) {
+    case 'hrv': return b.hrvNights ?? b.nights;
+    case 'rhr': return b.rhrNights ?? b.nights;
+    case 'rr': return b.rrNights ?? b.nights;
+    case 'temp': return b.tempNights ?? b.nights;
+  }
+}
+
 /**
  * Recovery is gated exactly as documented: two complete nights, stages, overnight
- * HRV and overnight RHR must all be present. The score itself is NOOP's transparent
- * z-score + logistic composite: personal baselines, renormalised weights, no
- * invented per-component percentages.
+ * HRV and overnight RHR must all be present. Calibration counts only baseline
+ * nights that carried overnight HRV and RHR — the metrics the score z-scores
+ * against. The score itself is NOOP's transparent z-score + logistic composite:
+ * personal baselines, renormalised weights, no invented per-component
+ * percentages.
  */
 export function recoveryScore(input: RecoveryInput): RecoveryResult {
   const base = { baselineNights: input.baseline.nights } as const;
@@ -116,7 +142,7 @@ export function recoveryScore(input: RecoveryInput): RecoveryResult {
         : 'Overnight resting heart rate is missing from the sleep window.',
     };
   }
-  if (input.sleepScore == null || input.baseline.nights < 5) {
+  if (input.sleepScore == null || Math.min(carriedNights(input, 'hrv'), carriedNights(input, 'rhr')) < 5) {
     return {
       ...base,
       status: 'calibrating',
@@ -129,21 +155,25 @@ export function recoveryScore(input: RecoveryInput): RecoveryResult {
 
   const s = input.sleep!;
   const b = input.baseline;
-  const hrvZ = zScore(s.hrvMs!, b.hrvMs, b.hrvSpread);
-  const rhrZ = -zScore(s.rhrBpm!, b.rhrBpm, b.rhrSpread);
-  const terms: { key: keyof typeof RECOVERY_WEIGHTS; z: number; weight: number }[] = [
-    { key: 'hrv', z: hrvZ, weight: RECOVERY_WEIGHTS.hrv },
-    { key: 'rhr', z: rhrZ, weight: RECOVERY_WEIGHTS.rhr },
-    {
-      key: 'sleep',
-      z: (input.sleepScore / 100 - RECOVERY_CONSTANTS.sleepPerfCenter) / RECOVERY_CONSTANTS.sleepPerfScale,
-      weight: RECOVERY_WEIGHTS.sleep,
-    },
-  ];
-  if (s.respiratoryRate != null) {
+  // A term needs a baseline that actually measured it. Without its nights the
+  // mean is 0, so z-scoring against it would saturate the logistic at 100 (or
+  // 0) and poison the composite — drop the term instead and renormalise.
+  const terms: { key: keyof typeof RECOVERY_WEIGHTS; z: number; weight: number }[] = [];
+  if (carriedNights(input, 'hrv') > 0) {
+    terms.push({ key: 'hrv', z: zScore(s.hrvMs!, b.hrvMs, b.hrvSpread), weight: RECOVERY_WEIGHTS.hrv });
+  }
+  if (carriedNights(input, 'rhr') > 0) {
+    terms.push({ key: 'rhr', z: -zScore(s.rhrBpm!, b.rhrBpm, b.rhrSpread), weight: RECOVERY_WEIGHTS.rhr });
+  }
+  terms.push({
+    key: 'sleep',
+    z: (input.sleepScore / 100 - RECOVERY_CONSTANTS.sleepPerfCenter) / RECOVERY_CONSTANTS.sleepPerfScale,
+    weight: RECOVERY_WEIGHTS.sleep,
+  });
+  if (s.respiratoryRate != null && carriedNights(input, 'rr') > 0) {
     terms.push({ key: 'respiratory', z: -zScore(s.respiratoryRate, b.rr, b.rrSpread), weight: RECOVERY_WEIGHTS.respiratory });
   }
-  if (s.wristTempC != null) {
+  if (s.wristTempC != null && carriedNights(input, 'temp') > 0) {
     terms.push({ key: 'temp', z: -Math.abs(s.wristTempC - b.tempC) / RECOVERY_CONSTANTS.skinTempScaleC, weight: RECOVERY_WEIGHTS.temp });
   }
 

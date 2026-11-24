@@ -58,29 +58,41 @@ export function recoveryBaselineFor(data: AppStateData, date: string) {
   return baselineFromSessions(priorSessions(data, date, 28));
 }
 
-function strainOfRecord(record: DayRecord | undefined): number {
+function strainOfRecord(data: AppStateData, date: string): number {
+  const record = data.days[date];
   if (!record) return 0;
-  const active = record.workouts.reduce((a, w) => a + w.zoneMinutes.reduce((x, m, i) => x + m * i, 0), 0);
-  const passive = record.metrics.hrSamples.reduce((a, s) => {
-    const pct = ((s.bpm - 55) / (190 - 55)) * 100;
-    const weight = pct >= 90 ? 5 : pct >= 80 ? 4 : pct >= 70 ? 3 : pct >= 60 ? 2 : pct >= 50 ? 1 : 0;
-    return a + weight * 10;
-  }, 0);
-  return (100 * Math.log(1 + active + passive)) / Math.log(7201);
+  // The same inputs computeStrain gets on the strain screen: baseline resting
+  // HR, Tanaka max HR, and samples inside logged workout windows skipped — so
+  // a day never scores differently inside recentStrainAvg or sleep need than
+  // it does on the screen.
+  const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
+  return computeStrain({
+    workouts: record.workouts,
+    hrSamples: record.metrics.hrSamples,
+    restingHr: Math.round(recoveryBaselineFor(data, date).rhrBpm || 55),
+    recovery: null,
+    recentStrainAvg: 0,
+    recentStrainRange: [],
+    age,
+    maxHr: Math.round(208 - 0.7 * age),
+  }).score;
 }
 
 export function recentStrains(data: AppStateData, date: string, daysBack = 28): number[] {
   const idx = data.dayOrder.indexOf(date);
   if (idx <= 0) return [];
   const out: number[] = [];
-  for (let i = Math.max(0, idx - daysBack); i < idx; i++) out.push(strainOfRecord(data.days[data.dayOrder[i]]));
+  for (let i = Math.max(0, idx - daysBack); i < idx; i++) out.push(strainOfRecord(data, data.dayOrder[i]));
   return out;
 }
 
 export function sleepNeedFor(data: AppStateData, date: string): number {
   const idx = data.dayOrder.indexOf(date);
   const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
-  const prior = data.dayOrder.slice(Math.max(0, idx - 7), idx);
+  // date missing (or the first day) means there is nothing prior to sum; a
+  // negative idx would slice dayOrder[-7..-1] and read the whole history as
+  // "the last seven nights".
+  const prior = idx <= 0 ? [] : data.dayOrder.slice(Math.max(0, idx - 7), idx);
   let debt = 0;
   for (const d of prior) {
     const rec = data.days[d];
@@ -88,7 +100,7 @@ export function sleepNeedFor(data: AppStateData, date: string): number {
     debt += stageTotals(rec.sleep).asleepMin - data.settings.sleepGoalMin;
   }
   const yesterday = data.dayOrder[idx - 1];
-  const yesterdayStrain = strainOfRecord(yesterday ? data.days[yesterday] : undefined);
+  const yesterdayStrain = yesterday ? strainOfRecord(data, yesterday) : 0;
   return sleepNeedMinutes({
     age,
     sex: data.profile.sex,
@@ -165,7 +177,10 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
 
   const stress = stressSummary(record.metrics.stressSamples, {
     daysOfBaseline: Math.min(60, Math.max(0, idx)),
-    sleepScore: score?.score ?? null,
+    // Only a scored session counts. A too-short night returns
+    // { status: 'insufficient', score: 0 } — feeding that 0 in would tax the
+    // Energy Bank for a night the sleep score never read.
+    sleepScore: score?.status === 'scored' ? score.score : null,
   });
 
   const nutrition = nutritionFor(record.meals, data.settings.excludedContributors, record.metrics.totalCalories);
