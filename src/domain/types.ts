@@ -194,7 +194,8 @@ export interface DayMetrics {
   date: ISODate;
   steps: number;
   activeCalories: number;
-  totalCalories: number;
+  /** The store's own total burn, or null when the source records none. */
+  totalCalories: number | null;
   exerciseMinutes: number;
   daylightMinutes: number;
   hydrationMl: number;

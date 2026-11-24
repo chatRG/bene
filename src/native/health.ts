@@ -10,7 +10,13 @@
  * `available: false` rather than throwing.
  */
 import { Capacitor } from '@capacitor/core';
-import { Health, type HealthDataType, type HealthSample, type Workout as HealthWorkout } from '@capgo/capacitor-health';
+import {
+  Health,
+  type AggregatedSample,
+  type HealthDataType,
+  type HealthSample,
+  type Workout as HealthWorkout,
+} from '@capgo/capacitor-health';
 import type { DayRecord, ISODate, SleepSession, SleepStageBlock, Stage, Workout, WorkoutKind } from '../domain/types';
 import { dateKey } from '../domain/seed';
 
@@ -53,12 +59,14 @@ export function platformLabel(p: HealthPlatform = platform()): string {
  * plugin has no Health Connect record for it. Passing it to Health Connect's
  * permission calls makes the whole list reject with "Unsupported data type",
  * which Bene then reports as "no health store" on every Android phone,
- * including ones where the store works fine. So on Android the ask is what
- * Health Connect can actually answer; the permission the store wants for
- * workouts is requested through 'workouts' itself.
+ * including ones where the store works fine.
  *
- * Total energy is split by platform too. 'calories' is *active* energy on
- * both; the basal half comes from a different record. Health Connect answers
+ * The ask must also name what the data silently depends on. A workout read
+ * only carries a distance when the separate distance scope is granted, so
+ * Android asks for 'distance' too.
+ *
+ * Total energy is split by platform. 'calories' is *active* energy on both;
+ * the basal half comes from a different record. Health Connect answers
  * 'totalCalories' with TotalCaloriesBurnedRecord — an energy — so Android
  * reads it directly. Its 'basalCalories' is a BasalMetabolicRateRecord, a
  * *rate* in kcal/day, and summing rates would be nonsense. iOS has no useful
@@ -67,9 +75,8 @@ export function platformLabel(p: HealthPlatform = platform()): string {
  * 'basalCalories' (basalEnergyBurned, an energy) and Bene adds the two.
  */
 export function readTypes(): HealthDataType[] {
-  return platform() === 'health-connect'
-    ? READ_TYPES.filter((t) => t !== 'exerciseTime' && t !== 'basalCalories')
-    : READ_TYPES.filter((t) => t !== 'totalCalories');
+  if (platform() !== 'health-connect') return READ_TYPES.filter((t) => t !== 'totalCalories');
+  return READ_TYPES.filter((t) => t !== 'exerciseTime' && t !== 'basalCalories').concat('distance');
 }
 
 export interface HealthStatus {
@@ -89,15 +96,15 @@ export interface HealthStatus {
 /**
  * Why the store said no, when it says no.
  *
- * isAvailable() is a hint, never a gate. On phones where Health Connect is
- * built into the system rather than installed as an app — a Samsung on One UI
- * 6 at Android 14, for one — the SDK status probe can report unavailable while
- * the store answers perfectly well and the user has already granted read
- * access. Trusting the probe there made Bene claim there was no health store
- * directly above a settings screen that opened that same store.
+ * With the pinned plugin the availability probe and the gate are the same
+ * thing: every store call checks the SDK status that isAvailable() reports,
+ * and refuses with that reason before a client is ever built. There is no
+ * device where the probe says unavailable and the store then answers anyway —
+ * the status probe is the truth about whether the store can be reached.
  *
- * So the real call is attempted first and availability is inferred from it
- * succeeding. The probe is consulted afterwards, only to explain a failure.
+ * The call is still attempted first and the probe consulted afterwards, only
+ * to explain a failure: that keeps the failure path driven by what the store
+ * actually returned rather than by a prediction of it.
  */
 async function availabilityReason(): Promise<string | undefined> {
   try {
@@ -390,13 +397,16 @@ function localDayEnd(i: number): Date {
 
 /**
  * One window per local calendar day, oldest first, tiling the range with no
- * gaps or overlap. Calendar days, not `+86400000` offsets: a raw-millisecond
- * window slides an hour off local midnight across a DST change and drops part
- * of a whole local day from the query.
+ * gaps or overlap — and covering exactly the dates the range query spans,
+ * oldest included: a fallback that skipped the oldest day would silently drop
+ * it whenever the single range read hit its cap and was discarded. Calendar
+ * days, not `+864****0000` offsets: a raw-millisecond window slides an hour
+ * off local midnight across a DST change and drops part of a whole local day
+ * from the query.
  */
 function dayWindows(days: number): { from: Date; to: Date }[] {
   const windows: { from: Date; to: Date }[] = [];
-  for (let i = days - 1; i >= 0; i -= 1) {
+  for (let i = days; i >= 0; i -= 1) {
     windows.push({ from: localMidnight(i), to: localDayEnd(i) });
   }
   return windows;
@@ -511,6 +521,11 @@ async function readSleep(
   return { samples: dedupeByIdentity(samples), truncated };
 }
 
+/** An aggregated day bucket, reshaped into the sample shape the daily fold reads. */
+function toAggregatedSample(bucket: AggregatedSample): HealthSample {
+  return { dataType: 'steps', unit: bucket.unit, value: bucket.value, startDate: bucket.startDate, endDate: bucket.endDate };
+}
+
 export async function readDays(days = 30): Promise<DayRecord[]> {
   const p = platform();
   if (p === 'unavailable') return [];
@@ -527,6 +542,29 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   // readTypes): Health Connect as a total, HealthKit as basal samples.
   const basalType: HealthDataType = p === 'health-connect' ? 'totalCalories' : 'basalCalories';
 
+  // Steps on Health Connect are read through the aggregate API, not raw
+  // samples: the store applies source priority to overlapping devices, so its
+  // bucket total is already deduplicated across a phone and a watch recording
+  // the same walk. Raw StepsRecord reads are not — summing them counts every
+  // overlapped step twice. The aggregated window is anchored at `start`, a
+  // local midnight, because the plugin slices its 'day' buckets as 24-hour
+  // durations counted from the window start: anchored anywhere else, every
+  // bucket straddles Bene's local dates. A DST shift moves those 24-hour
+  // buckets by an hour, so on that one day a bucket can follow the wall clock
+  // rather than the calendar.
+  const stepsRead: Promise<{ samples: HealthSample[] }> =
+    p === 'health-connect'
+      ? Health.queryAggregated({
+          dataType: 'steps',
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          bucket: 'day',
+          aggregation: 'sum',
+        })
+          .then((r) => ({ samples: r.samples.map(toAggregatedSample) }))
+          .catch(() => ({ samples: [] as HealthSample[] }))
+      : readRange('steps', range, days, 2000).then((r) => ({ samples: r.samples }));
+
   const [sleep, hrv, rhr, resp, spo2, temp, steps, cals, basal, hr, exercise, workouts] = await Promise.all([
     readSleep(range, days),
     readRange('heartRateVariability', range, days, 2000),
@@ -534,7 +572,7 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     readRange('respiratoryRate', range, days, 500),
     readRange('oxygenSaturation', range, days, 500),
     readRange('bodyTemperature', range, days, 500),
-    readRange('steps', range, days, 2000),
+    stepsRead,
     readRange('calories', range, days, 2000),
     readRange(basalType, range, days, 2000),
     readHeartRateByDay(days),
@@ -561,7 +599,7 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
         date,
         steps: 0,
         activeCalories: 0,
-        totalCalories: 0,
+        totalCalories: p === 'health-connect' ? null : 0,
         exerciseMinutes: 0,
         daylightMinutes: 0,
         hydrationMl: 0,
@@ -632,6 +670,9 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
       .filter((s) => s.dataType === type && dateKey(new Date(s.startDate)) === date)
       .reduce((n, s) => n + s.value, 0);
 
+  const hasFor = (samples: HealthSample[], type: HealthDataType, date: ISODate): boolean =>
+    samples.some((s) => s.dataType === type && dateKey(new Date(s.startDate)) === date);
+
   const dates = new Set<string>([
     ...sleepByDate.keys(),
     ...steps.samples.map((s) => dateKey(new Date(s.startDate))),
@@ -644,20 +685,24 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   for (const date of dates) {
     const day = dayFor(date);
     day.metrics.steps = Math.round(sumFor(steps.samples, 'steps', date));
+    day.metrics.exerciseMinutes = Math.round(sumFor(exercise.samples, 'exerciseTime', date));
     // 'calories' is *active* energy on both platforms (ActiveCaloriesBurned /
     // activeEnergyBurned). Filing it under totalCalories used to hide the
-    // active part and leave the day's burn understated by the whole BMR.
+    // active part and count it as resting burn.
     day.metrics.activeCalories = Math.round(sumFor(cals.samples, 'calories', date));
     if (p === 'health-connect') {
-      // TotalCaloriesBurnedRecord is already active + basal.
-      day.metrics.totalCalories = Math.round(sumFor(basal.samples, 'totalCalories', date));
+      // Total burn is the store's own total-calorie record (already active +
+      // basal). Where the device records none, keep it unknown rather than
+      // relabelling active burn.
+      day.metrics.totalCalories = hasFor(basal.samples, 'totalCalories', date)
+        ? Math.round(sumFor(basal.samples, 'totalCalories', date))
+        : null;
     } else {
       // No basal samples means the store said nothing about the basal half:
       // total stays at active rather than dropping to zero.
       day.metrics.totalCalories =
         day.metrics.activeCalories + Math.round(sumFor(basal.samples, 'basalCalories', date));
     }
-    day.metrics.exerciseMinutes = Math.round(sumFor(exercise.samples, 'exerciseTime', date));
     day.metrics.hrSamples = hr.samples
       .filter((s) => s.dataType === 'heartRate' && dateKey(new Date(s.startDate)) === date)
       .map((s) => {

@@ -359,7 +359,8 @@ export const useAppStore = create<AppStore>()(
       // exerciseMinutes is the one ambiguous counter: logWorkout folds
       // hand-logged minutes into the same number health reports, so neither
       // value can simply win. The larger one does — an Android-shaped read
-      // that says 0 while the person logged 40 minutes by hand keeps the 40.
+      // that says 0 (its store has no exercise-time record at all) while the
+      // person logged 40 minutes by hand keeps the 40.
       importHealthDays: (records) =>
         set((s) => {
           if (!records.length) return s;
