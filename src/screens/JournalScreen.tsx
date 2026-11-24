@@ -95,7 +95,7 @@ export function JournalScreen() {
           </span>
         </div>
         <div className="bar mt-12">
-          <div className="bar__fill" style={{ width: `${Math.min(100, (entriesToday.length / Math.max(1, pinned.length)) * 100)}%`, background: 'var(--green)' }} />
+          <div className="bar__fill" style={{ width: `${Math.min(100, (entriesToday.length / Math.max(1, state.journalTags.length)) * 100)}%`, background: 'var(--green)' }} />
         </div>
       </div>
 

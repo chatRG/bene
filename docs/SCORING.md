@@ -59,9 +59,9 @@ The Sleep Bank is a seven-day, recency-weighted sum of `(asleep − goal)` with 
 1. At least **two complete nights** with stages. If not, the gate returns `insufficient`.
 2. Overnight HRV present **inside the sleep window**. If not, the gate returns `insufficient`.
 3. Overnight RHR present. If not, the gate returns `insufficient`.
-4. At least five baseline nights and a scored sleep session. If not, the gate returns `calibrating`.
+4. At least five baseline nights that carried overnight HRV and RHR, and a scored sleep session. If not, the gate returns `calibrating`.
 
-**Components and weights** (ported from NOOP's transparent `RecoveryScorer`). Bene drops missing optional terms and renormalises the weights:
+**Components and weights** (ported from NOOP's transparent `RecoveryScorer`). Bene drops missing optional terms and renormalises the weights. A term is also dropped — and the weights renormalised — when the baseline contains no nights that measured it, and the calibration gate counts only the baseline nights that carried overnight HRV and RHR.
 
 | Component | Weight | Direction |
 |---|---|---|
@@ -138,7 +138,7 @@ Macro percentages are energy shares: protein ×4, carbs ×4, fat ×9. Net energy
 - **Bloodwork delta:** nine PhenoAge-style markers. Each marker contributes up to ±0.28 years for each optimal-band width outside the band, clamped to ±5.
 - **Sleep years:** `((avgSleepScore − 95) / 6)`, clamped ±2.5/3.
 - **Activity years:** step shortfall × 0.93 + Zone 2–3 shortfall bonus, clamped.
-- **Fitness years:** comparison of estimated VO₂ max with an age/sex median, clamped ±3.5.
+- **Fitness years:** comparison of estimated VO₂ max with an age-based median (45 below 30, 42 at 30–39, 38 at 40–49, 33 at 50+; the median is not sex-adjusted), clamped ±3.5.
 
 Confidence: `30 + 4 × markersPresent + min(15, wearDays/2) + 4 if labs ≤ 120 days`, clamped 20–98. Bene presents updates each week on Monday. It hides the score when fewer than seven markers or fewer than seven days of wearable data exist.
 

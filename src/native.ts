@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigationType, useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router-dom';
 
 /* ==========================================================================
    Native shell behaviour: what the system back gesture means inside Bene.
@@ -97,6 +98,17 @@ let current = '/';
 let popPending = false;
 
 /**
+ * Which press the pending pop belongs to.
+ *
+ * Each pop is stamped before it starts; the watchdog only releases its own
+ * stamp. A watchdog can otherwise outlive its pop when a newer pop has already
+ * begun — releasing then would re-open the two-press window the flag exists to
+ * close. recordNavigation clears `popPending` directly when a pop lands, so a
+ * landed pop is never stuck waiting on its watchdog.
+ */
+let popPressId = 0;
+
+/**
  * The router's own navigate, captured by the hook below.
  *
  * A screen that was opened directly — a link, or a reload on a sub-page — has
@@ -138,6 +150,7 @@ export const resetBackStack = () => {
   stack = [];
   current = '/';
   popPending = false;
+  popPressId = 0;
   routerNavigate = null;
   exitArmedAt = 0;
   promptExit = null;
@@ -155,6 +168,24 @@ export function recordNavigation(route: string, kind: NavKind) {
   // Walking anywhere means the person did not mean to leave: a press that is
   // still armed from before must not close the app from a new screen.
   exitArmedAt = 0;
+}
+
+/**
+ * Start a history pop and shield it from a second press.
+ *
+ * `popPending` goes up first, so a press that arrives while the web view is
+ * still walking its history is absorbed instead of popping a second screen.
+ * A pop that never lands must not wedge the gesture either: the watchdog
+ * releases the flag shortly afterwards — but only while no newer press has
+ * started a pop of its own (see popPressId).
+ */
+export function beginPop(): void {
+  popPending = true;
+  const press = popPressId + 1;
+  popPressId = press;
+  setTimeout(() => {
+    if (popPressId === press) popPending = false;
+  }, 400);
 }
 
 /**
@@ -219,13 +250,8 @@ export function handleBack(now: number = Date.now()): 'handled' | 'exit' {
     // gesture, not a request for a second screen.
     if (popPending) return 'handled';
     if (historyBehind()) {
-      popPending = true;
+      beginPop();
       window.history.back();
-      // A pop that never arrives must not wedge the gesture: if the page does
-      // not move, the flag is released shortly afterwards.
-      window.setTimeout(() => {
-        popPending = false;
-      }, 400);
     } else if (routerNavigate) {
       routerNavigate(parentOf(current), { replace: true });
     }
@@ -288,17 +314,34 @@ export function useNativeBackButton(onExitPrompt?: () => void) {
 }
 
 /**
- * A back button in a header.
+ * The back action of a header back button, shared by the hook below so the
+ * rules can be tested without a renderer.
  *
  * It goes back one screen when there is history behind it, and up to the parent
  * screen when there is not — a screen opened from a link or a reload has no
  * history, and `navigate(-1)` there would leave the app instead of going up.
+ *
+ * A pop started here is shielded like any other: the flag goes up before
+ * `navigate(-1)`, so a system back gesture arriving right behind the tap —
+ * the tap and the gesture being one motion on Android — is absorbed by
+ * handleBack instead of popping a second screen.
  */
-export function useGoBack() {
+export function popCurrentScreen(navigate: NavigateFunction, pathname: string): void {
+  // A pop already on its way — started by the system back press of the same
+  // motion, or by a first header tap before the navigation has landed — must
+  // not start a second one: beginPop() would replace the pending stamp and
+  // navigate(-1) would pop another screen.
+  if (popPending) return;
+  if (stack.length > 1 && historyBehind()) {
+    beginPop();
+    navigate(-1);
+  } else {
+    navigate(parentOf(pathname), { replace: true });
+  }
+}
+
+export function useGoBack(): () => void {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  return useCallback(() => {
-    if (stack.length > 1 && historyBehind()) navigate(-1);
-    else navigate(parentOf(pathname), { replace: true });
-  }, [navigate, pathname]);
+  return useCallback(() => popCurrentScreen(navigate, pathname), [navigate, pathname]);
 }

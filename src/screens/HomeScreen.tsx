@@ -285,7 +285,7 @@ export function HomeScreen() {
                         <ChevronRight size={17} className="chevron" />
                       </div>
                     </div>
-                    {sleepTotals ? (
+                    {sleepTotals && sleepTotals.inBedMin > 0 ? (
                       <>
                         <div className="stage-bar">
                           <span style={{ width: `${(sleepTotals.deepMin / sleepTotals.inBedMin) * 100}%`, background: 'var(--sleep-deep)' }} />
@@ -496,7 +496,15 @@ export function HomeScreen() {
         <Sheet title="Add card" subtitle="Choose what appears on your Home screen." onClose={() => setAddOpen(false)}>
           <div className="list-card" style={{ boxShadow: 'none', background: 'var(--field)' }}>
             {Object.entries(CARD_META)
-              .filter(([id]) => !draft.includes(id))
+              .filter(([id]) => {
+                if (draft.includes(id)) return false;
+                // Same gating as the `visible` filter, so a card cannot be added
+                // while its tab is off and then silently disappear.
+                if (id === 'journal' && !state.settings.activeTabs.journal) return false;
+                if (id === 'fitness' && !state.settings.activeTabs.fitness) return false;
+                if (id === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
+                return true;
+              })
               .map(([id, meta]) => (
                 <button key={id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => { toggleCard(id); setAddOpen(false); }}>
                   <div className="list-icon"><Plus size={16} /></div>
@@ -504,7 +512,16 @@ export function HomeScreen() {
                   <ChevronRight size={16} className="chevron" />
                 </button>
               ))}
-            {Object.keys(CARD_META).every((id) => draft.includes(id)) ? <div className="empty">Every card is already on your Home screen.</div> : null}
+            {(() => {
+              const available = Object.entries(CARD_META).filter(([id]) => {
+                if (draft.includes(id)) return false;
+                if (id === 'journal' && !state.settings.activeTabs.journal) return false;
+                if (id === 'fitness' && !state.settings.activeTabs.fitness) return false;
+                if (id === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
+                return true;
+              });
+              return available.length === 0 ? <div className="empty">Every card is already on your Home screen.</div> : null;
+            })()}
           </div>
         </Sheet>
       ) : null}

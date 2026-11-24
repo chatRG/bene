@@ -197,13 +197,6 @@ export interface DayMetrics {
   /** The store's own total burn, or null when the source records none. */
   totalCalories: number | null;
   exerciseMinutes: number;
-  /**
-   * True when the source cannot measure exercise minutes at all — Health
-   * Connect has no exercise-time record — as opposed to a measured zero. The
-   * import merge keeps the day's existing total when this is set, so a
-   * manually logged workout survives a sync.
-   */
-  exerciseUnsupported?: boolean;
   daylightMinutes: number;
   hydrationMl: number;
   caffeineMg: number;
