@@ -26,6 +26,8 @@ export const READ_TYPES: HealthDataType[] = [
   'bodyTemperature',
   'steps',
   'calories',
+  'totalCalories',
+  'basalCalories',
   'heartRate',
   'exerciseTime',
   'workouts',
@@ -54,9 +56,20 @@ export function platformLabel(p: HealthPlatform = platform()): string {
  * including ones where the store works fine. So on Android the ask is what
  * Health Connect can actually answer; the permission the store wants for
  * workouts is requested through 'workouts' itself.
+ *
+ * Total energy is split by platform too. 'calories' is *active* energy on
+ * both; the basal half comes from a different record. Health Connect answers
+ * 'totalCalories' with TotalCaloriesBurnedRecord — an energy — so Android
+ * reads it directly. Its 'basalCalories' is a BasalMetabolicRateRecord, a
+ * *rate* in kcal/day, and summing rates would be nonsense. iOS has no useful
+ * 'totalCalories' either: the plugin maps it to activeEnergyBurned, the same
+ * store as 'calories', so reading both would double-count. There it reads
+ * 'basalCalories' (basalEnergyBurned, an energy) and Bene adds the two.
  */
 export function readTypes(): HealthDataType[] {
-  return platform() === 'health-connect' ? READ_TYPES.filter((t) => t !== 'exerciseTime') : READ_TYPES;
+  return platform() === 'health-connect'
+    ? READ_TYPES.filter((t) => t !== 'exerciseTime' && t !== 'basalCalories')
+    : READ_TYPES.filter((t) => t !== 'totalCalories');
 }
 
 export interface HealthStatus {
@@ -182,14 +195,27 @@ function minutesFrom(iso: string, anchor: Date): number {
 /**
  * Fold raw samples into a sleep session.
  *
- * The plugin returns one sample per stage segment where the platform has stage
- * data, and a single inBed/asleep block where it does not. Both shapes are
- * normalised into Bene's blocks; a session with no stage data keeps one
- * `core` block so sleep duration still scores.
+ * The two platforms shape the same night differently. Health Connect emits one
+ * sample per SleepSessionRecord whose stages array carries every stage; iOS
+ * HealthKit has no session object, so the plugin emits ONE sample per
+ * HKCategorySample — one stage segment each with a single-element stages
+ * array. Choosing "the longest sample" on that shape would make the longest
+ * *stage* the whole night and discard every other stage.
+ *
+ * So the iOS shape is detected and merged first: when every sample for a
+ * morning carries at most one stage, they are one night, and the session
+ * bounds are the union. Anything else keeps the single longest sample — the
+ * Health Connect shape, where a morning may legitimately hold a nap and a
+ * night as separate records.
  */
 export function toSleepSession(samples: HealthSample[], date: ISODate): SleepSession | null {
   const relevant = samples.filter((s) => s.dataType === 'sleep');
   if (!relevant.length) return null;
+
+  // One stage per sample, more than one sample: the iOS per-segment shape.
+  if (relevant.length > 1 && relevant.every((s) => (s.stages?.length ?? 0) === 1)) {
+    return mergeSleepSegments(relevant, date);
+  }
 
   // Prefer the most complete block: the longest session that morning.
   const primary = relevant.reduce((a, b) =>
@@ -199,11 +225,30 @@ export function toSleepSession(samples: HealthSample[], date: ISODate): SleepSes
       : a,
   );
 
-  const start = new Date(primary.startDate);
-  const end = new Date(primary.endDate);
+  return finishSleepSession(primary.platformId, primary.sourceName, new Date(primary.startDate), new Date(primary.endDate), primary.stages ?? [], date);
+}
+
+/**
+ * Union of iOS's per-segment samples: one session from many one-stage
+ * records. The first sample in the store's order donates the identity.
+ */
+function mergeSleepSegments(samples: HealthSample[], date: ISODate): SleepSession | null {
+  const start = new Date(Math.min(...samples.map((s) => new Date(s.startDate).getTime())));
+  const end = new Date(Math.max(...samples.map((s) => new Date(s.endDate ?? s.startDate).getTime())));
+  return finishSleepSession(samples[0].platformId, samples[0].sourceName, start, end, samples.flatMap((s) => s.stages ?? []), date);
+}
+
+/** Shared assembly so both shapes produce the same SleepSession fields. */
+function finishSleepSession(
+  platformId: string | undefined,
+  sourceName: string | undefined,
+  start: Date,
+  end: Date,
+  rawStages: NonNullable<HealthSample['stages']>,
+  date: ISODate,
+): SleepSession | null {
   if (!(end.getTime() > start.getTime())) return null;
 
-  const rawStages = primary.stages ?? [];
   const blocks: SleepStageBlock[] = rawStages
     .map((s) => ({
       stage: STAGE_MAP[s.stage] ?? 'core',
@@ -218,12 +263,12 @@ export function toSleepSession(samples: HealthSample[], date: ISODate): SleepSes
   }
 
   return {
-    id: primary.platformId ?? `hc-${date}`,
+    id: platformId ?? `hc-${date}`,
     date,
     start: start.toISOString(),
     end: end.toISOString(),
     stages: blocks,
-    source: primary.sourceName ?? platformLabel(),
+    source: sourceName ?? platformLabel(),
     hrvMs: null,
     rhrBpm: null,
     respiratoryRate: null,
@@ -249,16 +294,46 @@ function meanIn(samples: HealthSample[], type: HealthDataType, from?: string, to
   return inWindow.reduce((n, s) => n + s.value, 0) / inWindow.length;
 }
 
+/**
+ * Plugin workout names onto Bene's closed WorkoutKind set.
+ *
+ * The keys are names the plugin *emits*, not the aliases it accepts. Android's
+ * WorkoutType.toWorkoutTypeString emits e.g. strengthTraining, crossTraining,
+ * swimmingPool, swimmingOpenWater, bikingStationary, rowingMachine; iOS's
+ * fromHKWorkoutActivityType emits its WorkoutType enum case names —
+ * .traditionalStrengthTraining comes back as strengthTraining, while
+ * functionalStrengthTraining, highIntensityIntervalTraining, elliptical,
+ * waterFitness and swimmingOpenWater are emitted as themselves. Mapping only
+ * the aliases used to send every imported strength and HIIT session to the
+ * 'walk' fallback, which counted them towards the cardio-goal minutes.
+ *
+ * What is not listed here is genuinely unclassifiable against the eight kinds
+ * Bene has (boxing, pilates, tennis, dance, …) and falls back to 'walk': the
+ * cardio-goal minutes stay roughly right and no invented kind leaks into the
+ * closed set. Rowing is steady machine cardio; 'cycle' is the closest kind.
+ */
 const WORKOUT_MAP: Record<string, WorkoutKind> = {
   running: 'run',
+  runningTreadmill: 'run',
   walking: 'walk',
   hiking: 'hike',
   cycling: 'cycle',
+  bikingStationary: 'cycle',
+  elliptical: 'cycle',
+  rowing: 'cycle',
+  rowingMachine: 'cycle',
   swimming: 'swim',
-  functionalStrengthTraining: 'strength',
+  swimmingPool: 'swim',
+  swimmingOpenWater: 'swim',
+  waterFitness: 'swim',
+  strengthTraining: 'strength',
   traditionalStrengthTraining: 'strength',
+  functionalStrengthTraining: 'strength',
+  weightlifting: 'strength',
+  crossTraining: 'hiit',
   highIntensityIntervalTraining: 'hiit',
   yoga: 'yoga',
+  // 'other' and every sport Bene has no kind for keep the walk fallback.
 };
 
 /**
@@ -300,84 +375,179 @@ function toWorkout(w: HealthWorkout): Workout {
  * date that has anything in it. Days with nothing are omitted so the caller
  * never overwrites a hand-logged day with emptiness.
  */
+
+/** Local midnight `i` days before today. */
+function localMidnight(i: number): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+}
+
+/** The last millisecond of the local day `i` days before today. */
+function localDayEnd(i: number): Date {
+  const midnight = localMidnight(i);
+  return new Date(midnight.getFullYear(), midnight.getMonth(), midnight.getDate() + 1, 0, 0, 0, -1);
+}
+
+/**
+ * One window per local calendar day, oldest first, tiling the range with no
+ * gaps or overlap. Calendar days, not `+86400000` offsets: a raw-millisecond
+ * window slides an hour off local midnight across a DST change and drops part
+ * of a whole local day from the query.
+ */
+function dayWindows(days: number): { from: Date; to: Date }[] {
+  const windows: { from: Date; to: Date }[] = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    windows.push({ from: localMidnight(i), to: localDayEnd(i) });
+  }
+  return windows;
+}
+
+/**
+ * Sleep windows, one per morning in the range. A night is filed under the day
+ * it *ends* on but starts the evening before, so day D's window reaches back
+ * into D−1. That makes neighbouring windows overlap a little; callers that
+ * use them must dedupe (see readSleep).
+ */
+function sleepWindows(days: number): { from: Date; to: Date }[] {
+  const windows: { from: Date; to: Date }[] = [];
+  for (let i = days; i >= 0; i -= 1) {
+    windows.push({ from: localMidnight(i + 1), to: localDayEnd(i) });
+  }
+  return windows;
+}
+
+/** Read one data type with one query per window. */
+async function readWindows(
+  dataType: HealthDataType,
+  windows: { from: Date; to: Date }[],
+  limitPerDay: number,
+): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  const pages = await Promise.all(
+    windows.map(({ from, to }) =>
+      Health.readSamples({
+        dataType,
+        startDate: from.toISOString(),
+        endDate: to.toISOString(),
+        limit: limitPerDay,
+        ascending: true,
+      }).catch(() => ({ samples: [] as HealthSample[] })),
+    ),
+  );
+
+  // A window that comes back exactly at the cap may have been cut short. Its
+  // samples are still worth showing, but they must not be presented as
+  // complete, so mark them and let the caller decide what to withhold.
+  const samples: HealthSample[] = [];
+  const truncated = new Set<string>();
+  for (const page of pages) {
+    if (page.samples.length >= limitPerDay) {
+      for (const s of page.samples) truncated.add(dateKey(new Date(s.startDate)));
+    }
+    samples.push(...page.samples);
+  }
+  return { samples, truncated };
+}
+
+/**
+ * The single-query fast path: one range read, and only when it returns exactly
+ * the cap — the plugin has no continuation token for samples, so a page at the
+ * limit may have dropped the oldest days of a heavy month — fall back to
+ * reading the type one local day at a time. Most months never pay for that.
+ */
+async function readRange(
+  dataType: HealthDataType,
+  range: { startDate: string; endDate: string },
+  days: number,
+  limit: number,
+): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  const page = await Health.readSamples({ dataType, ...range, limit, ascending: true }).catch(
+    () => ({ samples: [] as HealthSample[] }),
+  );
+  if (page.samples.length < limit) return { samples: page.samples, truncated: new Set() };
+  return readWindows(dataType, dayWindows(days), limit);
+}
+
+/** Merge pages that may overlap, keeping each record once. */
+function dedupeByIdentity(samples: HealthSample[]): HealthSample[] {
+  const seen = new Set<string>();
+  return samples.filter((s) => {
+    const key = s.platformId ?? `${s.startDate}|${s.endDate}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /**
  * Heart rate for each day of the range, read one day at a time.
  *
  * A single query over 30 days is capped by the platform at a few thousand
- * samples, and there is no continuation token for samples, so a watch-worn
- * user silently loses the tail of the range: those days arrive with fewer
+ * samples, and a watch-worn user exceeds it: those days arrive with fewer
  * samples and a lower worn time, yet look complete. Reading a day at a time
  * keeps every day under the cap and makes a truncated day detectable rather
  * than invisible.
  */
-async function readHeartRateByDay(
-  start: Date,
+async function readHeartRateByDay(days: number): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  return readWindows('heartRate', dayWindows(days), 4000);
+}
+
+/**
+ * Sleep, like heart rate, can overrun a single capped query — on iOS each
+ * stage is its own sample and a month of nights is thousands of records, and
+ * ascending order would keep the oldest nights and silently drop the newest.
+ * The cap triggers per-morning re-reads, whose windows overlap by design, so
+ * the pages are deduped by record identity before they are returned.
+ */
+async function readSleep(
+  range: { startDate: string; endDate: string },
   days: number,
 ): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
-  const PER_DAY = 4000;
-  const chunks: { from: Date; to: Date }[] = [];
-  for (let i = 0; i < days; i += 1) {
-    const from = new Date(start.getTime() + i * 86400000);
-    const to = new Date(from.getTime() + 86400000 - 1);
-    chunks.push({ from, to });
-  }
-
-  const pages = await Promise.all(
-    chunks.map(({ from, to }) =>
-      Health.readSamples({
-        dataType: 'heartRate',
-        startDate: from.toISOString(),
-        endDate: to.toISOString(),
-        limit: PER_DAY,
-        ascending: true,
-      }).catch(() => ({ samples: [] })),
-    ),
+  const LIMIT = 2000;
+  const page = await Health.readSamples({ dataType: 'sleep', ...range, limit: LIMIT, ascending: true }).catch(
+    () => ({ samples: [] as HealthSample[] }),
   );
-
-  // A day that comes back exactly at the cap may have been cut short. Its rate
-  // is still worth showing, but it must not be presented as complete, so mark
-  // it and let the caller drop that day's worn-time estimate.
-  const samples: HealthSample[] = [];
-  const truncated = new Set<string>();
-  for (let i = 0; i < pages.length; i += 1) {
-    const page = pages[i].samples;
-    // Key the warning by the same local date the samples are filed under, not
-    // by the chunk boundary: the window starts from a rolling timestamp, so
-    // dateKey(chunks[i].from) need not equal the day the records land on.
-    if (page.length >= PER_DAY) {
-      for (const s of page) truncated.add(dateKey(new Date(s.startDate)));
-    }
-    samples.push(...page);
-  }
-  return { samples, truncated };
+  if (page.samples.length < LIMIT) return { samples: page.samples, truncated: new Set() };
+  const { samples, truncated } = await readWindows('sleep', sleepWindows(days), 500);
+  return { samples: dedupeByIdentity(samples), truncated };
 }
 
 export async function readDays(days = 30): Promise<DayRecord[]> {
   const p = platform();
   if (p === 'unavailable') return [];
 
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  const start = new Date(end.getTime() - days * 86400000);
+  // The window is built from local calendar dates, not raw milliseconds: end
+  // of today back to local midnight `days` ago. A `days * 86400000` offset
+  // across a DST fall-back lands one hour past the oldest local midnight and
+  // drops that whole local day from every query.
+  const end = localDayEnd(0);
+  const start = localMidnight(days);
   const range = { startDate: start.toISOString(), endDate: end.toISOString() };
 
-  const [sleep, hrv, rhr, resp, spo2, temp, steps, cals, hr, exercise, workouts] = await Promise.all([
-    Health.readSamples({ dataType: 'sleep', ...range, limit: 500, ascending: true }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'heartRateVariability', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'restingHeartRate', ...range, limit: 500 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'respiratoryRate', ...range, limit: 500 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'oxygenSaturation', ...range, limit: 500 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'bodyTemperature', ...range, limit: 500 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'steps', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
-    Health.readSamples({ dataType: 'calories', ...range, limit: 2000 }).catch(() => ({ samples: [] })),
-    readHeartRateByDay(start, days),
+  // Where the store reports the non-active half of the day's energy (see
+  // readTypes): Health Connect as a total, HealthKit as basal samples.
+  const basalType: HealthDataType = p === 'health-connect' ? 'totalCalories' : 'basalCalories';
+
+  const [sleep, hrv, rhr, resp, spo2, temp, steps, cals, basal, hr, exercise, workouts] = await Promise.all([
+    readSleep(range, days),
+    readRange('heartRateVariability', range, days, 2000),
+    readRange('restingHeartRate', range, days, 500),
+    readRange('respiratoryRate', range, days, 500),
+    readRange('oxygenSaturation', range, days, 500),
+    readRange('bodyTemperature', range, days, 500),
+    readRange('steps', range, days, 2000),
+    readRange('calories', range, days, 2000),
+    readRange(basalType, range, days, 2000),
+    readHeartRateByDay(days),
     // exerciseTime is HealthKit-only (see readTypes): Health Connect has no
     // such record, so there is nothing to query for. Exercise minutes stay 0
     // on Android, exactly as a store without the record would report.
-    p === 'apple-health'
-      ? Health.readSamples({ dataType: 'exerciseTime', ...range, limit: 500 }).catch(() => ({ samples: [] }))
-      : Promise.resolve({ samples: [] }),
-    Health.queryWorkouts({ ...range, limit: 200, ascending: true }).catch(() => ({ workouts: [] })),
+    p === 'apple-health' ? readRange('exerciseTime', range, days, 500) : Promise.resolve({ samples: [] as HealthSample[], truncated: new Set<string>() }),
+    // Descending, not ascending: the plugin sorts then take(limit), so an
+    // ascending ask silently dropped the NEWEST workouts once the cap hit.
+    // If exactly the limit come back there may be more in the window (the
+    // result carries a paging anchor Bene does not follow yet) — the oldest
+    // workouts are the ones missing, and that is the acceptable loss.
+    Health.queryWorkouts({ ...range, limit: 200, ascending: false }).catch(() => ({ workouts: [] })),
   ]);
 
   const byDate = new Map<string, DayRecord>();
@@ -411,11 +581,29 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     return fresh;
   };
 
-  // Sleep is attributed to the morning it ends on.
+  // Sleep is attributed to the morning it ends on. iOS's per-segment records
+  // make one night several samples, though, and a segment that ends before
+  // local midnight would otherwise be filed under the evening's date — the
+  // night would be split across two days and scored as two short sleeps. So
+  // the samples are clustered into nights by proximity first (a gap of more
+  // than a couple of hours starts a new night) and the whole night is
+  // attributed to the morning its last segment ends on.
+  const NIGHT_GAP_MS = 2 * 60 * 60000;
+  const nights: HealthSample[][] = [];
+  for (const s of [...sleep.samples].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())) {
+    const cluster = nights[nights.length - 1];
+    const last = cluster?.[cluster.length - 1];
+    if (cluster && new Date(s.startDate).getTime() - new Date(last!.endDate).getTime() <= NIGHT_GAP_MS) {
+      cluster.push(s);
+    } else {
+      nights.push([s]);
+    }
+  }
   const sleepByDate = new Map<string, HealthSample[]>();
-  for (const s of sleep.samples) {
-    const d = dateKey(new Date(s.endDate));
-    sleepByDate.set(d, [...(sleepByDate.get(d) ?? []), s]);
+  for (const night of nights) {
+    const ended = Math.max(...night.map((s) => new Date(s.endDate ?? s.startDate).getTime()));
+    const d = dateKey(new Date(ended));
+    sleepByDate.set(d, [...(sleepByDate.get(d) ?? []), ...night]);
   }
   for (const [date, samples] of sleepByDate) {
     const session = toSleepSession(samples, date);
@@ -445,7 +633,7 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
       .reduce((n, s) => n + s.value, 0);
 
   const dates = new Set<string>([
-    ...sleep.samples.map((s) => dateKey(new Date(s.endDate))),
+    ...sleepByDate.keys(),
     ...steps.samples.map((s) => dateKey(new Date(s.startDate))),
     ...workouts.workouts.map((w) => dateKey(new Date(w.startDate))),
     // A day evidenced only by heart rate still happened, and its samples are
@@ -456,7 +644,19 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   for (const date of dates) {
     const day = dayFor(date);
     day.metrics.steps = Math.round(sumFor(steps.samples, 'steps', date));
-    day.metrics.totalCalories = Math.round(sumFor(cals.samples, 'calories', date));
+    // 'calories' is *active* energy on both platforms (ActiveCaloriesBurned /
+    // activeEnergyBurned). Filing it under totalCalories used to hide the
+    // active part and leave the day's burn understated by the whole BMR.
+    day.metrics.activeCalories = Math.round(sumFor(cals.samples, 'calories', date));
+    if (p === 'health-connect') {
+      // TotalCaloriesBurnedRecord is already active + basal.
+      day.metrics.totalCalories = Math.round(sumFor(basal.samples, 'totalCalories', date));
+    } else {
+      // No basal samples means the store said nothing about the basal half:
+      // total stays at active rather than dropping to zero.
+      day.metrics.totalCalories =
+        day.metrics.activeCalories + Math.round(sumFor(basal.samples, 'basalCalories', date));
+    }
     day.metrics.exerciseMinutes = Math.round(sumFor(exercise.samples, 'exerciseTime', date));
     day.metrics.hrSamples = hr.samples
       .filter((s) => s.dataType === 'heartRate' && dateKey(new Date(s.startDate)) === date)

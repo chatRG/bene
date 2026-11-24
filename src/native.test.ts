@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { NavigateFunction } from 'react-router-dom';
 import {
   EXIT_WINDOW_MS,
   backIntent,
@@ -7,6 +8,7 @@ import {
   isTabRoot,
   nextStack,
   parentOf,
+  popCurrentScreen,
   recordNavigation,
   registerOverlay,
   removeOverlay,
@@ -174,5 +176,106 @@ describe('closing the app', () => {
     recordNavigation('/sleep', 'PUSH');
     recordNavigation('/', 'POP');
     expect(handleBack(1_100)).toBe('handled');
+  });
+});
+
+/**
+ * One pop at a time. A pop is asynchronous — the web view has to walk its own
+ * history — so the shell absorbs any press that arrives while one is in
+ * flight, and releases the shield when the pop lands or its watchdog expires.
+ */
+describe('pops in flight', () => {
+  beforeEach(() => {
+    resetBackStack();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** A web view that has history behind it and a spy where back() lands. */
+  function stubHistory(idx: number): { back: ReturnType<typeof vi.fn> } {
+    const back = vi.fn();
+    vi.stubGlobal('window', { history: { state: { idx }, back } });
+    return { back };
+  }
+
+  function seedStack(): void {
+    recordNavigation('/', 'POP');
+    recordNavigation('/sleep', 'PUSH');
+  }
+
+  it('absorbs a second press while a pop is in flight', () => {
+    const win = stubHistory(2);
+    seedStack();
+
+    expect(handleBack(1_000)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(1);
+    expect(handleBack(1_100)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(1);
+
+    // Once the pop has landed, the next press goes through again.
+    recordNavigation('/', 'POP');
+    recordNavigation('/sleep', 'PUSH');
+    expect(handleBack(1_200)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases the shield when a pop never lands', () => {
+    const win = stubHistory(2);
+    seedStack();
+
+    handleBack(0);
+    vi.advanceTimersByTime(400);
+
+    expect(handleBack(1)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(2);
+  });
+
+  it('a stale watchdog does not release while a newer pop is still in flight', () => {
+    const win = stubHistory(3);
+    recordNavigation('/', 'POP');
+    recordNavigation('/sleep', 'PUSH');
+    recordNavigation('/deep', 'PUSH');
+
+    handleBack(0); // pop 1, watchdog armed for t=400
+    vi.advanceTimersByTime(100);
+    recordNavigation('/sleep', 'POP'); // pop 1 lands at t=100
+    handleBack(100); // pop 2, watchdog armed for t=500
+    vi.advanceTimersByTime(300); // t=400: pop 1's watchdog fires
+
+    // Still pop 2's flight: this press must be absorbed, not popped.
+    expect(handleBack(400)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(2);
+
+    // t=500: pop 2's own watchdog releases, and the next press goes through.
+    vi.advanceTimersByTime(100);
+    expect(handleBack(500)).toBe('handled');
+    expect(win.back).toHaveBeenCalledTimes(3);
+  });
+
+  it('a header back tap shields the system gesture that follows it', () => {
+    const win = stubHistory(2);
+    seedStack();
+
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    popCurrentScreen(navigate, '/sleep');
+    expect(navigate).toHaveBeenCalledWith(-1);
+    expect(win.back).not.toHaveBeenCalled();
+
+    // The gesture right behind the tap is the second half of one motion.
+    expect(handleBack(1_000)).toBe('handled');
+    expect(win.back).not.toHaveBeenCalled();
+  });
+
+  it('a header back tap with no history behind goes up to the parent instead', () => {
+    stubHistory(0);
+    seedStack();
+
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    popCurrentScreen(navigate, '/sleep');
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true });
   });
 });
