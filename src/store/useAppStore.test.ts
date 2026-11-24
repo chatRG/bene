@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dateKey } from '../domain/seed';
+import type { DayMetrics, DayRecord } from '../domain/types';
 
 const storage = new Map<string, string>();
 vi.stubGlobal('localStorage', {
@@ -93,5 +94,95 @@ describe('on-disk store contracts', () => {
     const data = { profile: { name: 'X' } };
     expect(() => migrateStoreState(data, 0)).toThrow(/No store migration/);
     expect(() => migrateStoreState(data, STORE_VERSION + 1)).toThrow(/newer than this build/);
+  });
+});
+
+/**
+ * The import merge contract. Health Connect has no exercise-time record, so an
+ * imported Android day always reports zero exercise minutes — an unsupported
+ * metric, not a measured zero. A sync must never turn that zero into the day's
+ * total when a hand-logged workout already contributed real minutes.
+ */
+describe('importHealthDays: the import merge', () => {
+  const D = '2026-11-20';
+
+  const metrics = (over: Partial<DayMetrics> = {}): DayMetrics => ({
+    date: D,
+    steps: 0,
+    activeCalories: 0,
+    totalCalories: 0,
+    exerciseMinutes: 0,
+    daylightMinutes: 0,
+    hydrationMl: 0,
+    caffeineMg: 0,
+    alcoholGrams: 0,
+    hrSamples: [],
+    daytimeHrvMs: null,
+    stressSamples: [],
+    tempDeviationC: null,
+    wearMinutes: 0,
+    ...over,
+  });
+
+  const day = (over: Partial<DayRecord> = {}): DayRecord => ({
+    date: D,
+    sleep: null,
+    metrics: metrics(),
+    workouts: [],
+    meals: [],
+    journal: [],
+    ...over,
+  });
+
+  const handWorkout = {
+    id: 'w-hand',
+    kind: 'run' as const,
+    name: 'Morning run',
+    date: D,
+    start: `${D}T07:00:00.000Z`,
+    durationMin: 30,
+    distanceKm: null,
+    avgHr: null,
+    maxHr: null,
+    calories: null,
+    strain: 0,
+    source: 'bene',
+    imported: false,
+    zoneMinutes: [0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number],
+  };
+
+  beforeEach(() => {
+    // Tests share the module's store, so start from an empty timeline.
+    useAppStore.setState({ days: {}, dayOrder: [] });
+    useAppStore.getState().logWorkout(handWorkout);
+  });
+
+  it('keeps a manually logged exercise total when the source cannot measure exercise', () => {
+    useAppStore.getState().importHealthDays([day({ metrics: metrics({ steps: 4000, exerciseUnsupported: true }) })]);
+
+    const saved = useAppStore.getState().days[D];
+    expect(saved.metrics.exerciseMinutes).toBe(30);
+    expect(saved.workouts).toHaveLength(1);
+    expect(saved.metrics.steps).toBe(4000);
+  });
+
+  it('keeps the manual total stable when the same Android day syncs twice', () => {
+    const incoming = [day({ metrics: metrics({ steps: 4000, exerciseUnsupported: true }) })];
+    useAppStore.getState().importHealthDays(incoming);
+    useAppStore.getState().importHealthDays(incoming);
+
+    const saved = useAppStore.getState().days[D];
+    expect(saved.metrics.exerciseMinutes).toBe(30);
+    expect(saved.workouts).toHaveLength(1);
+    // And the workout itself is not duplicated by the repeats.
+    expect(saved.workouts.filter((w) => w.id === 'w-hand')).toHaveLength(1);
+  });
+
+  it('still replaces the total with a measured value, including a measured zero', () => {
+    // Apple Health does supply exercise minutes, so its import carries no
+    // unsupported mark — even a measured zero is a real reading and wins.
+    useAppStore.getState().importHealthDays([day({ metrics: metrics({ steps: 4000, exerciseMinutes: 0 }) })]);
+
+    expect(useAppStore.getState().days[D].metrics.exerciseMinutes).toBe(0);
   });
 });

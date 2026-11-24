@@ -7,7 +7,7 @@ import { dateKey } from '../domain/seed';
 import { deriveDay } from '../domain/derive';
 import { daytimeAverageHr, strainSeriesForDay } from '../domain/scoring/strain';
 import { zoneConfigFor } from '../domain/derive';
-import { clockLabel } from '../domain/time';
+import { clockLabel, kcal, restingBurn } from '../domain/time';
 import { LineChart, Sparkline } from '../components/charts';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
@@ -158,12 +158,12 @@ export function StrainScreen() {
           <div className="card">
             <div className="caption">Total Energy</div>
             <div className="row gap-6" style={{ alignItems: 'baseline' }}>
-              <span className="mono-num" style={{ fontSize: 36, fontWeight: 500, letterSpacing: '-0.02em' }}>{d.record.metrics.totalCalories.toLocaleString()}</span>
+              <span className="mono-num" style={{ fontSize: 36, fontWeight: 500, letterSpacing: '-0.02em' }}>{kcal(d.record.metrics.totalCalories)}</span>
               <span className="caption">kcal</span>
             </div>
             <div className="row gap-16 mt-12">
               <div><div className="caption">Active</div><strong>{d.record.metrics.activeCalories} kcal</strong></div>
-              <div><div className="caption">Resting</div><strong>{(d.record.metrics.totalCalories - d.record.metrics.activeCalories).toLocaleString()} kcal</strong></div>
+              <div><div className="caption">Resting</div><strong>{kcal(restingBurn(d.record.metrics))} kcal</strong></div>
             </div>
           </div>
           <div className="card">
@@ -200,7 +200,7 @@ export function StrainScreen() {
             <div className="list-icon" style={{ background: 'rgba(255,122,51,.12)', color: 'var(--orange)' }}><Flame size={18} /></div>
             <div className="strain-card__main">
               <div className="strain-card__label">Total Energy</div>
-              <div className="strain-card__value"><strong>{d.record.metrics.totalCalories.toLocaleString()}</strong><span>kcal</span></div>
+              <div className="strain-card__value"><strong>{kcal(d.record.metrics.totalCalories)}</strong><span>kcal</span></div>
               <div className="caption" style={{ marginTop: 3 }}>{d.record.metrics.activeCalories} active kcal</div>
             </div>
 
@@ -254,7 +254,7 @@ export function StrainScreen() {
               ['Exercise Duration', `${d.record.metrics.exerciseMinutes} min today`],
               ['Cardio load', `${d.strain.activeTrimp} TRIMP active`],
               ['Passive load', `${d.strain.passiveTrimp} TRIMP background`],
-              ['Total Energy', `${d.record.metrics.totalCalories.toLocaleString()} kcal`],
+              ['Total Energy', `${kcal(d.record.metrics.totalCalories)} kcal`],
             ].map(([a, b]) => (
               <div className="list-row" key={a}>
                 <div className="grow"><div className="list-title">{a}</div></div>

@@ -25,7 +25,7 @@ const device = vi.hoisted(() => ({
   readCalls: [] as { dataType: string; startDate?: string; endDate?: string; limit?: number }[],
   workoutCalls: [] as { startDate?: string; endDate?: string }[],
   fail: false,
-  /** What the SDK status probe answers. It is a hint, not the truth. */
+  /** What the SDK status probe answers — the same status the plugin gates every call on. */
   available: true,
   /** Why the probe says no, when it says no. */
   reason: undefined as string | undefined,
@@ -33,6 +33,9 @@ const device = vi.hoisted(() => ({
   authFails: false,
   /** What Bene asked the store for, so tests can pin the ask itself. */
   authCalls: [] as { op: 'request' | 'check'; read?: string[] }[],
+  /** The aggregate queries Bene asked for, and the buckets the store answered. */
+  aggCalls: [] as { dataType: string; startDate?: string; endDate?: string; bucket?: string; aggregation?: string }[],
+  aggSamples: [] as unknown[],
 }));
 
 /**
@@ -52,11 +55,20 @@ vi.mock('@capgo/capacitor-health', () => ({
     isAvailable: async () => ({ available: device.available, reason: device.reason }),
     requestAuthorization: async (opts: { read?: string[] }) => {
       device.authCalls.push({ op: 'request', read: opts.read });
+      // The pinned Android plugin checks the SDK status before it builds a
+      // client, so on a phone whose status says unavailable the ask is
+      // refused with that same reason — the probe is the gate.
+      if (device.platform === 'android' && !device.available) {
+        throw new Error(device.reason ?? 'Health Connect is unavailable on this device.');
+      }
       if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
       return { readAuthorized: opts.read ?? [], readDenied: [] };
     },
     checkAuthorization: async (opts: { read?: string[] }) => {
       device.authCalls.push({ op: 'check', read: opts.read });
+      if (device.platform === 'android' && !device.available) {
+        throw new Error(device.reason ?? 'Health Connect is unavailable on this device.');
+      }
       if (device.authFails) throw new Error('Health Connect is unavailable on this device.');
       return { readAuthorized: opts.read ?? [], readDenied: [] };
     },
@@ -84,6 +96,11 @@ vi.mock('@capgo/capacitor-health', () => ({
       if (device.fail) throw new Error('permission revoked');
       device.workoutCalls.push({ ...opts });
       return { workouts: device.workouts as HealthWorkout[] };
+    },
+    queryAggregated: async (opts: { dataType: string; startDate?: string; endDate?: string; bucket?: string; aggregation?: string }) => {
+      if (device.fail) throw new Error('permission revoked');
+      device.aggCalls.push({ ...opts });
+      return { samples: device.aggSamples };
     },
   },
 }));
@@ -195,6 +212,8 @@ afterEach(() => {
   device.workouts = [];
   device.readCalls = [];
   device.workoutCalls = [];
+  device.aggCalls = [];
+  device.aggSamples = [];
   device.fail = false;
 });
 
@@ -483,9 +502,100 @@ describe('readDays: queries', () => {
     // the store for it rejects the whole permission list and made every Android
     // phone read as "no health store". Nothing else in the ask may go either.
     expect(types.has('exerciseTime')).toBe(false);
-    for (const type of ['sleep', 'heartRate', 'heartRateVariability', 'restingHeartRate', 'respiratoryRate', 'oxygenSaturation', 'bodyTemperature', 'steps', 'calories']) {
+    for (const type of ['sleep', 'heartRate', 'heartRateVariability', 'restingHeartRate', 'respiratoryRate', 'oxygenSaturation', 'bodyTemperature', 'calories', 'totalCalories']) {
       expect(types.has(type)).toBe(true);
     }
+    // Steps are not read sample by sample at all: the daily total comes from
+    // the store's deduplicated aggregate, which cannot be emulated here.
+    expect(types.has('steps')).toBe(false);
+
+    const stepsAgg = device.aggCalls.find((c) => c.dataType === 'steps');
+    expect(stepsAgg).toBeDefined();
+    expect(stepsAgg!.bucket).toBe('day');
+    expect(stepsAgg!.aggregation).toBe('sum');
+    // The bucket window must start on a local midnight, or the plugin's
+    // 24-hour day buckets drift off Bene's local dates and each day's steps
+    // land under the neighbouring date.
+    const from = new Date(stepsAgg!.startDate!);
+    expect([from.getHours(), from.getMinutes(), from.getSeconds()]).toEqual([0, 0, 0]);
+    // The window still covers the whole range: midnight of `days - 1` ago to
+    // the end of today.
+    const span = at(stepsAgg!.endDate!) - at(stepsAgg!.startDate!);
+    expect(span).toBeGreaterThanOrEqual(7 * 86400000 - 1000);
+    expect(span).toBeLessThan(7 * 86400000);
+    const to = new Date(stepsAgg!.endDate!);
+    expect([to.getHours(), to.getMinutes(), to.getSeconds()]).toEqual([23, 59, 59]);
+  });
+});
+
+/**
+ * Health Connect applies source priority when it aggregates: a phone and a
+ * watch recording the same walk produce one deduplicated daily total. Raw
+ * StepsRecord reads carry no such priority, so summing them double-counts
+ * every overlapped step — which is why Bene reads the aggregate instead.
+ */
+describe('readDays on Health Connect: overlapping step sources', () => {
+  it('takes the store’s deduplicated daily total, not the sum of raw records', async () => {
+    await onDevice('android');
+    // Two sources each recorded the same 1,000-step walk; the aggregate is
+    // what the store says the day's total actually is.
+    device.samples = [
+      sample('steps', 1000, day(today(), '09:00')),
+      sample('steps', 1000, day(today(), '09:00')),
+    ];
+    device.aggSamples = [{ value: 1000, values: { sum: 1000 }, unit: 'count', startDate: day(today(), '00:00'), endDate: day(today(), '00:00') }];
+
+    const record = (await readDays(2)).find((d) => d.date === today())!;
+
+    expect(record.metrics.steps).toBe(1000);
+  });
+
+  it('files each aggregated bucket under the local date it belongs to', async () => {
+    await onDevice('android');
+    device.aggSamples = [
+      { value: 700, values: { sum: 700 }, unit: 'count', startDate: day(yesterday(), '00:00'), endDate: day(yesterday(), '00:00') },
+      { value: 300, values: { sum: 300 }, unit: 'count', startDate: day(today(), '00:00'), endDate: day(today(), '00:00') },
+    ];
+
+    const byDate = Object.fromEntries((await readDays(2)).map((d) => [d.date, d.metrics.steps]));
+
+    expect(byDate[yesterday()]).toBe(700);
+    expect(byDate[today()]).toBe(300);
+  });
+});
+
+/**
+ * 'calories' is active burn on Health Connect — the plugin maps it to
+ * ActiveCaloriesBurnedRecord, the same record Bene's active-calorie permission
+ * names — and total burn is its own record. Storing the active samples as the
+ * day's total counted every active kilocalorie as resting burn.
+ */
+describe('readDays on Health Connect: energy burn', () => {
+  it('files active-calorie samples under active burn and total burn separately', async () => {
+    await onDevice('android');
+    device.aggSamples = [{ value: 4000, values: { sum: 4000 }, unit: 'count', startDate: day(today(), '00:00'), endDate: day(today(), '00:00') }];
+    device.samples = [
+      sample('calories', 300, day(today(), '09:00'), 'kilocalorie'),
+      sample('calories', 200, day(today(), '13:00'), 'kilocalorie'),
+      sample('totalCalories', 1400, day(today(), '08:00'), 'kilocalorie'),
+      sample('totalCalories', 800, day(today(), '12:00'), 'kilocalorie'),
+    ];
+
+    const record = (await readDays(2)).find((d) => d.date === today())!;
+
+    expect(record.metrics.activeCalories).toBe(500);
+    expect(record.metrics.totalCalories).toBe(2200);
+  });
+
+  it('keeps total burn unknown when the device records no total-calorie data', async () => {
+    await onDevice('android');
+    device.aggSamples = [{ value: 4000, values: { sum: 4000 }, unit: 'count', startDate: day(today(), '00:00'), endDate: day(today(), '00:00') }];
+    device.samples = [sample('calories', 500, day(today(), '09:00'), 'kilocalorie')];
+
+    const record = (await readDays(2)).find((d) => d.date === today())!;
+
+    expect(record.metrics.activeCalories).toBe(500);
+    expect(record.metrics.totalCalories).toBeNull();
   });
 });
 
@@ -848,13 +958,13 @@ function hasEvidence(record: DayRecord): boolean {
 
 
 /**
- * A phone with Health Connect built into the system — a Samsung on One UI 6,
- * for instance — can answer "unavailable" to the SDK status probe while the
- * store itself answers perfectly well and the user has already granted read
- * access. Gating the whole feature on that probe made Bene insist there was no
- * health store on a device whose settings screen it could open.
+ * The pinned Android plugin gates every store call — authorization included —
+ * on the SDK status that isAvailable() reports, refusing before a client is
+ * ever built. So the probe is not a loose hint: when the status says the store
+ * cannot be reached, the ask itself is refused with that same reason, and the
+ * honest thing Bene can do is pass the store's own explanation on.
  */
-describe('availability: the probe is a hint, not the truth', () => {
+describe('availability: the probe and the gate are the same status', () => {
   afterEach(() => {
     device.platform = 'web';
     device.available = true;
@@ -862,25 +972,26 @@ describe('availability: the probe is a hint, not the truth', () => {
     device.authFails = false;
   });
 
-  it('reads the store even when the probe says unavailable', async () => {
+  it('refuses the prompt when the status probe says the store cannot be reached', async () => {
     device.platform = 'android';
     device.available = false;
     device.reason = 'Health Connect is unavailable on this device.';
 
-    const status = await checkAccess();
-
-    expect(status.available).toBe(true);
-    expect(status.readAuthorized.length).toBeGreaterThan(0);
-  });
-
-  it('prompts for access even when the probe says unavailable', async () => {
-    device.platform = 'android';
-    device.available = false;
-
     const status = await requestAccess();
 
-    expect(status.available).toBe(true);
-    expect(status.readAuthorized.length).toBeGreaterThan(0);
+    expect(status.available).toBe(false);
+    expect(status.reason).toMatch(/unavailable on this device/i);
+  });
+
+  it('reports the store’s own reason when the status gate refuses the check', async () => {
+    device.platform = 'android';
+    device.available = false;
+    device.reason = 'Health Connect needs an update.';
+
+    const status = await checkAccess();
+
+    expect(status.available).toBe(false);
+    expect(status.reason).toMatch(/update/i);
   });
 
   it('reports unavailable only when the store itself refuses', async () => {
@@ -908,7 +1019,9 @@ describe('availability: the probe is a hint, not the truth', () => {
  * whole call with "Unsupported data type" — which Bene then reported as "no
  * health store" on a phone whose store was fine. Health Connect only shows the
  * permissions that are asked, so whatever reaches the store must be exactly
- * what the platform can grant.
+ * what the platform can grant — and it must also name the scopes the data
+ * silently depends on ('distance' for imported workouts, 'totalCalories' for
+ * total burn).
  */
 describe('access: the ask matches what the store can answer', () => {
   afterEach(() => {
@@ -916,27 +1029,46 @@ describe('access: the ask matches what the store can answer', () => {
     device.authCalls = [];
   });
 
-  it('leaves the HealthKit-only type out on Android', async () => {
+  it('checks and prompts with one call each on Android, and the right one per surface', async () => {
     device.platform = 'android';
     device.authCalls = [];
 
     await checkAccess();
     await requestAccess();
 
-    expect(device.authCalls.length).toBeGreaterThan(0);
+    // Requiring "one recorded call" would also pass a bridge where
+    // checkAccess skipped the native check or requestAccess skipped the
+    // prompt, so pin both the op and the exact list, per call.
+    expect(device.authCalls.map((c) => c.op)).toEqual(['check', 'request']);
+    // The HealthKit-only 'exerciseTime' is out; 'distance' and 'totalCalories'
+    // are in, because Health Connect only supplies what the ask names.
+    const androidAsk = [
+      'sleep',
+      'heartRateVariability',
+      'restingHeartRate',
+      'respiratoryRate',
+      'oxygenSaturation',
+      'bodyTemperature',
+      'steps',
+      'calories',
+      'heartRate',
+      'workouts',
+      'distance',
+      'totalCalories',
+    ];
     for (const call of device.authCalls) {
-      expect(call.read).toEqual(READ_TYPES.filter((t) => t !== 'exerciseTime'));
+      expect(call.read).toEqual(androidAsk);
     }
   });
 
-  it('keeps the full list on iOS', async () => {
+  it('checks and prompts with one call each on iOS, keeping the full list', async () => {
     device.platform = 'ios';
     device.authCalls = [];
 
     await checkAccess();
     await requestAccess();
 
-    expect(device.authCalls.length).toBeGreaterThan(0);
+    expect(device.authCalls.map((c) => c.op)).toEqual(['check', 'request']);
     for (const call of device.authCalls) {
       expect(call.read).toEqual(READ_TYPES);
     }
