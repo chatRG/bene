@@ -21,56 +21,97 @@ const RESISTANCE = 0.5;
 
 export function PullToRefresh({
   onRefresh,
+  onSwipe,
   children,
 }: {
   onRefresh: () => Promise<void> | void;
+  onSwipe?: (direction: 'left' | 'right') => void;
   children: ReactNode;
 }) {
   const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const host = useRef<HTMLDivElement | null>(null);
+  const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
-  const offsetRef = useRef(0);
+  const lastX = useRef(0);
+  const lastY = useRef(0);
+  const axis = useRef<'pending' | 'horizontal' | 'vertical'>('pending');
   const busyRef = useRef(false);
   const refreshRef = useRef(onRefresh);
+  const swipeRef = useRef(onSwipe);
 
-  offsetRef.current = offset;
   busyRef.current = busy;
   refreshRef.current = onRefresh;
+  swipeRef.current = onSwipe;
 
   useEffect(() => {
     const el = host.current;
     if (!el) return undefined;
 
+    const reset = () => {
+      startX.current = null;
+      startY.current = null;
+      axis.current = 'pending';
+    };
+
     const start = (event: TouchEvent) => {
-      if (busyRef.current || window.scrollY > 0) return;
-      startY.current = event.touches[0].clientY;
-      setDragging(true);
+      if (busyRef.current || (!swipeRef.current && window.scrollY > 0)) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest('[role="dialog"], .sheet-backdrop, input, textarea, select')) return;
+      const touch = event.touches[0];
+      startX.current = touch.clientX;
+      startY.current = touch.clientY;
+      lastX.current = touch.clientX;
+      lastY.current = touch.clientY;
+      axis.current = 'pending';
     };
 
     const move = (event: TouchEvent) => {
-      if (startY.current === null || busyRef.current) return;
+      if (startY.current === null || startX.current === null || busyRef.current) return;
+      const touch = event.touches[0];
+      lastX.current = touch.clientX;
+      lastY.current = touch.clientY;
+      const dx = touch.clientX - startX.current;
+      const dy = touch.clientY - startY.current;
 
-      const delta = event.touches[0].clientY - startY.current;
-      if (delta <= 0 || window.scrollY > 0) {
-        startY.current = null;
-        setDragging(false);
-        setOffset(0);
+      if (axis.current === 'pending') {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 10) return;
+        axis.current = swipeRef.current && Math.abs(dx) > Math.abs(dy) * 1.2 ? 'horizontal' : 'vertical';
+      }
+
+      if (axis.current === 'horizontal') {
+        // Own the horizontal gesture before a card's synthetic click or the
+        // WebView's navigation gesture can claim it.
+        event.preventDefault();
         return;
       }
 
+      if (dy <= 0 || window.scrollY > 0) {
+        reset();
+        setOffset(0);
+        return;
+      }
       event.preventDefault();
-      setOffset(Math.min(MAX_PULL, delta * RESISTANCE));
+      setOffset(Math.min(MAX_PULL, dy * RESISTANCE));
     };
 
     const end = () => {
-      if (startY.current === null) return;
-      startY.current = null;
-      setDragging(false);
+      if (startY.current === null || startX.current === null) return;
+      const dx = lastX.current - startX.current;
+      const dy = lastY.current - startY.current;
+      const horizontal = axis.current === 'horizontal';
+      reset();
 
-      if (offsetRef.current < THRESHOLD) {
+      if (horizontal) {
+        setOffset(0);
+        if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy)) {
+          swipeRef.current?.(dx < 0 ? 'left' : 'right');
+        }
+        return;
+      }
+
+      if (Math.min(MAX_PULL, dy * RESISTANCE) < THRESHOLD) {
         setOffset(0);
         return;
       }
@@ -87,16 +128,21 @@ export function PullToRefresh({
       })();
     };
 
+    const cancel = () => {
+      reset();
+      setOffset(0);
+    };
+
     el.addEventListener('touchstart', start, { passive: true });
     el.addEventListener('touchmove', move, { passive: false });
     el.addEventListener('touchend', end);
-    el.addEventListener('touchcancel', end);
+    el.addEventListener('touchcancel', cancel);
 
     return () => {
       el.removeEventListener('touchstart', start);
       el.removeEventListener('touchmove', move);
       el.removeEventListener('touchend', end);
-      el.removeEventListener('touchcancel', end);
+      el.removeEventListener('touchcancel', cancel);
     };
   }, []);
 
@@ -120,10 +166,6 @@ export function PullToRefresh({
       </div>
       <div
         className="ptr__content"
-        style={{
-          transform: `translateY(${offset}px)`,
-          transition: dragging ? 'none' : 'transform 0.22s var(--ease)',
-        }}
       >
         {children}
       </div>

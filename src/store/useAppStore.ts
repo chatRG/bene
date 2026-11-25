@@ -23,6 +23,15 @@ import { generateCoachReply, ghostExpiry } from '../domain/coach';
 import { uid } from '../domain/id';
 import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
 
+/** Restore keeps new setting defaults while accepting the backup's choices. */
+function mergeRestoredSettings(current: AppSettings, incoming: AppSettings): AppSettings {
+  return {
+    ...current,
+    ...incoming,
+    activeTabs: { ...current.activeTabs, ...(incoming.activeTabs ?? {}) },
+  };
+}
+
 /**
  * On-disk contracts, read by every existing install:
  *
@@ -184,7 +193,7 @@ interface AppActions {
     },
   ) => void;
   ensureToday: () => void;
-  importHealthDays: (records: DayRecord[]) => void;
+  importHealthDays: (records: DayRecord[], syncedAt?: string) => void;
   setActivityStatus: (status: ActivityStatus, untilISO: string | null, note: string) => void;
   addMeal: (meal: MealEntry) => void;
   removeMeal: (date: string, id: string) => void;
@@ -367,9 +376,10 @@ export const useAppStore = create<AppStore>()(
       // value can simply win. The larger one does — an Android-shaped read
       // that says 0 (its store has no exercise-time record at all) while the
       // person logged 40 minutes by hand keeps the 40.
-      importHealthDays: (records) =>
+      importHealthDays: (records, syncedAt) =>
         set((s) => {
-          if (!records.length) return s;
+          const settings = syncedAt ? { ...s.settings, lastHealthSyncAt: syncedAt } : s.settings;
+          if (!records.length) return syncedAt ? { settings } : s;
           const days = { ...s.days };
           const order = [...s.dayOrder];
           for (const incoming of records) {
@@ -380,24 +390,29 @@ export const useAppStore = create<AppStore>()(
                   sleep: incoming.sleep ?? existing.sleep,
                   metrics: {
                     ...existing.metrics,
-                    steps: incoming.metrics.steps,
-                    activeCalories: incoming.metrics.activeCalories,
-                    totalCalories: incoming.metrics.totalCalories,
+                    // A partial native read represents a failed type as its
+                    // zero default. Never let that erase a measurement this
+                    // account already imported successfully.
+                    steps: incoming.metrics.steps > 0 ? incoming.metrics.steps : existing.metrics.steps,
+                    activeCalories: incoming.metrics.activeCalories > 0 ? incoming.metrics.activeCalories : existing.metrics.activeCalories,
+                    totalCalories: incoming.metrics.totalCalories != null && incoming.metrics.totalCalories > 0 ? incoming.metrics.totalCalories : existing.metrics.totalCalories,
                     exerciseMinutes: Math.max(incoming.metrics.exerciseMinutes, existing.metrics.exerciseMinutes),
-                    hrSamples: incoming.metrics.hrSamples,
-                    daytimeHrvMs: incoming.metrics.daytimeHrvMs,
-                    stressSamples: incoming.metrics.stressSamples,
-                    tempDeviationC: incoming.metrics.tempDeviationC,
-                    wearMinutes: incoming.metrics.wearMinutes,
+                    hrSamples: incoming.metrics.hrSamples.length ? incoming.metrics.hrSamples : existing.metrics.hrSamples,
+                    daytimeHrvMs: incoming.metrics.daytimeHrvMs ?? existing.metrics.daytimeHrvMs,
+                    stressSamples: incoming.metrics.stressSamples.length ? incoming.metrics.stressSamples : existing.metrics.stressSamples,
+                    tempDeviationC: incoming.metrics.tempDeviationC ?? existing.metrics.tempDeviationC,
+                    wearMinutes: incoming.metrics.wearMinutes > 0 ? incoming.metrics.wearMinutes : existing.metrics.wearMinutes,
                     daylightMinutes: existing.metrics.daylightMinutes,
                     hydrationMl: existing.metrics.hydrationMl,
                     caffeineMg: existing.metrics.caffeineMg,
                     alcoholGrams: existing.metrics.alcoholGrams,
                   },
-                  workouts: [
-                    ...existing.workouts.filter((w) => !w.imported),
-                    ...incoming.workouts,
-                  ],
+                  workouts: incoming.workouts.length
+                    ? [
+                        ...existing.workouts.filter((w) => !w.imported),
+                        ...incoming.workouts,
+                      ]
+                    : existing.workouts,
                   meals: existing.meals,
                   journal: existing.journal,
                 }
@@ -405,7 +420,7 @@ export const useAppStore = create<AppStore>()(
             if (!order.includes(incoming.date)) order.push(incoming.date);
           }
           order.sort();
-          return { days, dayOrder: order };
+          return { days, dayOrder: order, settings };
         }),
 
       setActivityStatus: (status, untilISO, note) =>
@@ -635,7 +650,7 @@ export const useAppStore = create<AppStore>()(
         clearGeneration += 1;
         set((s) => ({
           ...parsed.data,
-          settings: { ...s.settings, ...parsed.data.settings, onboarded: true },
+          settings: { ...mergeRestoredSettings(s.settings, parsed.data.settings), onboarded: true },
         }));
         return finishRestore();
       },
@@ -646,7 +661,7 @@ export const useAppStore = create<AppStore>()(
         clearGeneration += 1;
         set((s) => ({
           ...parsed.data,
-          settings: { ...s.settings, ...parsed.data.settings, onboarded: true },
+          settings: { ...mergeRestoredSettings(s.settings, parsed.data.settings), onboarded: true },
         }));
         return finishRestore();
       },

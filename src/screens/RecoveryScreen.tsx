@@ -8,12 +8,16 @@ import { recoveryColor } from '../domain/scoring/recovery';
 import { DetailHeader, EmptyState, Ring, Sheet } from '../components/ui';
 import { LineChart } from '../components/charts';
 import { showToast } from '../components/toast';
+import { useDayParam } from '../components/use-day-param';
 
 export function RecoveryScreen() {
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
-  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
-  const history = useMemo(() => scoreHistory(state, 30), [state]);
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
+  const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
+  const history = useMemo(() => scoreHistory(state, 30, day), [state, day]);
   const [range, setRange] = useState<7 | 14 | 30>(14);
   const [expanded, setExpanded] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -24,7 +28,7 @@ export function RecoveryScreen() {
     .filter((v): v is number => v != null);
 
   const share = async () => {
-    const text = `Recovery ${d.recovery.score ?? '—'}% today — HRV ${d.sleep?.hrvMs ?? '—'} ms, RHR ${d.sleep?.rhrBpm ?? '—'} bpm.`;
+    const text = `Recovery ${d.recovery.score ?? '—'}% ${isToday ? 'today' : `on ${format(dayDate, 'MMM d')}`} — HRV ${d.sleep?.hrvMs ?? '—'} ms, RHR ${d.sleep?.rhrBpm ?? '—'} bpm.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'My Recovery', text });
@@ -42,7 +46,7 @@ export function RecoveryScreen() {
       <div className="screen screen--detail recovery-page">
         <DetailHeader
           title="Recovery"
-          subtitle={format(new Date(), 'MMMM d, yyyy')}
+          subtitle={format(dayDate, 'MMMM d, yyyy')}
           right={<button className="icon-btn" onClick={() => setInfoOpen(true)} aria-label="Info"><Info size={18} /></button>}
         />
         <div className="card mt-20">
@@ -84,7 +88,7 @@ export function RecoveryScreen() {
         title="Recovery"
         subtitle={
           <button className="row gap-4" style={{ marginInline: 'auto', fontSize: 12.5, color: 'var(--muted)' }}>
-            {format(new Date(), 'MMMM d, yyyy')} <ChevronDown size={13} />
+            {format(dayDate, 'MMMM d, yyyy')} <ChevronDown size={13} />
           </button>
         }
         right={
@@ -183,7 +187,7 @@ export function RecoveryScreen() {
             color={recoveryColor(score)}
             height={190}
             avg={points.length >= 2 ? points.reduce((a, b) => a + b, 0) / points.length : null}
-            xLabels={[history[Math.max(0, history.length - range)]?.date.slice(5) ?? '', 'Today']}
+            xLabels={[history[Math.max(0, history.length - range)]?.date.slice(5) ?? '', isToday ? 'Today' : format(dayDate, 'M/d')]}
           />
           {points.length < 2 ? <div className="empty" style={{ padding: '18px 12px' }}>Two scored mornings unlock the trend.</div> : null}
         </div>

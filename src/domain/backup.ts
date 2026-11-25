@@ -243,9 +243,15 @@ export function parseBackup(raw: string): ParseResult {
   }
   // Calculation methods are fixed now, not user settings. Older backups still
   // carry them; drop them so the restored state matches today's shape.
-  const settings = isRecord(data.settings) ? { ...data.settings } : data.settings;
-  if (isRecord(settings)) for (const key of RETIRED_SETTING_KEYS) delete settings[key];
-  return { ok: true, data: { ...data, settings: settings as BackupPayload['settings'] }, exportedAt: obj.exportedAt ?? new Date().toISOString() };
+  const settings: Record<string, unknown> = isRecord(data.settings) ? { ...data.settings } : {};
+  for (const key of RETIRED_SETTING_KEYS) delete settings[key];
+  // Older backups predate incremental health sync. Never retain the live
+  // account's newer cursor when one of those backups is restored, and reject
+  // impossible future timestamps that would suppress the backlog read.
+  const cursor = settings.lastHealthSyncAt;
+  const cursorMs = typeof cursor === 'string' ? Date.parse(cursor) : Number.NaN;
+  settings.lastHealthSyncAt = Number.isFinite(cursorMs) && cursorMs <= Date.now() + 5 * 60000 ? cursor : null;
+  return { ok: true, data: { ...data, settings: settings as unknown as BackupPayload['settings'] }, exportedAt: obj.exportedAt ?? new Date().toISOString() };
 }
 
 export interface SnapshotResult {

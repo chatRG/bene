@@ -99,8 +99,8 @@ export function LineChart({
   const ys = (v: number) => padT + chartH - (Math.min(yMax, Math.max(0, v)) / yMax) * chartH;
   const xs = (i: number) => (values.length <= 1 ? 0 : (i / (values.length - 1)) * chartW);
   const pts = values.map((v, i) => [xs(i), ys(v)] as const);
-  const d = smoothPath(pts);
-  const area = `${d} L ${chartW} ${padT + chartH} L 0 ${padT + chartH} Z`;
+  const d = values.length >= 2 ? smoothPath(pts) : '';
+  const area = d ? `${d} L ${chartW} ${padT + chartH} L 0 ${padT + chartH} Z` : '';
   const last = pts[pts.length - 1];
 
   return (
@@ -141,7 +141,7 @@ export function LineChart({
           </g>
         ))}
 
-        {showArea ? <path d={area} fill={`url(#lc-${id})`} /> : null}
+        {showArea && area ? <path d={area} fill={`url(#lc-${id})`} /> : null}
 
         {avg != null ? (
           <g>
@@ -161,7 +161,7 @@ export function LineChart({
           </g>
         ) : null}
 
-        <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {d ? <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
 
         {liveDot && last ? (
           <g>

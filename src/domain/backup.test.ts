@@ -36,6 +36,23 @@ describe('backup validation', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('normalizes a backup with no settings without retaining the live cursor', () => {
+    const file = validBackup();
+    delete file.data.settings;
+    const result = parseBackup(JSON.stringify(file));
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data.settings.lastHealthSyncAt).toBeNull();
+  });
+
+  it('rejects a future health cursor during restore', () => {
+    const file = validBackup();
+    const future = new Date(Date.now() + 3 * 86400000).toISOString();
+    file.data.settings.lastHealthSyncAt = future;
+    const result = parseBackup(JSON.stringify(file));
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data.settings.lastHealthSyncAt).toBeNull();
+  });
+
   it('reports a failed snapshot instead of a timestamp', () => {
     vi.stubGlobal('localStorage', {
       setItem() {

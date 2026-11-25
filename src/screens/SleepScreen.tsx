@@ -10,6 +10,7 @@ import { stageTotals } from '../domain/math';
 import { Hypnogram, LineChart } from '../components/charts';
 import { EmptyState, Ring, Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
+import { useDayParam } from '../components/use-day-param';
 import type { AlarmType } from '../domain/types';
 
 const STAGE_INFO = [
@@ -22,8 +23,14 @@ const STAGE_INFO = [
 export function SleepScreen() {
   const navigate = useNavigate();
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
-  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
+  const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
+  const endIndex = state.dayOrder.indexOf(day);
+  const upTo = endIndex >= 0 ? endIndex + 1 : state.dayOrder.length;
+  const recentNights = state.dayOrder.slice(Math.max(0, upTo - 14), upTo);
   const [alarmOpen, setAlarmOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
 
@@ -39,8 +46,10 @@ export function SleepScreen() {
           <div className="card mt-20">
             <EmptyState
               icon={<Moon size={24} />}
-              title="No sleep data yet"
-              body="Wear your watch or ring overnight. Sleep stages, HRV and resting heart rate unlock your first Sleep and Recovery scores."
+              title={isToday ? 'No sleep data yet' : 'No sleep recorded'}
+              body={isToday
+                ? 'Wear your watch or ring overnight. Sleep stages, HRV and resting heart rate unlock your first Sleep and Recovery scores.'
+                : `Nothing was recorded for the night of ${format(dayDate, 'MMMM d')}.`}
             />
           </div>
         </div>
@@ -57,8 +66,7 @@ export function SleepScreen() {
   const bankHours = Math.floor(Math.abs(d.sleepBankMin) / 60);
   const bankMins = Math.abs(d.sleepBankMin) % 60;
   const consistency = (() => {
-    const starts = state.dayOrder
-      .slice(-14)
+    const starts = recentNights
       .map((date) => state.days[date]?.sleep?.start)
       .filter((start): start is string => !!start)
       .map((start) => {
@@ -87,7 +95,7 @@ export function SleepScreen() {
   // The last 14 day keys, kept in full so the x-axis stays truthful: labels are
   // computed from the nights actually plotted rather than hardcoded, so after
   // filtering empty nights the rightmost dot is never mislabelled as last night.
-  const trendDays = state.dayOrder.slice(-14);
+  const trendDays = recentNights;
   const trend = trendDays.map((date) => {
     const s = state.days[date]?.sleep;
     return { date, hours: s ? Math.round(stageTotals(s).asleepMin / 6) / 10 : 0 };
@@ -216,7 +224,7 @@ export function SleepScreen() {
             <div className="row gap-3 mt-12">
               {Array.from({ length: 14 }, (_, i) => {
                 // One cell per recent night, coloured only where a night was recorded.
-                const night = state.dayOrder[state.dayOrder.length - 14 + i];
+                const night = recentNights[i];
                 const logged = night ? !!state.days[night]?.sleep : false;
                 return (
                   <span
@@ -235,7 +243,7 @@ export function SleepScreen() {
                 );
               })}
             </div>
-            <div className="row-between caption mt-8"><span>2 weeks ago</span><span>Last night</span></div>
+            <div className="row-between caption mt-8"><span>2 weeks ago</span><span>{isToday ? 'Last night' : format(dayDate, 'MMM d')}</span></div>
           </div>
         </div>
 
@@ -258,10 +266,10 @@ export function SleepScreen() {
           initial={sleep.alarm}
           onClose={() => setAlarmOpen(false)}
           onSave={(alarm) => {
-            const day = state.days[today];
-            if (day?.sleep) {
+            const dayRecord = state.days[day];
+            if (dayRecord?.sleep) {
               useAppStore.setState({
-                days: { ...state.days, [today]: { ...day, sleep: { ...day.sleep, alarm } } },
+                days: { ...state.days, [day]: { ...dayRecord, sleep: { ...dayRecord.sleep, alarm } } },
               });
             }
             setAlarmOpen(false);

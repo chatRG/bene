@@ -288,7 +288,7 @@ function DataSourceScreen() {
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
             <div className="list-row"><div className="grow"><div className="list-title">Reads</div><div className="list-sub">{selected.covers}</div></div></div>
-            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">Last 30 days on each connect and sync</div></div></div>
+            <div className="list-row"><div className="grow"><div className="list-title">History</div><div className="list-sub">Last 30 days on first connect · later syncs reread only days since the last sync</div></div></div>
             <div className="list-row"><div className="grow"><div className="list-title">Brand logins</div><div className="list-sub">None · every device arrives through the phone’s health store</div></div></div>
             <div className="list-row"><div className="grow"><div className="list-title">Leaves the phone</div><div className="list-sub">Nothing · no account, no cloud</div></div></div>
           </div>

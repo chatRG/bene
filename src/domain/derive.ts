@@ -1,4 +1,5 @@
-import type { AppStateData, DayRecord, SleepSession } from './types';
+import type { ActivityStatus, AppStateData, DayRecord, SleepSession } from './types';
+import { dateKey } from './seed';
 import { ageFromBirthDate, mean, stageTotals, round } from './math';
 import { sleepBank, sleepNeedMinutes, sleepScore, type SleepScoreResult } from './scoring/sleep';
 import { baselineFromSessions, recoveryScore, recoveryNarrative, type RecoveryResult } from './scoring/recovery';
@@ -24,6 +25,17 @@ export interface DayDerived {
   recentStrainAvg: number;
   baselineHrv: number;
   baselineRhr: number;
+}
+
+/** The status in force on a calendar day, from the recorded status changes. */
+export function activityStatusFor(data: AppStateData, date: string): ActivityStatus {
+  if (!data.activityEvents.length) return data.settings.activityStatus;
+  for (const event of data.activityEvents) {
+    if (dateKey(new Date(event.at)) > date) continue;
+    if (event.until && dateKey(new Date(event.until)) < date) return 'active';
+    return event.status;
+  }
+  return 'active';
 }
 
 export function zoneConfigFor(data: AppStateData, date: string) {
@@ -169,7 +181,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     recovery: recovery.score,
     recentStrainAvg: mean(recent.slice(-14)),
     recentStrainRange: recent,
-    activityStatus: data.settings.activityStatus,
+    activityStatus: activityStatusFor(data, date),
     age,
     maxHr: Math.round(208 - 0.7 * age),
     nowMinute: isToday && isOnTimeline ? nowMinute : 1440,
@@ -230,8 +242,9 @@ export function dateOf(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export function scoreHistory(data: AppStateData, days = 14) {
-  const order = data.dayOrder.slice(-days);
+export function scoreHistory(data: AppStateData, days = 14, endDate?: string) {
+  const end = endDate ? data.dayOrder.indexOf(endDate) + 1 : data.dayOrder.length;
+  const order = data.dayOrder.slice(Math.max(0, end - days), Math.max(0, end));
   return order.map((date) => {
     const d = deriveDay(data, date);
     return {
@@ -291,7 +304,7 @@ export function coachInsight(d: DayDerived): { title: string; body: string; tone
   const sleep = d.sleepScore?.score != null ? `Sleep scored ${d.sleepScore.score}%,` : '';
   const detail = signals.join(' and ');
   const cost = `Target strain is ${d.strain.target}%.`;
-  const body = [sleep, detail ? `${detail}.` : '', d.strain.unscored ? `No load recorded yet today. ${cost}` : cost]
+  const body = [sleep, detail ? `${detail}.` : '', d.strain.unscored ? `No load recorded for this day. ${cost}` : cost]
     .filter(Boolean)
     .join(' ');
 
@@ -301,5 +314,5 @@ export function coachInsight(d: DayDerived): { title: string; body: string; tone
   if (r >= 45) {
     return { title: 'A moderate day', body: `${body} Keep the session controlled and reassess after the warm-up.`, tone: 'neutral' };
   }
-  return { title: 'Recovery is low today', body: `${body} Keep the day light and protect tonight’s sleep.`, tone: 'warning' };
+  return { title: 'Recovery is low', body: `${body} Keep the day light and protect sleep.`, tone: 'warning' };
 }

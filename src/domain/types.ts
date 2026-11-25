@@ -325,6 +325,8 @@ export interface AppSettings {
   activityStatusNote: string;
   autoBackup: boolean;
   lastBackupAt: ISODateTime | null;
+  /** Start of the last successful health read; null before the first connect. */
+  lastHealthSyncAt: ISODateTime | null;
 }
 
 export interface ActivityStatusEvent {

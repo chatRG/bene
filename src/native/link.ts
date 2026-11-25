@@ -6,6 +6,7 @@
  * actually returned: no health store, no permission, a store with nothing in
  * it, or N real days that were merged into the local store.
  */
+import { differenceInCalendarDays, isValid } from 'date-fns';
 import type { DayRecord } from '../domain/types';
 import type { HealthPlatform, HealthStatus } from './health';
 import { checkAccess, openSettings, platform, platformLabel, readDays, requestAccess } from './health';
@@ -32,8 +33,24 @@ export interface HealthLink {
   reason?: string;
 }
 
-/** How far back Bene reads on a connect or a manual sync. */
+/** How far back Bene reads when there is no previous successful sync. */
 export const SYNC_DAYS = 30;
+
+/**
+ * Whole local calendar days to reread. The last sync's own day is included:
+ * samples and daily totals can still change after Bene has read them.
+ */
+export function syncWindowDays(lastSyncedAt: string | null = null, now = new Date()): number {
+  if (!lastSyncedAt) return SYNC_DAYS;
+  const last = new Date(lastSyncedAt);
+  if (!isValid(last)) return SYNC_DAYS;
+  const elapsed = differenceInCalendarDays(now, last);
+  // A clock-skewed future cursor must trigger a resync, never a zero-day read.
+  // One whole day is the floor because last night's sleep starts before local
+  // midnight; the app's supported history is the ceiling.
+  if (elapsed < 0) return SYNC_DAYS;
+  return Math.min(SYNC_DAYS, Math.max(1, elapsed));
+}
 
 const label = platformLabel.bind(null);
 
@@ -120,11 +137,58 @@ function fromStatus(
 }
 
 /** Read the store and merge it, without prompting. Used by "Sync now". */
-export async function readAndImport(
-  importDays: (records: DayRecord[]) => void,
-  days = SYNC_DAYS,
+let readInFlight: Promise<HealthLink> | null = null;
+let connectInFlight: Promise<HealthLink> | null = null;
+const SYNC_TIMEOUT_MS = 60_000;
+
+function withDeadline<T>(promise: Promise<T>, operation: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${operation} timed out`)), SYNC_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+export function readAndImport(
+  importDays: (records: DayRecord[], syncedAt: string) => void,
+  lastSyncedAt: string | null = null,
 ): Promise<HealthLink> {
-  const status = await checkAccess();
+  // Startup and pull-to-refresh can arrive together. They write to the same
+  // store, so one shared result is both sufficient and safer than competing
+  // reads whose completion order could move the sync cursor backwards.
+  if (readInFlight) return readInFlight;
+  if (connectInFlight) return connectInFlight;
+  const run = performReadAndImport(importDays, lastSyncedAt);
+  readInFlight = run;
+  const clear = () => {
+    if (readInFlight === run) readInFlight = null;
+  };
+  void run.then(clear, clear);
+  return run;
+}
+
+async function performReadAndImport(
+  importDays: (records: DayRecord[], syncedAt: string) => void,
+  lastSyncedAt: string | null,
+): Promise<HealthLink> {
+  let status: HealthStatus;
+  try {
+    status = await withDeadline(checkAccess(), 'Checking health access');
+  } catch {
+    return {
+      ...initialLink(),
+      phase: 'idle',
+      detail: 'Could not check health access just now. Nothing was imported — try again.',
+    };
+  }
   const base = fromStatus(status);
   if (!status.available) {
     return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform, status.reason) };
@@ -133,9 +197,12 @@ export async function readAndImport(
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
   }
   const generation = storeGeneration();
+  // Stamp the start, not the finish: if the read crosses midnight, the next
+  // sync still includes the earlier day instead of leaving a gap at the edge.
+  const syncedAt = new Date().toISOString();
   let records: DayRecord[];
   try {
-    records = await readDays(days);
+    records = await withDeadline(readDays(syncWindowDays(lastSyncedAt)), 'Reading health data');
   } catch {
     return {
       ...initialLink(),
@@ -156,25 +223,52 @@ export async function readAndImport(
     };
   }
 
-  importDays(records);
+  importDays(records, syncedAt);
   return {
     ...initialLink(),
     ...base,
     phase: 'connected',
     days: records.length,
-    syncedAt: new Date().toISOString(),
-    detail: describe(records.length),
+    syncedAt,
+    detail: records.length
+      ? describe(records.length)
+      : lastSyncedAt
+        ? 'Connected — no new health data since the last sync.'
+        : describe(0),
   };
 }
 
 /** Prompt for access, then read and merge. Used by "Connect". */
-export async function connectAndImport(
-  importDays: (records: DayRecord[]) => void,
-  days = SYNC_DAYS,
+export function connectAndImport(
+  importDays: (records: DayRecord[], syncedAt: string) => void,
+): Promise<HealthLink> {
+  if (connectInFlight) return connectInFlight;
+  const run = (async () => {
+    // Let any startup/manual read finish first. Two 30-day reads of the same
+    // store would finish in an arbitrary order and both stamp the cursor.
+    if (readInFlight) {
+      try {
+        await readInFlight;
+      } catch {
+        // The explicit Connect below retries with its own result.
+      }
+    }
+    return performConnectAndImport(importDays);
+  })();
+  connectInFlight = run;
+  const clear = () => {
+    if (connectInFlight === run) connectInFlight = null;
+  };
+  void run.then(clear, clear);
+  return run;
+}
+
+async function performConnectAndImport(
+  importDays: (records: DayRecord[], syncedAt: string) => void,
 ): Promise<HealthLink> {
   let status: HealthStatus;
   try {
-    status = await requestAccess();
+    status = await withDeadline(requestAccess(), 'Opening health permission');
   } catch {
     const p = platform();
     return {
@@ -194,9 +288,10 @@ export async function connectAndImport(
     return { ...initialLink(), ...base, phase: 'denied', detail: deniedDetail(status.platform) };
   }
   const generation = storeGeneration();
+  const syncedAt = new Date().toISOString();
   let records: DayRecord[];
   try {
-    records = await readDays(days);
+    records = await withDeadline(readDays(SYNC_DAYS), 'Reading health history');
   } catch {
     return {
       ...initialLink(),
@@ -217,20 +312,29 @@ export async function connectAndImport(
     };
   }
 
-  importDays(records);
+  importDays(records, syncedAt);
   return {
     ...initialLink(),
     ...base,
     phase: 'connected',
     days: records.length,
-    syncedAt: new Date().toISOString(),
+    syncedAt,
     detail: describe(records.length),
   };
 }
 
 /** Ask the OS what access Bene already has, without showing a prompt. */
 export async function probeAccess(): Promise<HealthLink> {
-  const status = await checkAccess();
+  let status: HealthStatus;
+  try {
+    status = await withDeadline(checkAccess(), 'Checking health access');
+  } catch {
+    return {
+      ...initialLink(),
+      phase: 'idle',
+      detail: 'Could not check health access just now. Try again.',
+    };
+  }
   const base = fromStatus(status);
   if (!status.available) {
     return { ...initialLink(), ...base, phase: 'unavailable', detail: unavailableDetail(status.platform, status.reason) };
