@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildSeed, dateKey } from './seed';
 import { mealsFor, sleepFor, stateWithWeekOfData } from './fixtures';
-import { deriveDay, recentStrains, recoveryBaselineFor, sleepNeedFor } from './derive';
+import { deriveDay, recentStrains, recoveryBaselineFor, sleepNeedFor, coachInsight } from './derive';
 import { nutritionFor } from './scoring/nutrition';
 import { maxHrFor, zoneIndex, type ZoneConfig } from './scoring/zones';
 import { biologicalAge, lifestyleYears, sumContributors, vo2MaxFromDays } from './scoring/biology';
@@ -58,6 +58,33 @@ describe('a logged week', () => {
     expect(d.recovery.score).toBe(58);
     expect(Math.round(d.strain.score)).toBe(50);
     expect(d.strain.target).toBe(62);
+  });
+
+  it('keeps coaching language accurate when Home shows a historical day', () => {
+    const data = stateWithWeekOfData(NOW);
+    const historical = data.dayOrder[data.dayOrder.length - 2];
+    const d = deriveDay(data, historical, NOW);
+    d.recovery = { ...d.recovery, status: 'scored', score: 30 };
+    d.strain = { ...d.strain, unscored: true };
+    const insight = coachInsight(d);
+    expect(`${insight.title} ${insight.body}`).not.toMatch(/today|tonight/i);
+  });
+
+  it('uses the activity status that applied on a historical day', () => {
+    const data = stateWithWeekOfData(NOW);
+    const yesterday = data.dayOrder[data.dayOrder.length - 2];
+    const activeTarget = deriveDay(data, yesterday, NOW).strain.target;
+    data.activityEvents = [
+      {
+        id: 'act-sick',
+        status: 'sick',
+        until: null,
+        at: `${TODAY}T08:00:00.000Z`,
+        note: 'Flu',
+      },
+    ];
+    data.settings.activityStatus = 'sick';
+    expect(deriveDay(data, yesterday, NOW).strain.target).toBe(activeTarget);
   });
 
   it('adds up the logged meals into a nutrition score', () => {

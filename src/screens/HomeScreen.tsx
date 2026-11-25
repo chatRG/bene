@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
+import { dayPath } from '../domain/day-route';
 import { deriveDay, coachInsight } from '../domain/derive';
 import { clockLabel } from '../domain/time';
 import { recoveryColor } from '../domain/scoring/recovery';
@@ -45,6 +46,10 @@ const CARD_META: Record<string, { title: string; blurb: string }> = {
 
 const DEFAULT_ORDER = ['scores', 'coach', 'stress', 'sleep', 'timeline', 'nutrition', 'journal'];
 
+// Home unmounts while a card's detail screen is open. This keeps the chosen
+// day for the back navigation, without persisting it across an app restart.
+let rememberedHomeDate: string | null = null;
+
 const STATUS_LABEL: Record<ActivityStatus, string> = {
   active: 'Active',
   sick: 'Sick',
@@ -56,14 +61,26 @@ export function HomeScreen() {
   const navigate = useNavigate();
   const state = useAppStore();
   const today = dateKey(new Date());
-  const derived = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
-  const weeklyZone2 = useMemo(
-    () => Math.round(state.dayOrder.slice(-7).reduce((total, day) => total + (state.days[day]?.workouts ?? []).reduce((sum, w) => sum + w.zoneMinutes[2] + w.zoneMinutes[3], 0), 0)),
-    [state.dayOrder, state.days],
+  const [selectedKey, setSelectedKey] = useState(() =>
+    rememberedHomeDate && state.dayOrder.includes(rememberedHomeDate) ? rememberedHomeDate : today,
   );
-  const allWorkouts = useMemo(
-    () => state.dayOrder.flatMap((date) => state.days[date]?.workouts ?? []),
-    [state.dayOrder, state.days],
+  const [dateOpen, setDateOpen] = useState(false);
+  useEffect(() => {
+    rememberedHomeDate = selectedKey;
+  }, [selectedKey]);
+  const selectedDate = new Date(`${selectedKey}T12:00:00`);
+  const isToday = selectedKey === today;
+  const dateLabel = format(selectedDate, selectedDate.getFullYear() === new Date().getFullYear() ? 'MMMM d' : 'MMMM d, yyyy');
+  const firstDay = state.dayOrder[0] ?? today;
+  const derived = useMemo(() => deriveDay(state, selectedKey, new Date()), [state, selectedKey]);
+  const weekStart = useMemo(() => {
+    const day = new Date(selectedDate);
+    day.setDate(day.getDate() - 6);
+    return dateKey(day);
+  }, [selectedDate]);
+  const weeklyZone2 = useMemo(
+    () => Math.round(state.dayOrder.filter((day) => day >= weekStart && day <= selectedKey).reduce((total, day) => total + (state.days[day]?.workouts ?? []).reduce((sum, w) => sum + w.zoneMinutes[2] + w.zoneMinutes[3], 0), 0)),
+    [state.dayOrder, state.days, selectedKey, weekStart],
   );
   const insight = coachInsight(derived);
   const [statusOpen, setStatusOpen] = useState(false);
@@ -71,6 +88,7 @@ export function HomeScreen() {
   const [draft, setDraft] = useState<string[]>(state.settings.homeOrder);
   const [addOpen, setAddOpen] = useState(false);
   const location = useLocation();
+  const go = (path: string) => navigate(dayPath(path, selectedKey, today));
 
   // Settings sends the user here to arrange cards, rather than telling them to
   // find the button themselves. The flag is consumed once so a back press does
@@ -95,6 +113,7 @@ export function HomeScreen() {
   const sleepHours = sleepTotals ? Math.floor(sleepTotals.asleepMin / 60) : 0;
   const sleepMins = sleepTotals ? sleepTotals.asleepMin % 60 : 0;
   const remaining = state.settings.calorieGoal - derived.nutrition.totals.calories;
+  const hasMeals = derived.record.meals.length > 0;
   const status = state.settings.activityStatus;
 
   const move = (id: string, dir: -1 | 1) => {
@@ -126,10 +145,15 @@ export function HomeScreen() {
      just after midnight lands on the new day rather than the old one. */
   const importHealthDays = useAppStore((s) => s.importHealthDays);
   const ensureToday = useAppStore((s) => s.ensureToday);
+  const lastHealthSyncAt = useAppStore((s) => s.settings.lastHealthSyncAt);
 
   const refresh = useCallback(async () => {
+    const currentToday = dateKey(new Date());
     ensureToday();
-    const link = await readAndImport(importHealthDays);
+    // If Home was showing "today" when the clock crossed midnight, follow the
+    // new day instead of leaving yesterday selected without its Today label.
+    setSelectedKey((previous) => (previous === today ? currentToday : previous));
+    const link = await readAndImport(importHealthDays, lastHealthSyncAt);
     showToast(
       link.phase === 'connected'
         ? link.days
@@ -139,16 +163,23 @@ export function HomeScreen() {
           ? 'Health access was not granted'
           : 'No health store to sync',
     );
-  }, [ensureToday, importHealthDays]);
+  }, [ensureToday, importHealthDays, lastHealthSyncAt]);
 
   const quickJournal = (tagId: string, value: 'yes' | 'no') => {
-    state.addJournal(today, tagId, value);
+    state.addJournal(selectedKey, tagId, value);
     const tag = state.journalTags.find((t) => t.id === tagId);
     showToast(`${tag?.label ?? 'Entry'} logged`);
   };
 
+  const shiftDate = (days: number) => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + days);
+    const key = dateKey(next);
+    if (key <= today && key >= firstDay) setSelectedKey(key);
+  };
+
   return (
-    <PullToRefresh onRefresh={refresh}>
+    <PullToRefresh onRefresh={refresh} onSwipe={(direction) => { if (!editing) shiftDate(direction === 'left' ? 1 : -1); }}>
       <div className="screen home-screen">
       <div className="home-top">
         <div className="home-top__left">
@@ -170,8 +201,8 @@ export function HomeScreen() {
       </div>
 
       <div className="row-between" style={{ marginTop: 18, marginBottom: 16 }}>
-        <button className="date-button" onClick={() => navigate('/timeline')}>
-          {editing ? 'Edit Home' : `Today, ${format(new Date(), 'MMMM d')}`}
+        <button className="date-button" onClick={() => { if (!editing) setDateOpen(true); }} aria-label="Choose Home date">
+          {editing ? 'Edit Home' : `${isToday ? 'Today, ' : ''}${dateLabel}`}
           {!editing ? <ChevronDown size={18} strokeWidth={2.4} /> : null}
         </button>
         {editing ? (
@@ -197,7 +228,7 @@ export function HomeScreen() {
               case 'scores':
                 return (
                   <div className="card score-card">
-                    <button className="score-card__col" onClick={() => navigate('/strain')}>
+                    <button className="score-card__col" onClick={() => go('/strain')}>
                       <Ring value={derived.strain.score} size={78} stroke={7} color="var(--orange)">
                         <div className="ring__center">
                           <span className="ring__value">{derived.strain.unscored ? '—' : `${Math.round(derived.strain.score)}%`}</span>
@@ -207,7 +238,7 @@ export function HomeScreen() {
                       <span className="score-card__hint">{derived.strain.unscored ? 'No data' : derived.strain.status === 'within' ? 'On target' : derived.strain.status === 'above' ? 'Above target' : 'Below target'}</span>
                     </button>
                     <div className="score-card__divider" />
-                    <button className="score-card__col" onClick={() => navigate('/recovery')}>
+                    <button className="score-card__col" onClick={() => go('/recovery')}>
                       <Ring value={derived.recovery.score ?? 0} size={78} stroke={7} color={recoveryColor(derived.recovery.score)}>
                         <div className="ring__center">
                           <span className="ring__value">{derived.recovery.score ?? '—'}</span>
@@ -217,7 +248,7 @@ export function HomeScreen() {
                       <span className="score-card__hint">{derived.recovery.label}</span>
                     </button>
                     <div className="score-card__divider" />
-                    <button className="score-card__col" onClick={() => navigate('/sleep')}>
+                    <button className="score-card__col" onClick={() => go('/sleep')}>
                       <Ring value={derived.sleepScore?.score ?? 0} size={78} stroke={7} color="var(--sleep)">
                         <div className="ring__center">
                           <span className="ring__value">{derived.sleepScore?.score ?? '—'}{derived.sleepScore ? '%' : ''}</span>
@@ -244,16 +275,16 @@ export function HomeScreen() {
                   <div className="section">
                     <SectionHead
                       title="Stress & Energy"
-                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/strain')}>Details</button>}
+                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => go('/strain')}>Details</button>}
                     />
                     <div className="card stress-card">
                       <div className="row-between">
                         <div>
                           <div className="row gap-6">
                             <span className="status-dot" style={{ background: 'var(--green)' }} />
-                            <span className="card-title">Today's stress</span>
+                            <span className="card-title">{isToday ? "Today's stress" : 'Daily stress'}</span>
                           </div>
-                          <div className="card-sub" style={{ marginTop: 2 }}>Last updated at {format(new Date(), 'h:mm a')}</div>
+                          <div className="card-sub" style={{ marginTop: 2 }}>{isToday ? 'Recorded samples for today' : `Recorded on ${dateLabel}`}</div>
                         </div>
                         <span className={`pill pill--sm ${derived.stress.status === 'scored' ? 'pill--green' : 'pill--flat'}`}>
                           {derived.stress.status === 'scored' ? 'Balanced' : 'Calibrating'}
@@ -271,7 +302,7 @@ export function HomeScreen() {
                 );
               case 'sleep':
                 return (
-                  <button className="card sleep-summary-card" onClick={() => navigate('/sleep')} style={{ width: '100%', textAlign: 'left' }}>
+                  <button className="card sleep-summary-card" onClick={() => go('/sleep')} style={{ width: '100%', textAlign: 'left' }}>
                     <div className="row-between">
                       <div className="row gap-8">
                         <span className="list-icon" style={{ background: 'rgba(109,124,247,.12)', color: 'var(--sleep)' }}><Moon size={17} /></span>
@@ -302,7 +333,7 @@ export function HomeScreen() {
                       </>
                     ) : null}
                     <div className="sleep-need-row">
-                      <span>Sleep needed tonight</span>
+                      <span>{isToday ? 'Sleep needed tonight' : 'Sleep need for that night'}</span>
                       <strong>{Math.floor(derived.sleepNeedMin / 60)}h {derived.sleepNeedMin % 60}m <ChevronRight size={14} /></strong>
                     </div>
                   </button>
@@ -312,7 +343,7 @@ export function HomeScreen() {
                   <div className="section">
                     <SectionHead
                       title="Timeline"
-                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/timeline')}>View timeline</button>}
+                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => go('/timeline')}>View timeline</button>}
                     />
                     <div className="list-card">
                       {derived.sleep && sleepTotals ? (
@@ -360,9 +391,17 @@ export function HomeScreen() {
                   <div className="section">
                     <SectionHead
                       title="Nutrition"
-                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/nutrition')}>Open</button>}
+                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => go('/nutrition')}>Open</button>}
                     />
-                    <button className="card nutrition-mini" onClick={() => navigate('/nutrition')} style={{ width: '100%', textAlign: 'left' }}>
+                    <button className="card nutrition-mini" onClick={() => go('/nutrition')} style={{ width: '100%', textAlign: 'left' }}>
+                      {!hasMeals ? (
+                        <div>
+                          <div className="card-sub">Calories eaten</div>
+                          <div className="h2" style={{ marginTop: 2 }}>No food logged</div>
+                          <div className="caption" style={{ marginTop: 4 }}>Nothing recorded for this day.</div>
+                        </div>
+                      ) : (
+                        <>
                       <div className="row-between" style={{ alignItems: 'flex-start' }}>
                         <div>
                           <div className="card-sub">Calories eaten</div>
@@ -389,6 +428,8 @@ export function HomeScreen() {
                         <span>Net energy · intake − burn</span>
                         <strong>{derived.nutrition.netEnergy != null ? `${derived.nutrition.netEnergy > 0 ? '+' : ''}${derived.nutrition.netEnergy} kcal` : '—'}</strong>
                       </div>
+                        </>
+                      )}
                     </button>
                   </div>
                 );
@@ -397,7 +438,7 @@ export function HomeScreen() {
                   <div className="section">
                     <SectionHead
                       title="Journal"
-                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/journal')}>All tags</button>}
+                      action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => go('/journal')}>All tags</button>}
                     />
                     <div className="card journal-quick">
                       {state.journalTags.filter((t) => t.pinned).slice(0, 4).map((tag) => {
@@ -412,7 +453,7 @@ export function HomeScreen() {
                                 <button className={entry?.value === 'no' ? 'on no' : 'no'} onClick={() => quickJournal(tag.id, 'no')}><X size={13} /></button>
                               </div>
                             ) : (
-                              <button className="pill pill--sm pill--flat" onClick={() => navigate('/journal')}>
+                              <button className="pill pill--sm pill--flat" onClick={() => go('/journal')}>
                                 {entry ? String(entry.value) : 'Log'}
                               </button>
                             )}
@@ -425,14 +466,14 @@ export function HomeScreen() {
               case 'fitness':
                 return (
                   <div className="section">
-                    <SectionHead title="Training" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => navigate('/fitness')}>Open</button>} />
-                    <button className="card fitness-mini" onClick={() => navigate('/fitness')} style={{ width: '100%', textAlign: 'left' }}>
+                    <SectionHead title="Training" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => go('/fitness')}>Open</button>} />
+                    <button className="card fitness-mini" onClick={() => go('/fitness')} style={{ width: '100%', textAlign: 'left' }}>
                       <div className="row-between">
                         <div>
                           <div className="card-sub">Cardio load</div>
-                          <div className="h2" style={{ marginTop: 2 }}>{allWorkouts.length > 0 ? 'Logged' : 'No sessions yet'}</div>
+                          <div className="h2" style={{ marginTop: 2 }}>{derived.record.workouts.length > 0 ? 'Logged' : 'No sessions yet'}</div>
                         </div>
-                        <span className={`pill pill--sm ${allWorkouts.length > 0 ? 'pill--green' : 'pill--flat'}`}>{allWorkouts.length > 0 ? 'On track' : 'Calibrating'}</span>
+                        <span className={`pill pill--sm ${derived.record.workouts.length > 0 ? 'pill--green' : 'pill--flat'}`}>{derived.record.workouts.length > 0 ? 'On track' : 'Calibrating'}</span>
                       </div>
                       <div className="row gap-16" style={{ marginTop: 14 }}>
                         <div><div className="caption">Strain</div><strong className="mono-num">{derived.strain.unscored ? '—' : `${Math.round(derived.strain.score)}%`}</strong></div>
@@ -478,6 +519,27 @@ export function HomeScreen() {
           <ChevronRight size={15} />
         </button>
       )}
+
+      {dateOpen ? (
+        <Sheet title="Choose a day" subtitle="Swipe Home or pick a date to view its scores, activities and logs." onClose={() => setDateOpen(false)}>
+          <label className="field-label" htmlFor="home-date">Home date</label>
+          <input
+            id="home-date"
+            className="text-input"
+            type="date"
+            value={selectedKey}
+            min={firstDay}
+            max={today}
+            onChange={(e) => {
+              if (e.target.value && e.target.value <= today && e.target.value >= firstDay) setSelectedKey(e.target.value);
+            }}
+          />
+          <div className="row gap-8 mt-20">
+            <button className="btn btn--soft btn--block" disabled={isToday} onClick={() => setSelectedKey(today)}>Today</button>
+            <button className="btn btn--block" onClick={() => setDateOpen(false)}>Show day</button>
+          </div>
+        </Sheet>
+      ) : null}
 
       {statusOpen ? (
         <StatusSheet

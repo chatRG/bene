@@ -90,7 +90,7 @@ describe('health link flow', () => {
     bridge.readDays.mockResolvedValue([day('2026-11-20'), day('2026-11-21')]);
     const importDays = vi.fn();
     const link = await connectAndImport(importDays);
-    expect(importDays).toHaveBeenCalledWith([day('2026-11-20'), day('2026-11-21')]);
+    expect(importDays).toHaveBeenCalledWith([day('2026-11-20'), day('2026-11-21')], expect.any(String));
     expect(link.phase).toBe('connected');
     expect(link.days).toBe(2);
     expect(sentence(link.days)).toBe('Connected — 2 days of history read on this device.');
@@ -103,7 +103,7 @@ describe('health link flow', () => {
     bridge.readDays.mockResolvedValue([]);
     const importDays = vi.fn();
     const link = await connectAndImport(importDays);
-    expect(importDays).toHaveBeenCalledWith([]);
+    expect(importDays).toHaveBeenCalledWith([], expect.any(String));
     expect(link.days).toBe(0);
     expect(link.detail).toMatch(/health store is empty/);
   });
@@ -125,7 +125,76 @@ describe('health link flow', () => {
     const link = await readAndImport(importDays);
     expect(bridge.requestAccess).not.toHaveBeenCalled();
     expect(bridge.checkAccess).toHaveBeenCalled();
+    expect(bridge.readDays).toHaveBeenCalledWith(30);
     expect(link.days).toBe(1);
+  });
+
+  it('rereads the previous day after a sync earlier on the same calendar day', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    bridge.readDays.mockResolvedValue([]);
+    const importDays = vi.fn();
+    const link = await readAndImport(importDays, new Date().toISOString());
+    // The previous evening belongs to today's sleep and can arrive after the
+    // first morning read. A zero-day window starts at midnight and would split
+    // the night, so an incremental read never goes below one whole day.
+    expect(bridge.readDays).toHaveBeenCalledWith(1);
+    expect(importDays).toHaveBeenCalledWith([], expect.any(String));
+    expect(link.detail).toMatch(/no new health data/);
+  });
+
+  it('treats a future cursor as a full resync instead of skipping history', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    bridge.readDays.mockResolvedValue([]);
+    const future = new Date();
+    future.setDate(future.getDate() + 3);
+    await readAndImport(vi.fn(), future.toISOString());
+    expect(bridge.readDays).toHaveBeenCalledWith(30);
+  });
+
+  it('caps a long catch-up window at the supported history range', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    bridge.readDays.mockResolvedValue([]);
+    const ancient = new Date();
+    ancient.setDate(ancient.getDate() - 500);
+    await readAndImport(vi.fn(), ancient.toISOString());
+    expect(bridge.readDays).toHaveBeenCalledWith(30);
+  });
+
+  it('reads back to the last successful sync day, including that whole day', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    bridge.readDays.mockResolvedValue([]);
+    const lastSync = new Date();
+    lastSync.setDate(lastSync.getDate() - 2);
+    await readAndImport(vi.fn(), lastSync.toISOString());
+    expect(bridge.readDays).toHaveBeenCalledWith(2);
+  });
+
+  it('does not advance the import cursor when the health read fails', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    bridge.readDays.mockRejectedValue(new Error('boom'));
+    const importDays = vi.fn();
+    const link = await readAndImport(importDays, new Date().toISOString());
+    expect(link.phase).toBe('idle');
+    expect(importDays).not.toHaveBeenCalled();
+    expect(link.detail).toMatch(/Nothing was imported/);
+  });
+
+  it('coalesces concurrent app-open and manual syncs into one native read', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep']));
+    let finishRead: ((records: DayRecord[]) => void) | undefined;
+    bridge.readDays.mockImplementation(() => new Promise<DayRecord[]>((resolve) => { finishRead = resolve; }));
+    const first = readAndImport(vi.fn());
+    const second = readAndImport(vi.fn());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      expect(bridge.checkAccess).toHaveBeenCalledTimes(1);
+      expect(bridge.readDays).toHaveBeenCalledTimes(1);
+    } finally {
+      finishRead?.([]);
+    }
+    const [a, b] = await Promise.all([first, second]);
+    expect(a.phase).toBe('connected');
+    expect(b.phase).toBe('connected');
   });
 
   it('distinguishes granted-but-not-yet-synced from not connected', async () => {

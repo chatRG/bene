@@ -21,7 +21,7 @@ function resetToOnboardedAccount() {
   useAppStore.setState({
     days: {},
     dayOrder: [],
-    settings: { ...state.settings, onboarded: true, demoMode: false },
+    settings: { ...state.settings, onboarded: true, demoMode: false, lastHealthSyncAt: null },
     profile: { ...state.profile, name: 'Test', birthDate: '1990-01-01' },
   });
 }
@@ -50,9 +50,11 @@ describe('store data safety', () => {
 
   it('clears all data and returns to onboarding', () => {
     useAppStore.getState().ensureToday();
+    useAppStore.getState().importHealthDays([], '2026-11-21T10:15:00.000Z');
     useAppStore.getState().clearAll();
     const state = useAppStore.getState();
     expect(state.settings.onboarded).toBe(false);
+    expect(state.settings.lastHealthSyncAt).toBeNull();
     expect(state.days).toEqual({});
     expect(state.chats).toEqual([]);
   });
@@ -274,6 +276,24 @@ describe('restore semantics', () => {
     expect(useAppStore.getState().settings.lastBackupAt).toBe(snap.exportedAt);
   });
 
+  it('does not carry a newer health cursor into an older restored backup', () => {
+    const backup = createBackup(stateWithWeekOfData(new Date('2026-11-14T13:20:00')));
+    delete (backup.data.settings as Partial<typeof backup.data.settings>).lastHealthSyncAt;
+    useAppStore.getState().importHealthDays([], '2026-11-25T10:15:00.000Z');
+    expect(useAppStore.getState().settings.lastHealthSyncAt).toBe('2026-11-25T10:15:00.000Z');
+    const result = useAppStore.getState().importBackupJson(JSON.stringify(backup));
+    expect(result.ok).toBe(true);
+    expect(useAppStore.getState().settings.lastHealthSyncAt).toBeNull();
+  });
+
+  it('fills new active-tab defaults when restoring an older backup', () => {
+    const backup = createBackup(stateWithWeekOfData(new Date('2026-11-14T13:20:00')));
+    backup.data.settings.activeTabs = { fitness: true, journal: true } as typeof backup.data.settings.activeTabs;
+    const result = useAppStore.getState().importBackupJson(JSON.stringify(backup));
+    expect(result.ok).toBe(true);
+    expect(useAppStore.getState().settings.activeTabs.nutrition).toBe(true);
+  });
+
   it('advances the generation on restore so in-flight health reads are dropped', () => {
     const before = storeGeneration();
     const result = useAppStore.getState().importBackupJson(backupJson(stateWithWeekOfData(new Date('2026-11-14T13:20:00'))));
@@ -339,6 +359,12 @@ describe('health import merging', () => {
     resetToOnboardedAccount();
   });
 
+  it('advances the sync cursor even when a successful read has no samples', () => {
+    const syncedAt = '2026-11-21T10:15:00.000Z';
+    useAppStore.getState().importHealthDays([], syncedAt);
+    expect(useAppStore.getState().settings.lastHealthSyncAt).toBe(syncedAt);
+  });
+
   it('keeps hand-logged counters when a health read replaces the measured ones', () => {
     const date = '2026-03-03';
     useAppStore.setState((s) => ({
@@ -372,6 +398,43 @@ describe('health import merging', () => {
     expect(day.metrics.hydrationMl).toBe(1500);
     expect(day.metrics.caffeineMg).toBe(90);
     expect(day.metrics.daylightMinutes).toBe(35);
+  });
+
+  it('keeps known measurements when a partial health read returns empty defaults', () => {
+    const date = '2026-03-05';
+    const imported = { ...workoutOn(date), id: 'w-imported', imported: true };
+    useAppStore.setState((s) => ({
+      days: {
+        ...s.days,
+        [date]: {
+          ...emptyDay(date),
+          metrics: {
+            ...emptyDay(date).metrics,
+            steps: 8123,
+            activeCalories: 500,
+            totalCalories: 2300,
+            hrSamples: [{ minute: 600, bpm: 70 }],
+            wearMinutes: 800,
+          },
+          sleep: sleepFor(date),
+          workouts: [imported],
+        },
+      },
+      dayOrder: [...s.dayOrder, date].sort(),
+    }));
+
+    // One store type failed; this day still appears because another answered,
+    // but every failed field is the record-zero default.
+    useAppStore.getState().importHealthDays([emptyDay(date)]);
+
+    const day = useAppStore.getState().days[date];
+    expect(day.metrics.steps).toBe(8123);
+    expect(day.metrics.activeCalories).toBe(500);
+    expect(day.metrics.totalCalories).toBe(2300);
+    expect(day.metrics.hrSamples).toEqual([{ minute: 600, bpm: 70 }]);
+    expect(day.metrics.wearMinutes).toBe(800);
+    expect(day.sleep).not.toBeNull();
+    expect(day.workouts.map((w) => w.id)).toEqual(['w-imported']);
   });
 
   it('keeps the manual total stable when the same Android day syncs twice', () => {

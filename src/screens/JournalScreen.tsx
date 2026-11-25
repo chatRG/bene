@@ -8,6 +8,7 @@ import { format as fmt } from 'date-fns';
 import { SectionHead, Sheet } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
+import { useDayParam } from '../components/use-day-param';
 import type { JournalTag, JournalValue } from '../domain/types';
 
 const CATEGORIES: { key: JournalTag['category']; label: string }[] = [
@@ -20,12 +21,18 @@ const CATEGORIES: { key: JournalTag['category']; label: string }[] = [
 
 export function JournalScreen() {
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
-  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
+  const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
   const [activeTag, setActiveTag] = useState<JournalTag | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
-  const entriesToday = d.record.journal;
+  const entriesForDay = d.record.journal;
+  const endIndex = state.dayOrder.indexOf(day);
+  const upTo = endIndex >= 0 ? endIndex + 1 : state.dayOrder.length;
+  const recentDays = state.dayOrder.slice(Math.max(0, upTo - 14), upTo);
   const streak = (() => {
     let n = 0;
     for (let i = 0; i < 60; i++) {
@@ -61,7 +68,7 @@ export function JournalScreen() {
   }, [state]);
 
   const save = (tag: JournalTag, value: JournalValue) => {
-    state.addJournal(today, tag.id, value);
+    state.addJournal(day, tag.id, value);
     setActiveTag(null);
     showToast(`${tag.label} logged`);
   };
@@ -76,7 +83,7 @@ export function JournalScreen() {
       <div className="app-header">
         <div>
           <div className="h1">Journal</div>
-          <div className="caption" style={{ marginTop: 2 }}>{fmt(new Date(), 'EEEE, MMMM d')}</div>
+          <div className="caption" style={{ marginTop: 2 }}>{fmt(dayDate, 'EEEE, MMMM d')}</div>
         </div>
         <div className="row gap-8">
           <span className="pill pill--sm pill--flat"><Flame size={12} /> {streak} day streak</span>
@@ -87,15 +94,15 @@ export function JournalScreen() {
       <div className="card mt-16" style={{ padding: 16 }}>
         <div className="row-between">
           <div>
-            <div className="card-title">Today's check-in</div>
-            <div className="card-sub">{entriesToday.length} of {state.journalTags.length} tags logged</div>
+            <div className="card-title">{isToday ? "Today's check-in" : `Check-in · ${fmt(dayDate, 'MMM d')}`}</div>
+            <div className="card-sub">{entriesForDay.length} of {state.journalTags.length} tags logged</div>
           </div>
-          <span className={`pill pill--sm ${entriesToday.length >= 4 ? 'pill--green' : 'pill--orange'}`}>
-            {entriesToday.length >= 4 ? 'Nice work' : 'Keep going'}
+          <span className={`pill pill--sm ${entriesForDay.length >= 4 ? 'pill--green' : 'pill--orange'}`}>
+            {entriesForDay.length >= 4 ? 'Nice work' : 'Keep going'}
           </span>
         </div>
         <div className="bar mt-12">
-          <div className="bar__fill" style={{ width: `${Math.min(100, (entriesToday.length / Math.max(1, state.journalTags.length)) * 100)}%`, background: 'var(--green)' }} />
+          <div className="bar__fill" style={{ width: `${Math.min(100, (entriesForDay.length / Math.max(1, state.journalTags.length)) * 100)}%`, background: 'var(--green)' }} />
         </div>
       </div>
 
@@ -103,7 +110,7 @@ export function JournalScreen() {
         <SectionHead title="Pinned" action={<span className="caption">Tap to log</span>} />
         <div className="journal-grid">
           {pinned.map((tag) => {
-            const entry = entriesToday.find((j) => j.tagId === tag.id);
+            const entry = entriesForDay.find((j) => j.tagId === tag.id);
             return (
               <button key={tag.id} className={`journal-card ${entry ? 'journal-card--logged' : ''}`} onClick={() => setActiveTag(tag)}>
                 <div className="journal-card__top">
@@ -172,7 +179,7 @@ export function JournalScreen() {
           <SectionHead title={group.label} action={<span className="caption">{group.tags.length} tags</span>} />
           <div className="list-card">
             {group.tags.map((tag) => {
-              const entry = entriesToday.find((j) => j.tagId === tag.id);
+              const entry = entriesForDay.find((j) => j.tagId === tag.id);
               return (
                 <button key={tag.id} className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => setActiveTag(tag)}>
                   <div className="list-icon" style={{ fontSize: 17 }}><Glyph emoji={tag.icon} /></div>
@@ -197,13 +204,14 @@ export function JournalScreen() {
       {activeTag ? (
         <TagSheet
           tag={activeTag}
-          current={entriesToday.find((j) => j.tagId === activeTag.id)?.value}
-          history={state.dayOrder.slice(-14).map((date) => ({
+          current={entriesForDay.find((j) => j.tagId === activeTag.id)?.value}
+          history={recentDays.map((date) => ({
             date,
             value: state.days[date]?.journal.find((j) => j.tagId === activeTag.id)?.value,
           }))}
           onClose={() => setActiveTag(null)}
           onSave={(v) => save(activeTag, v)}
+          dayLabel={isToday ? 'today' : fmt(dayDate, 'MMMM d')}
           onPin={() => {
             state.togglePinTag(activeTag.id);
             setActiveTag({ ...activeTag, pinned: !activeTag.pinned });
@@ -232,6 +240,7 @@ function TagSheet({
   onClose,
   onSave,
   onPin,
+  dayLabel,
 }: {
   tag: JournalTag;
   current?: JournalValue;
@@ -239,10 +248,11 @@ function TagSheet({
   onClose: () => void;
   onSave: (v: JournalValue) => void;
   onPin: () => void;
+  dayLabel: string;
 }) {
   const [num, setNum] = useState(typeof current === 'number' ? current : (tag.min ?? 1));
   return (
-    <Sheet title={tag.label} subtitle="How did this feel today?" onClose={onClose}>
+    <Sheet title={tag.label} subtitle={`How did this feel ${dayLabel}?`} onClose={onClose}>
       {tag.kind === 'numeric' ? (
         <div>
           <div className="row gap-12" style={{ alignItems: 'center' }}>
@@ -265,7 +275,7 @@ function TagSheet({
         <div className="col gap-8">
           <button className={`status-option ${current === 'yes' ? 'status-option--active' : ''}`} onClick={() => onSave('yes')}>
             <span className="status-option__icon" style={{ background: 'rgba(75,201,58,.14)', color: 'var(--green-deep)' }}><Check size={20} /></span>
-            <span className="grow"><span className="list-title">Yes</span><span className="list-sub">I did this today</span></span>
+            <span className="grow"><span className="list-title">Yes</span><span className="list-sub">I did this {dayLabel}</span></span>
           </button>
           {tag.kind === 'yesneutralno' ? (
             <button className={`status-option ${current === 'neutral' ? 'status-option--active' : ''}`} onClick={() => onSave('neutral')}>
@@ -275,7 +285,7 @@ function TagSheet({
           ) : null}
           <button className={`status-option ${current === 'no' ? 'status-option--active' : ''}`} onClick={() => onSave('no')}>
             <span className="status-option__icon" style={{ background: 'rgba(255,90,95,.12)', color: 'var(--red)' }}><X size={20} /></span>
-            <span className="grow"><span className="list-title">No</span><span className="list-sub">I didn’t do this today</span></span>
+            <span className="grow"><span className="list-title">No</span><span className="list-sub">I didn’t do this {dayLabel}</span></span>
           </button>
         </div>
       )}

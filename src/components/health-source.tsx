@@ -35,6 +35,7 @@ export function HealthSourceCard({
   onStateChange?: (link: HealthLink) => void;
 }) {
   const importHealthDays = useAppStore((s) => s.importHealthDays);
+  const lastHealthSyncAt = useAppStore((s) => s.settings.lastHealthSyncAt);
   const [link, setLink] = useState<HealthLink>(() => initialLink());
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
@@ -63,7 +64,7 @@ export function HealthSourceCard({
     if (busy) return;
     setBusy(true);
     try {
-      const next = mode === 'connect' ? await connectAndImport(importHealthDays) : await readAndImport(importHealthDays);
+      const next = mode === 'connect' ? await connectAndImport(importHealthDays) : await readAndImport(importHealthDays, lastHealthSyncAt);
       if (!mounted.current) return;
       publish(next);
       if (next.phase === 'connected') {

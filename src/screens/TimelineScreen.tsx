@@ -1,29 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, subDays, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, Flame, Moon, Plus, Utensils, Footprints, Info, Check, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
+import { dayPath } from '../domain/day-route';
 import { deriveDay } from '../domain/derive';
 import { dateAtTime } from '../domain/time';
 import { Sheet } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { useGoBack } from '../native';
+import { useDayParam } from '../components/use-day-param';
 import type { WorkoutKind } from '../domain/types';
 
 export function TimelineScreen() {
   const navigate = useNavigate();
   const back = useGoBack();
   const state = useAppStore();
-  const [selected, setSelected] = useState(new Date());
+  const day = useDayParam();
+  const today = dateKey(new Date());
+  const [selected, setSelected] = useState(() => new Date(`${day}T12:00:00`));
+  useEffect(() => {
+    setSelected(new Date(`${day}T12:00:00`));
+  }, [day]);
   const selectedKey = dateKey(selected);
   const d = useMemo(() => deriveDay(state, selectedKey, new Date()), [state, selectedKey]);
   const [addOpen, setAddOpen] = useState(false);
   const [addMode, setAddMode] = useState<'menu' | 'food' | 'activity' | 'sleep'>('menu');
   const [detail, setDetail] = useState<string | null>(null);
 
-  const isToday = selectedKey === dateKey(new Date());
+  const isToday = selectedKey === today;
   const entries = useMemo(() => {
     const list: { id: string; time: string; sort: number; kind: 'sleep' | 'workout' | 'meal' | 'planned'; title: string; sub: string; emoji?: string; ref?: string }[] = [];
     // toLocaleTimeString throws a RangeError on an invalid Date, so a corrupt
@@ -126,7 +133,7 @@ export function TimelineScreen() {
             key={e.id}
             className="timeline-item"
             onClick={() => {
-              if (e.kind === 'sleep') navigate('/sleep');
+              if (e.kind === 'sleep') navigate(dayPath('/sleep', selectedKey, today));
               else if (e.kind === 'workout' && e.ref) navigate(`/workout/${e.ref}`);
               else if (e.kind === 'planned' && e.ref) navigate(`/workout/${e.ref}`);
               else setDetail(e.id);
@@ -177,7 +184,7 @@ export function TimelineScreen() {
 
           {addMode === 'food' ? (
             <div className="col gap-8">
-              <button className="status-option" onClick={() => { setAddOpen(false); navigate('/nutrition'); }}>
+              <button className="status-option" onClick={() => { setAddOpen(false); navigate(dayPath('/nutrition', selectedKey, today)); }}>
                 <span className="status-option__icon"><Utensils size={18} /></span>
                 <span className="grow"><span className="list-title">Open nutrition logger</span><span className="list-sub">Search 1.2M foods, photo, describe or barcode</span></span>
                 <ChevronRight size={16} className="chevron" />

@@ -4,46 +4,50 @@ import { Activity, ChevronLeft, Flame, Heart, Info, Share2, Zap } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
-import { deriveDay } from '../domain/derive';
+import { activityStatusFor, deriveDay, zoneConfigFor } from '../domain/derive';
 import { daytimeAverageHr, strainSeriesForDay } from '../domain/scoring/strain';
-import { zoneConfigFor } from '../domain/derive';
 import { clockLabel, kcal, restingBurn } from '../domain/time';
 import { LineChart, Sparkline } from '../components/charts';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
+import { useDayParam } from '../components/use-day-param';
 
 type Tab = 'strain' | 'exercise' | 'hr' | 'energy';
 
 export function StrainScreen() {
   const navigate = useNavigate();
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
-  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
+  const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
   const [tab, setTab] = useState<Tab>('strain');
   const [infoOpen, setInfoOpen] = useState(false);
 
-  const config = zoneConfigFor(state, today);
+  const config = zoneConfigFor(state, day);
   const series = strainSeriesForDay(d.record.metrics.hrSamples, d.record.workouts, Math.round(d.baselineRhr || 55), config).map((p) => p.value);
   const hasHr = series.length > 4;
   const values = hasHr ? series : [];
   const avg = hasHr ? values.reduce((a, b) => a + b, 0) / values.length : 0;
   const avgHr = daytimeAverageHr(d.record.metrics.hrSamples);
-  const hiddenTarget = state.settings.activityStatus === 'injured' || state.settings.activityStatus === 'break';
+  const hiddenTarget = ['injured', 'break'].includes(activityStatusFor(state, day));
   const timeLabel = (() => {
     const now = new Date();
     // A restored/zeroed device clock yields an invalid Date, and toLocaleTimeString throws on it.
     return Number.isNaN(now.getTime()) ? '' : now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   })();
-  const statusNote = state.settings.activityStatus === 'injured'
-    ? 'Target Strain is hidden while you are injured. Strain calculations are limited.'
-    : state.settings.activityStatus === 'sick'
-      ? 'You are marked sick, so today’s target is reduced.'
-      : state.settings.activityStatus === 'break'
-        ? 'You are on a break — no strain target is enforced.'
+  const dayStatus = activityStatusFor(state, day);
+  const statusNote = dayStatus === 'injured'
+    ? `Target Strain is hidden for ${isToday ? 'today' : format(dayDate, 'MMMM d')} because you were injured.`
+    : dayStatus === 'sick'
+      ? `You were marked sick, so ${isToday ? "today's" : "that day's"} target is reduced.`
+      : dayStatus === 'break'
+        ? 'You were on a break — no strain target is enforced.'
         : null;
 
   const share = async () => {
-    const text = `Strain ${Math.round(d.strain.score)}% today · ${Math.round(d.strain.score)} / target ${d.strain.target}%`;
+    const text = `Strain ${Math.round(d.strain.score)}% ${isToday ? 'today' : `on ${format(dayDate, 'MMM d')}`} · ${Math.round(d.strain.score)} / target ${d.strain.target}%`;
     try {
       if (navigator.share) await navigator.share({ title: 'My Strain', text });
       else {
@@ -71,7 +75,7 @@ export function StrainScreen() {
       <div className="strain-score-line">
         <div>
           <div className="strain-score-line__value">{d.strain.unscored ? '—' : Math.round(d.strain.score)}<span style={{ fontSize: 28 }}>%</span></div>
-          <div className="strain-score-line__date">{format(new Date(), 'MMM d, yyyy')} <span style={{ color: 'var(--muted-2)' }}>·</span> {timeLabel}</div>
+          <div className="strain-score-line__date">{format(dayDate, 'MMM d, yyyy')}{isToday ? <> <span style={{ color: 'var(--muted-2)' }}>·</span> {timeLabel}</> : null}</div>
         </div>
         <div>
           <div className="strain-range" style={hiddenTarget ? { color: 'var(--muted)' } : undefined}>
@@ -108,7 +112,7 @@ export function StrainScreen() {
             avg={avg}
             avgLabel={`Avg. ${Math.round(avg)}%`}
             band={[d.strain.normLow, d.strain.normHigh]}
-            xLabels={['12 AM', 'Now']}
+            xLabels={['12 AM', isToday ? 'Now' : '11 PM']}
           />
         </div> : <div className="card card--flat mt-12"><div className="caption">No heart-rate samples for this day.</div></div>
       ) : null}
@@ -148,7 +152,7 @@ export function StrainScreen() {
             yTicks={[200, 150, 100, 50]}
             color="var(--red)"
             height={220}
-            xLabels={['6 AM', 'Now']}
+            xLabels={['6 AM', isToday ? 'Now' : '11 PM']}
           />
         </div>
       ) : null}
@@ -209,7 +213,7 @@ export function StrainScreen() {
       </div>
 
       <div className="section">
-        <div className="section-title" style={{ marginBottom: 12 }}>Today's target</div>
+        <div className="section-title" style={{ marginBottom: 12 }}>{isToday ? "Today's target" : 'Target for this day'}</div>
         <div className="card">
           <div className="row-between">
             <div className="row gap-10">
@@ -251,7 +255,7 @@ export function StrainScreen() {
           <div className="divider" />
           <div className="list-card" style={{ boxShadow: 'none' }}>
             {[
-              ['Exercise Duration', `${d.record.metrics.exerciseMinutes} min today`],
+              ['Exercise Duration', `${d.record.metrics.exerciseMinutes} min ${isToday ? 'today' : 'that day'}`],
               ['Cardio load', `${d.strain.activeTrimp} TRIMP active`],
               ['Passive load', `${d.strain.passiveTrimp} TRIMP background`],
               ['Total Energy', `${kcal(d.record.metrics.totalCalories)} kcal`],

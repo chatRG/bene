@@ -8,30 +8,36 @@ import { deriveDay } from '../domain/derive';
 import { computeCardioLoad, muscleFreshness, muscleLoadStatus } from '../domain/scoring/load';
 import { zoneConfigFor } from '../domain/derive';
 import { Avatar, SectionHead } from '../components/ui';
+import { useDayParam } from '../components/use-day-param';
 import { MUSCLE_LABELS } from '../domain/math';
 
 export function FitnessScreen() {
   const navigate = useNavigate();
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
   const now = new Date();
-  const d = useMemo(() => deriveDay(state, today, now), [state, today]);
-  const config = zoneConfigFor(state, today);
+  const d = useMemo(() => deriveDay(state, day, now), [state, day]);
+  const config = zoneConfigFor(state, day);
+  const endIndex = state.dayOrder.indexOf(day);
+  const upTo = endIndex >= 0 ? endIndex + 1 : state.dayOrder.length;
   // dayOrder can reference a date that has no day record (e.g. a damaged backup); treat it as an empty day.
   const allWorkouts = useMemo(
     () => state.dayOrder.flatMap((date) => state.days[date]?.workouts ?? []),
     [state.dayOrder, state.days],
   );
-  const load = useMemo(() => computeCardioLoad(allWorkouts, state.days, state.dayOrder, state.dayOrder.length - 1, config), [allWorkouts, state.days, state.dayOrder, config]);
+  const load = useMemo(() => computeCardioLoad(allWorkouts, state.days, state.dayOrder, upTo - 1, config), [allWorkouts, state.days, state.dayOrder, upTo, config]);
   const muscles = useMemo(() => muscleFreshness(allWorkouts, now, state.dayOrder), [allWorkouts, now, state.dayOrder]);
-  const strength = muscleLoadStatus(allWorkouts, state.days, state.dayOrder, state.dayOrder.length - 1);
-  const weekWorkouts = state.dayOrder.slice(-7).flatMap((date) => state.days[date]?.workouts ?? []);
+  const strength = muscleLoadStatus(allWorkouts, state.days, state.dayOrder, upTo - 1);
+  const weekWorkouts = state.dayOrder.slice(Math.max(0, upTo - 7), upTo).flatMap((date) => state.days[date]?.workouts ?? []);
   const weekMinutes = weekWorkouts.reduce((a, w) => a + w.durationMin, 0);
   const priorWeekMinutes = state.dayOrder
-    .slice(-14, -7)
+    .slice(Math.max(0, upTo - 14), Math.max(0, upTo - 7))
     .flatMap((date) => state.days[date]?.workouts ?? [])
     .reduce((a, w) => a + w.durationMin, 0);
-  const recent = [...state.dayOrder.slice(-8)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
+  const recent = [...state.dayOrder.slice(Math.max(0, upTo - 8), upTo)].reverse().flatMap((date) => state.days[date]?.workouts ?? []).slice(0, 4);
   const nextRoutine = state.routines.find((r) => r.scheduledDates.some((x) => x >= today)) ?? state.routines[0];
   // The earliest scheduled date from today on; scheduledDates can arrive
   // unsorted through a backup restore, and scheduledDates[0] can be in the
@@ -46,21 +52,21 @@ export function FitnessScreen() {
       <div className="app-header">
         <div>
           <div className="h1">Fitness</div>
-          <div className="caption" style={{ marginTop: 2 }}>{format(now, 'EEEE, MMMM d')}</div>
+          <div className="caption" style={{ marginTop: 2 }}>{format(dayDate, 'EEEE, MMMM d')}</div>
         </div>
         <button className="avatar" onClick={() => navigate('/profile')} aria-label="Profile"><Avatar name={state.profile.name} /></button>
       </div>
 
       <div className="fitness-hero fade-up">
-        <div className="fitness-hero__label">This week</div>
+        <div className="fitness-hero__label">{isToday ? 'This week' : `Week to ${format(dayDate, 'MMM d')}`}</div>
         <div className="fitness-hero__title">{weekWorkouts.length} sessions · {Math.round(weekMinutes / 60)}h {weekMinutes % 60}m</div>
         <div className="fitness-hero__sub">
           {d.recovery.status === 'scored'
-            ? `Recovery ${d.recovery.score ?? '—'}%. ${(d.recovery.score ?? 0) >= 60 ? 'A harder session fits today.' : 'Keep the session easy today.'}`
+            ? `Recovery ${d.recovery.score ?? '—'}%. ${(d.recovery.score ?? 0) >= 60 ? `A harder session fits ${isToday ? 'today' : 'that day'}.` : `Keep the session easy ${isToday ? 'today' : 'that day'}.`}`
             : 'Building your training baseline'}
         </div>
         <div className="fitness-stats">
-          <div className="fitness-stat"><strong>{Math.round(d.strain.score)}%</strong><span>Strain today</span></div>
+          <div className="fitness-stat"><strong>{Math.round(d.strain.score)}%</strong><span>Strain {isToday ? 'today' : 'that day'}</span></div>
           <div className="fitness-stat"><strong>{Math.round(weekMinutes / 60)}h {weekMinutes % 60}m</strong><span>Training this week</span></div>
           <div className="fitness-stat"><strong>{strength.weeklySets}</strong><span>Strength sets</span></div>
         </div>
@@ -69,14 +75,14 @@ export function FitnessScreen() {
       <div className="section" style={{ marginTop: 18 }}>
         <div className="week-strip card" style={{ padding: 8, boxShadow: 'var(--shadow-soft)' }}>
           {Array.from({ length: 7 }, (_, i) => {
-            const date = subDays(now, 6 - i);
+            const date = subDays(dayDate, 6 - i);
             const key = dateKey(date);
             const done = (state.days[key]?.workouts.length ?? 0) > 0;
-            const isToday = key === today;
+            const isSelected = key === day;
             const planned = state.routines.some((r) => r.scheduledDates.includes(key));
-            const state_ = done ? 'done' : isToday ? 'today' : planned ? 'missed' : 'rest';
+            const state_ = done ? 'done' : isSelected ? 'today' : planned ? 'missed' : 'rest';
             return (
-              <div key={key} className={`week-day week-day--${state_} ${isToday ? 'week-day--today' : ''}`} aria-label={`${format(date, 'EEEE')}: ${state_}${isToday ? ', today' : ''}`}>
+              <div key={key} className={`week-day week-day--${state_} ${isSelected ? 'week-day--today' : ''}`} aria-label={`${format(date, 'EEEE')}: ${state_}${isSelected ? (isToday ? ', today' : ', selected') : ''}`}>
                 <span className="week-day__label">{format(date, 'EEEEE')}</span>
                 <span className="week-day__dot">{done ? <Check size={14} strokeWidth={1.5} /> : format(date, 'd')}</span>
               </div>

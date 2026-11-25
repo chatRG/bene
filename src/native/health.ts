@@ -426,22 +426,32 @@ function sleepWindows(days: number): { from: Date; to: Date }[] {
   return windows;
 }
 
+interface ReadStats {
+  attempted: number;
+  failed: number;
+}
+
 /** Read one data type with one query per window. */
 async function readWindows(
   dataType: HealthDataType,
   windows: { from: Date; to: Date }[],
   limitPerDay: number,
+  stats: ReadStats,
 ): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
   const pages = await Promise.all(
-    windows.map(({ from, to }) =>
-      Health.readSamples({
+    windows.map(({ from, to }) => {
+      stats.attempted += 1;
+      return Health.readSamples({
         dataType,
         startDate: from.toISOString(),
         endDate: to.toISOString(),
         limit: limitPerDay,
         ascending: true,
-      }).catch(() => ({ samples: [] as HealthSample[] })),
-    ),
+      }).catch(() => {
+        stats.failed += 1;
+        return { samples: [] as HealthSample[] };
+      });
+    }),
   );
 
   // A window that comes back exactly at the cap may have been cut short. Its
@@ -480,12 +490,15 @@ async function readRange(
   range: { startDate: string; endDate: string },
   days: number,
   limit: number,
+  stats: ReadStats,
 ): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
-  const page = await Health.readSamples({ dataType, ...range, limit, ascending: true }).catch(
-    () => ({ samples: [] as HealthSample[] }),
-  );
+  stats.attempted += 1;
+  const page = await Health.readSamples({ dataType, ...range, limit, ascending: true }).catch(() => {
+    stats.failed += 1;
+    return { samples: [] as HealthSample[] };
+  });
   if (page.samples.length < limit) return { samples: page.samples, truncated: new Set() };
-  return readWindows(dataType, dayWindows(days), limit);
+  return readWindows(dataType, dayWindows(days), limit, stats);
 }
 
 /** Merge pages that may overlap, keeping each record once. */
@@ -508,8 +521,8 @@ function dedupeByIdentity(samples: HealthSample[]): HealthSample[] {
  * keeps every day under the cap and makes a truncated day detectable rather
  * than invisible.
  */
-async function readHeartRateByDay(days: number): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
-  return readWindows('heartRate', dayWindows(days), 4000);
+async function readHeartRateByDay(days: number, stats: ReadStats): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  return readWindows('heartRate', dayWindows(days), 4000, stats);
 }
 
 /**
@@ -533,14 +546,19 @@ async function readSleepWindow(
   from: Date,
   to: Date,
   depth: number,
+  stats: ReadStats,
 ): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
+  stats.attempted += 1;
   const page = await Health.readSamples({
     dataType: 'sleep',
     startDate: from.toISOString(),
     endDate: to.toISOString(),
     limit: SLEEP_WINDOW_LIMIT,
     ascending: true,
-  }).catch(() => ({ samples: [] as HealthSample[] }));
+  }).catch(() => {
+    stats.failed += 1;
+    return { samples: [] as HealthSample[] };
+  });
   if (page.samples.length < SLEEP_WINDOW_LIMIT) return { samples: page.samples, truncated: new Set() };
 
   // Capped even after the limit: the page is genuinely incomplete. Its dates
@@ -554,8 +572,8 @@ async function readSleepWindow(
 
   const mid = new Date(Math.round((from.getTime() + to.getTime()) / 2) + 1);
   const [lo, hi] = await Promise.all([
-    readSleepWindow(from, new Date(mid.getTime() - 1), depth + 1),
-    readSleepWindow(mid, to, depth + 1),
+    readSleepWindow(from, new Date(mid.getTime() - 1), depth + 1, stats),
+    readSleepWindow(mid, to, depth + 1, stats),
   ]);
   return {
     samples: dedupeByIdentity([...lo.samples, ...hi.samples]),
@@ -566,14 +584,17 @@ async function readSleepWindow(
 async function readSleep(
   range: { startDate: string; endDate: string },
   days: number,
+  stats: ReadStats,
 ): Promise<{ samples: HealthSample[]; truncated: Set<string> }> {
   const LIMIT = 2000;
-  const page = await Health.readSamples({ dataType: 'sleep', ...range, limit: LIMIT, ascending: true }).catch(
-    () => ({ samples: [] as HealthSample[] }),
-  );
+  stats.attempted += 1;
+  const page = await Health.readSamples({ dataType: 'sleep', ...range, limit: LIMIT, ascending: true }).catch(() => {
+    stats.failed += 1;
+    return { samples: [] as HealthSample[] };
+  });
   if (page.samples.length < LIMIT) return { samples: page.samples, truncated: new Set() };
   const results = await Promise.all(
-    sleepWindows(days).map(({ from, to }) => readSleepWindow(from, to, 0)),
+    sleepWindows(days).map(({ from, to }) => readSleepWindow(from, to, 0, stats)),
   );
   return {
     samples: dedupeByIdentity(results.flatMap((r) => r.samples)),
@@ -612,41 +633,73 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   // bucket straddles Bene's local dates. A DST shift moves those 24-hour
   // buckets by an hour, so on that one day a bucket can follow the wall clock
   // rather than the calendar.
+  // Sleep is filed under the morning it ends on. The oldest covered day's
+  // night starts on the evening before that day, so its read range must reach
+  // back one more midnight than every other metric.
+  const sleepRange = { ...range, startDate: localMidnight(days + 1).toISOString() };
+
+  const stats: ReadStats = { attempted: 0, failed: 0 };
+
   const stepsRead: Promise<{ samples: HealthSample[] }> =
     p === 'health-connect'
-      ? Health.queryAggregated({
-          dataType: 'steps',
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
-          bucket: 'day',
-          aggregation: 'sum',
-        })
-          .then((r) => ({ samples: r.samples.map(toAggregatedSample) }))
-          .catch(() => ({ samples: [] as HealthSample[] }))
-      : readRange('steps', range, days, 2000).then((r) => ({ samples: r.samples }));
+      ? (async () => {
+          stats.attempted += 1;
+          try {
+            const r = await Health.queryAggregated({
+              dataType: 'steps',
+              startDate: start.toISOString(),
+              endDate: end.toISOString(),
+              bucket: 'day',
+              aggregation: 'sum',
+            });
+            return { samples: r.samples.map(toAggregatedSample) };
+          } catch {
+            stats.failed += 1;
+            return { samples: [] as HealthSample[] };
+          }
+        })()
+      : readRange('steps', range, days, 2000, stats).then((r) => ({ samples: r.samples }));
+
+  const workoutsRead = (async () => {
+    stats.attempted += 1;
+    try {
+      return await Health.queryWorkouts({ ...range, limit: 200, ascending: false });
+    } catch {
+      stats.failed += 1;
+      return { workouts: [] as HealthWorkout[] };
+    }
+  })();
 
   const [sleep, hrv, rhr, resp, spo2, temp, steps, cals, basal, hr, exercise, workouts] = await Promise.all([
-    readSleep(range, days),
-    readRange('heartRateVariability', range, days, 2000),
-    readRange('restingHeartRate', range, days, 500),
-    readRange('respiratoryRate', range, days, 500),
-    readRange('oxygenSaturation', range, days, 500),
-    readRange('bodyTemperature', range, days, 500),
+    readSleep(sleepRange, days, stats),
+    readRange('heartRateVariability', range, days, 2000, stats),
+    readRange('restingHeartRate', range, days, 500, stats),
+    readRange('respiratoryRate', range, days, 500, stats),
+    readRange('oxygenSaturation', range, days, 500, stats),
+    readRange('bodyTemperature', range, days, 500, stats),
     stepsRead,
-    readRange('calories', range, days, 2000),
-    readRange(basalType, range, days, 2000),
-    readHeartRateByDay(days),
+    readRange('calories', range, days, 2000, stats),
+    readRange(basalType, range, days, 2000, stats),
+    readHeartRateByDay(days, stats),
     // exerciseTime is HealthKit-only (see readTypes): Health Connect has no
     // such record, so there is nothing to query for. Exercise minutes stay 0
     // on Android, exactly as a store without the record would report.
-    p === 'apple-health' ? readRange('exerciseTime', range, days, 500) : Promise.resolve({ samples: [] as HealthSample[], truncated: new Set<string>() }),
+    p === 'apple-health' ? readRange('exerciseTime', range, days, 500, stats) : Promise.resolve({ samples: [] as HealthSample[], truncated: new Set<string>() }),
     // Descending, not ascending: the plugin sorts then take(limit), so an
     // ascending ask silently dropped the NEWEST workouts once the cap hit.
     // If exactly the limit come back there may be more in the window (the
     // result carries a paging anchor Bene does not follow yet) — the oldest
     // workouts are the ones missing, and that is the acceptable loss.
-    Health.queryWorkouts({ ...range, limit: 200, ascending: false }).catch(() => ({ workouts: [] })),
+    workoutsRead,
   ]);
+
+  // A totally failed store read used to look exactly like an empty store: every
+  // query was swallowed into []. That advanced the sync cursor and permanently
+  // skipped the whole window. Partial failures still import the types that did
+  // answer; a read where nothing answered is an error the caller can retry.
+  if (stats.attempted > 0 && stats.failed === stats.attempted) {
+    throw new Error('Every health-store read failed.');
+  }
 
   const byDate = new Map<string, DayRecord>();
   const dayFor = (date: ISODate): DayRecord => {

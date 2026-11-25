@@ -1437,7 +1437,7 @@ ul {
 }
 
 .ptr__content {
-  will-change: transform;
+  touch-action: pan-y;
 }
 
 /* The same entrance the Home tab has, for the other tabs. Home wraps its
@@ -1445,7 +1445,7 @@ ul {
    screen, so the animation is attached to the screen instead and the header is
    excluded — it is the page frame, not content, and Home does not animate it
    either. Delays follow the same 40ms step. */
-.screen--enter > *:not(.app-header):not(.detail-head):not(.chat-head) {
+.screen--enter > *:not(.app-header):not(.detail-head):not(.chat-head):not(.sheet):not(.sheet-backdrop):not(.modal-center) {
   animation: fade-up 0.34s var(--ease) both;
 }
 .screen--enter > *:nth-child(2) { animation-delay: 0.04s; }
@@ -1454,6 +1454,9 @@ ul {
 .screen--enter > *:nth-child(5) { animation-delay: 0.16s; }
 .screen--enter > *:nth-child(6) { animation-delay: 0.2s; }
 .screen--enter > *:nth-child(7) { animation-delay: 0.24s; }
+.screen--enter > .sheet,
+.screen--enter > .sheet-backdrop,
+.screen--enter > .modal-center { animation-delay: 0s; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

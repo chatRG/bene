@@ -1,8 +1,9 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAppStore } from './store/useAppStore';
 import type { ThemeMode } from './domain/types';
 import { TAB_ROOTS, useNativeBackButton } from './native';
+import { readAndImport } from './native/link';
 import { TabBar } from './components/ui';
 import { ToastHost, showToast } from './components/toast';
 import { HomeScreen } from './screens/HomeScreen';
@@ -68,6 +69,8 @@ function Shell() {
   const location = useLocation();
   const onboarded = useAppStore((s) => s.settings.onboarded);
   const ensureToday = useAppStore((s) => s.ensureToday);
+  const importHealthDays = useAppStore((s) => s.importHealthDays);
+  const autoSyncStarted = useRef(false);
   const autoBackup = useAppStore((s) => s.settings.autoBackup);
   const lastBackupAt = useAppStore((s) => s.settings.lastBackupAt);
   const backupNow = useAppStore((s) => s.backupNow);
@@ -78,6 +81,30 @@ function Shell() {
   useEffect(() => {
     ensureToday();
   }, [ensureToday]);
+
+  useEffect(() => {
+    if (!onboarded) {
+      // Delete-all leaves Shell mounted. Reset the one-shot guard so a fresh
+      // account in the same session still syncs on its first open.
+      autoSyncStarted.current = false;
+      return;
+    }
+    if (autoSyncStarted.current) return;
+    autoSyncStarted.current = true;
+    ensureToday();
+    // Read existing grants only. First-time permission belongs to the explicit
+    // Connect flow; opening the app must never surprise the user with a prompt.
+    const lastSyncedAt = useAppStore.getState().settings.lastHealthSyncAt;
+    // Onboarding's Connect already performed a full read moments ago. Do not
+    // follow it with a second immediate round-trip. A future clock-skewed
+    // cursor must still sync: syncWindowDays treats it as a full resync.
+    const elapsed = lastSyncedAt ? Date.now() - Date.parse(lastSyncedAt) : Number.NaN;
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < 60_000) return;
+    void readAndImport(importHealthDays, lastSyncedAt).catch(() => {
+      // The link turns expected store failures into an idle result. This catch
+      // only prevents an unexpected bridge rejection becoming an unhandled one.
+    });
+  }, [onboarded, ensureToday, importHealthDays]);
 
   useEffect(() => {
     if (!onboarded || !autoBackup) return;

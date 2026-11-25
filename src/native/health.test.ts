@@ -499,11 +499,10 @@ describe('readDays: queries', () => {
 
     const first = device.readCalls.find((c) => c.dataType === 'sleep')!;
     const span = at(first.endDate!) - at(first.startDate!);
-    // The window runs from local midnight `days` back to end-of-today: at
-    // least `days` long, so last night's tail is never missed, and less than
-    // `days + 1`.
-    expect(span).toBeGreaterThanOrEqual(7 * 86400000);
-    expect(span).toBeLessThan(8 * 86400000);
+    // Sleep reaches one midnight further back than the other metrics so the
+    // oldest covered day's night keeps its pre-midnight stages.
+    expect(span).toBeGreaterThanOrEqual(8 * 86400000);
+    expect(span).toBeLessThan(9 * 86400000);
     const end = new Date(first.endDate!);
     expect([end.getHours(), end.getMinutes(), end.getSeconds()]).toEqual([23, 59, 59]);
     // The start is a local midnight, not a raw millisecond offset from
@@ -511,7 +510,7 @@ describe('readDays: queries', () => {
     // midnight after a DST fall-back and drops that local day.
     const began = new Date(first.startDate!);
     expect([began.getHours(), began.getMinutes(), began.getSeconds()]).toEqual([0, 0, 0]);
-    expect(isoKey(began)).toBe(isoKey(shiftDays(7)));
+    expect(isoKey(began)).toBe(isoKey(shiftDays(8)));
   });
 
   it('asks Health Connect nothing it cannot answer', async () => {
@@ -926,11 +925,11 @@ describe('readDays: never invents a day', () => {
     expect(dates).toEqual([...dates].sort());
   });
 
-  it('survives a store that throws on every read', async () => {
+  it('rejects when every store read fails, rather than treating failure as empty', async () => {
     await onDevice();
     device.fail = true;
 
-    await expect(readDays(7)).resolves.toEqual([]);
+    await expect(readDays(7)).rejects.toThrow(/read/i);
   });
 });
 

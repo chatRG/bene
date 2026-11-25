@@ -9,6 +9,7 @@ import { DotMatrix, RangeBar } from '../components/charts';
 import { SectionHead, Sheet, Segmented, Ring } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
+import { useDayParam } from '../components/use-day-param';
 import type { MealEntry } from '../domain/types';
 
 interface FoodTemplate {
@@ -48,8 +49,11 @@ const FOODS: FoodTemplate[] = [
 
 export function NutritionScreen() {
   const state = useAppStore();
+  const day = useDayParam();
   const today = dateKey(new Date());
-  const d = useMemo(() => deriveDay(state, today, new Date()), [state, today]);
+  const dayDate = new Date(`${day}T12:00:00`);
+  const isToday = day === today;
+  const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
   const n = d.nutrition;
   const [logOpen, setLogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -70,7 +74,7 @@ export function NutritionScreen() {
     const meal: MealEntry = {
       id: `meal-${Date.now()}`,
       name: food.name,
-      date: today,
+      date: day,
       time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
       calories: Math.round(food.calories * multiplier),
       proteinG: Math.round(food.proteinG * multiplier),
@@ -102,7 +106,7 @@ export function NutritionScreen() {
   const filtered = FOODS.filter((f) => f.name.toLowerCase().includes(query.toLowerCase()));
 
   const shareCard = async () => {
-    const text = `Nutrition today — ${n.totals.calories.toLocaleString()} kcal · P ${Math.round(n.totals.proteinG)}g · C ${Math.round(n.totals.carbsG)}g · F ${Math.round(n.totals.fatG)}g · net energy ${n.netEnergy != null ? `${n.netEnergy > 0 ? '+' : ''}${n.netEnergy}` : '—'} kcal.`;
+    const text = `Nutrition ${isToday ? 'today' : `on ${format(dayDate, 'MMM d')}`} — ${n.totals.calories.toLocaleString()} kcal · P ${Math.round(n.totals.proteinG)}g · C ${Math.round(n.totals.carbsG)}g · F ${Math.round(n.totals.fatG)}g · net energy ${n.netEnergy != null ? `${n.netEnergy > 0 ? '+' : ''}${n.netEnergy}` : '—'} kcal.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'My Nutrition', text });
@@ -128,7 +132,7 @@ export function NutritionScreen() {
         <div />
         <div>
           <div className="detail-head__title">Nutrition</div>
-          <div className="detail-head__sub">{format(new Date(), 'MMMM d')}</div>
+          <div className="detail-head__sub">{format(dayDate, 'MMMM d, yyyy')}</div>
         </div>
         <div className="detail-head__right">
           <div className="row gap-6">
@@ -171,7 +175,7 @@ export function NutritionScreen() {
         ))}
       </div>
       <p className="caption" style={{ margin: '8px 4px 0', lineHeight: 1.45 }}>
-        Percent is each macro's share of today's calories. Grams left or over compare with your macro goal.
+        Percent is each macro's share of {isToday ? "today's" : "that day's"} calories. Grams left or over compare with your macro goal.
       </p>
 
       <div className="card net-card mt-12">
@@ -246,7 +250,7 @@ export function NutritionScreen() {
       </div>
 
       <div className="section">
-        <SectionHead title="Logged today" action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => setLogOpen(true)}><Plus size={11} /> Add</button>} />
+        <SectionHead title={isToday ? 'Logged today' : `Logged ${format(dayDate, 'MMM d')}`} action={<button className="caption" style={{ color: 'var(--text)' }} onClick={() => setLogOpen(true)}><Plus size={11} /> Add</button>} />
         <div className="card">
           {d.record.meals.map((m) => (
             <div className="food-row" key={m.id}>
@@ -255,7 +259,7 @@ export function NutritionScreen() {
                 <div className="list-title">{m.name}</div>
                 <div className="list-sub">{m.time} · {m.calories} kcal · P {m.proteinG} · C {m.carbsG} · F {m.fatG}</div>
               </div>
-              <button className="icon-btn icon-btn--ghost" onClick={() => { state.removeMeal(today, m.id); showToast('Meal removed'); }} aria-label="Remove">
+              <button className="icon-btn icon-btn--ghost" onClick={() => { state.removeMeal(day, m.id); showToast('Meal removed'); }} aria-label="Remove">
                 ×
               </button>
             </div>

@@ -53,6 +53,7 @@ export function buildSeed(now = new Date()): AppStateData {
     activityStatusNote: '',
     autoBackup: true,
     lastBackupAt: null,
+    lastHealthSyncAt: null,
   };
 
   const profile: UserProfile = {
