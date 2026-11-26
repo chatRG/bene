@@ -222,7 +222,12 @@ check('edit home exits', (await page.locator('.edit-bar').count()) === 0);
 await page.goto(`${BASE}/#/`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(250);
 const previousDate = fx.dayOrder[fx.dayOrder.length - 2];
-const previousLabel = new Date(`${previousDate}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+const previousDay = new Date(`${previousDate}T12:00:00`);
+const previousLabel = previousDay.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+const previousShortDate = previousDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const previousLongDate = previousDay.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+const previousNumericDate = previousDay.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+const previousWeekday = previousDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 const previousCalories = fx.days[previousDate].meals.reduce((sum, meal) => sum + meal.calories, 0).toLocaleString('en-US');
 await page.locator('.date-button').click();
 await page.waitForTimeout(250);
@@ -289,7 +294,7 @@ if (await homeDateInput.count()) {
   await page.waitForTimeout(300);
   check(
     'past Home strain card opens that day',
-    page.url().includes(`date=${previousDate}`) && (await page.locator('.strain-score-line__date').innerText()).includes('Nov 24, 2026'),
+    page.url().includes(`date=${previousDate}`) && (await page.locator('.strain-score-line__date').innerText()).includes(previousShortDate),
     await page.locator('.strain-score-line__date').innerText(),
   );
   await page.goBack();
@@ -298,37 +303,37 @@ if (await homeDateInput.count()) {
 
   await page.locator('.score-card__col').nth(1).click();
   await page.waitForTimeout(300);
-  check('past Home recovery card opens that day', (await page.locator('.recovery-page').innerText()).includes('November 24, 2026'));
+  check('past Home recovery card opens that day', (await page.locator('.recovery-page').innerText()).includes(previousLongDate));
   await page.goBack();
   await page.waitForTimeout(250);
 
   await page.locator('.score-card__col').nth(2).click();
   await page.waitForTimeout(300);
-  check('past Home sleep card opens that night', (await page.locator('.detail-head__sub').innerText()).includes('11/24/26'));
+  check('past Home sleep card opens that night', (await page.locator('.detail-head__sub').innerText()).includes(previousNumericDate));
   await page.goBack();
   await page.waitForTimeout(250);
 
   await page.locator('.nutrition-mini').click();
   await page.waitForTimeout(300);
-  check('past Home nutrition card opens that day', (await page.locator('.detail-head__sub').innerText()).includes('November 24, 2026'));
+  check('past Home nutrition card opens that day', (await page.locator('.detail-head__sub').innerText()).includes(previousLongDate));
   await page.goBack();
   await page.waitForTimeout(250);
 
   await page.getByText('View timeline', { exact: true }).click();
   await page.waitForTimeout(300);
-  check('past Home timeline opens that day', (await page.locator('.detail-head__sub').innerText()).includes('Tuesday, November 24'));
+  check('past Home timeline opens that day', (await page.locator('.detail-head__sub').innerText()).includes(previousWeekday));
   await page.goBack();
   await page.waitForTimeout(250);
 
   await page.getByText('All tags', { exact: true }).click();
   await page.waitForTimeout(300);
-  check('past Home journal opens that day', (await page.locator('.app-header .caption').innerText()).includes('Tuesday, November 24'));
+  check('past Home journal opens that day', (await page.locator('.app-header .caption').innerText()).includes(previousWeekday));
   await page.goBack();
   await page.waitForTimeout(250);
 
   await page.locator('.fitness-mini').click();
   await page.waitForTimeout(300);
-  check('past Home training opens that day', (await page.locator('.app-header .caption').innerText()).includes('Tuesday, November 24'));
+  check('past Home training opens that day', (await page.locator('.app-header .caption').innerText()).includes(previousWeekday));
   await page.goBack();
   await page.waitForTimeout(250);
 
