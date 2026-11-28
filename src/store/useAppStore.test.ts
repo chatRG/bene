@@ -57,6 +57,8 @@ describe('store data safety', () => {
     expect(state.settings.lastHealthSyncAt).toBeNull();
     expect(state.days).toEqual({});
     expect(state.chats).toEqual([]);
+    expect(state.journalTags.length).toBeGreaterThan(0);
+    expect(state.journalTags.map((tag) => tag.id)).toContain('mood');
   });
 });
 
@@ -437,6 +439,72 @@ describe('health import merging', () => {
     expect(day.workouts.map((w) => w.id)).toEqual(['w-imported']);
   });
 
+  it('keeps known overnight metrics when a later sleep sync lacks them', () => {
+    const date = '2026-03-06';
+    const known = { ...sleepFor(date), hrvMs: 64, rhrBpm: 51, respiratoryRate: 14.2 };
+    useAppStore.setState((s) => ({
+      days: { ...s.days, [date]: { ...emptyDay(date), sleep: known } },
+      dayOrder: [...s.dayOrder, date].sort(),
+    }));
+
+    // A partial read returned the stages but not the HRV/RHR scopes.
+    useAppStore.getState().importHealthDays([{ ...emptyDay(date), sleep: { ...sleepFor(date), hrvMs: null, rhrBpm: null, respiratoryRate: null } }]);
+
+    const sleep = useAppStore.getState().days[date].sleep!;
+    expect(sleep.stages).toEqual(known.stages);
+    expect(sleep.hrvMs).toBe(64);
+    expect(sleep.rhrBpm).toBe(51);
+    expect(sleep.respiratoryRate).toBe(14.2);
+  });
+
+  it('fills imported workout zones on import so every training consumer sees the load', () => {
+    const date = '2026-03-07';
+    const imported = {
+      ...workoutOn(date),
+      id: 'w-health',
+      imported: true,
+      avgHr: null,
+      maxHr: null,
+      strain: 0,
+      zoneMinutes: [0, 0, 0, 0, 0, 0] as Workout['zoneMinutes'],
+    };
+    const start = new Date(imported.start);
+    const startMin = start.getHours() * 60 + start.getMinutes();
+    const incoming: DayRecord = {
+      ...emptyDay(date),
+      metrics: {
+        ...emptyDay(date).metrics,
+        hrSamples: [
+          { minute: startMin + 5, bpm: 138 },
+          { minute: startMin + 20, bpm: 160 },
+          { minute: startMin + 40, bpm: 148 },
+        ],
+      },
+      workouts: [imported],
+    };
+
+    useAppStore.getState().importHealthDays([incoming]);
+
+    const stored = useAppStore.getState().days[date].workouts[0];
+    expect(stored.zoneMinutes.some((minutes) => minutes > 0)).toBe(true);
+    expect(stored.avgHr).toBeGreaterThan(0);
+    expect(stored.strain).toBeGreaterThan(0);
+  });
+
+  it('does not count a manual workout and its imported twin twice', () => {
+    const date = '2026-03-08';
+    const manual = workoutOn(date);
+    useAppStore.setState((s) => ({
+      days: { ...s.days, [date]: { ...emptyDay(date), workouts: [manual] } },
+      dayOrder: [...s.dayOrder, date].sort(),
+    }));
+    const imported = { ...manual, id: 'w-health', imported: true, zoneMinutes: [0, 0, 0, 0, 0, 0] as Workout['zoneMinutes'] };
+
+    useAppStore.getState().importHealthDays([{ ...emptyDay(date), workouts: [imported] }]);
+
+    expect(useAppStore.getState().days[date].workouts.map((w) => w.id)).toEqual([manual.id]);
+  });
+
   it('keeps the manual total stable when the same Android day syncs twice', () => {
     const date = '2026-03-04';
     useAppStore.setState((s) => ({ days: { ...s.days, [date]: { ...emptyDay(date) } }, dayOrder: [...s.dayOrder, date] }));
@@ -474,11 +542,12 @@ describe('naps', () => {
     resetToOnboardedAccount();
   });
 
-  it('creates a real 20-minute core nap on a day without sleep', () => {
+  it('creates a real 20-minute core nap without pretending it is the night', () => {
     useAppStore.getState().logNap('2026-11-20');
     const day = useAppStore.getState().days['2026-11-20'];
-    const session = day.sleep;
-    expect(session).not.toBeNull();
+    const session = day.naps?.[0];
+    expect(day.sleep ?? null).toBeNull();
+    expect(session).toBeDefined();
     expect(session?.date).toBe('2026-11-20');
     expect(session?.stages).toEqual([{ stage: 'core', startMin: 0, endMin: 20 }]);
     expect(new Date(session?.end ?? '').getTime() - new Date(session?.start ?? '').getTime()).toBe(20 * 60000);
@@ -492,9 +561,7 @@ describe('naps', () => {
   it('falls on the selected local date when the Timeline shows a past day', () => {
     const selected = '2020-05-05';
     useAppStore.getState().logNap(selected);
-    const session = useAppStore.getState().days[selected].sleep!;
-    // The session ends on the selected date, at the current time of day —
-    // not on today's date with a date label from 2020.
+    const session = useAppStore.getState().days[selected].naps![0];
     const end = new Date(session.end);
     const [y, m, d] = selected.split('-').map(Number);
     expect([end.getFullYear(), end.getMonth(), end.getDate()]).toEqual([y, m - 1, d]);
@@ -502,7 +569,7 @@ describe('naps', () => {
     expect(session.date).toBe(selected);
   });
 
-  it('leaves an existing night of sleep alone', () => {
+  it('keeps an existing night of sleep and stores the nap separately', () => {
     const date = '2026-11-21';
     const session = sleepFor(date);
     useAppStore.setState((s) => ({
@@ -510,7 +577,20 @@ describe('naps', () => {
       dayOrder: [...s.dayOrder, date],
     }));
     useAppStore.getState().logNap(date);
-    expect(useAppStore.getState().days[date].sleep).toBe(session);
+    const day = useAppStore.getState().days[date];
+    expect(day.sleep).toBe(session);
+    expect(day.naps).toHaveLength(1);
+  });
+
+  it('preserves a logged nap when the overnight sync lands', () => {
+    const date = '2026-11-21';
+    useAppStore.getState().logNap(date);
+    const napId = useAppStore.getState().days[date].naps![0].id;
+    useAppStore.getState().importHealthDays([{ ...emptyDay(date), sleep: sleepFor(date) }]);
+
+    const day = useAppStore.getState().days[date];
+    expect(day.sleep?.id).toBe(sleepFor(date).id);
+    expect(day.naps?.map((n) => n.id)).toEqual([napId]);
   });
 });
 

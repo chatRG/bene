@@ -134,7 +134,8 @@ export function sleepBank(
   sessions: { date: string; sleep: SleepSession | null; needMin: number }[],
 ): SleepBankResult {
   const weights = [0.35, 0.25, 0.15, 0.1, 0.07, 0.05, 0.03];
-  const nights = sessions.slice(-7).map((s, i, arr) => ({
+  const recorded = sessions.filter((s) => s.sleep);
+  const nights = recorded.slice(-7).map((s, i, arr) => ({
     date: s.date,
     asleepMin: s.sleep ? stageTotals(s.sleep).asleepMin : 0,
     needMin: s.needMin,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
@@ -21,7 +21,7 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { dayPath } from '../domain/day-route';
-import { deriveDay, coachInsight } from '../domain/derive';
+import { deriveDay, coachInsight, activityStatusFor } from '../domain/derive';
 import { clockLabel } from '../domain/time';
 import { recoveryColor } from '../domain/scoring/recovery';
 import { stageTotals } from '../domain/math';
@@ -68,6 +68,12 @@ export function HomeScreen() {
   useEffect(() => {
     rememberedHomeDate = selectedKey;
   }, [selectedKey]);
+  const previousToday = useRef(today);
+  useEffect(() => {
+    if (today === previousToday.current) return;
+    setSelectedKey((previous) => (previous === previousToday.current ? today : previous));
+    previousToday.current = today;
+  }, [today]);
   const selectedDate = new Date(`${selectedKey}T12:00:00`);
   const isToday = selectedKey === today;
   const dateLabel = format(selectedDate, selectedDate.getFullYear() === new Date().getFullYear() ? 'MMMM d' : 'MMMM d, yyyy');
@@ -114,13 +120,23 @@ export function HomeScreen() {
   const sleepMins = sleepTotals ? sleepTotals.asleepMin % 60 : 0;
   const remaining = state.settings.calorieGoal - derived.nutrition.totals.calories;
   const hasMeals = derived.record.meals.length > 0;
-  const status = state.settings.activityStatus;
+  const status = activityStatusFor(state, selectedKey);
 
   const move = (id: string, dir: -1 | 1) => {
+    // Swap against the next VISIBLE card, never a card hidden by a disabled tab.
+    const visibleIds = order.filter((card) => {
+      if (card === 'journal' && !state.settings.activeTabs.journal) return false;
+      if (card === 'fitness' && !state.settings.activeTabs.fitness) return false;
+      if (card === 'nutrition' && !state.settings.activeTabs.nutrition) return false;
+      return true;
+    });
+    const visibleIndex = visibleIds.indexOf(id);
+    const targetId = visibleIds[visibleIndex + dir];
+    if (!targetId) return;
     const idx = draft.indexOf(id);
+    const target = draft.indexOf(targetId);
+    if (idx < 0 || target < 0) return;
     const next = [...draft];
-    const target = idx + dir;
-    if (target < 0 || target >= next.length) return;
     [next[idx], next[target]] = [next[target], next[idx]];
     setDraft(next);
   };
@@ -543,8 +559,8 @@ export function HomeScreen() {
 
       {statusOpen ? (
         <StatusSheet
-          current={state.settings.activityStatus}
-          note={state.settings.activityStatusNote}
+          current={status}
+          note={status === 'active' ? '' : state.settings.activityStatusNote}
           onClose={() => setStatusOpen(false)}
           onSave={(s, until, note) => {
             state.setActivityStatus(s, until, note);

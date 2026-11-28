@@ -17,8 +17,11 @@ import type {
   UserProfile,
   Workout,
 } from '../domain/types';
-import { buildSeed, emptyDay } from '../domain/seed';
+import { buildSeed, defaultJournalTags, emptyDay } from '../domain/seed';
 import { dateOf } from '../domain/derive';
+import { ageFromBirthDate } from '../domain/math';
+import { estimatedMaxHr } from '../domain/scoring/zones';
+import { enrichImportedWorkout } from '../domain/scoring/strain';
 import { generateCoachReply, ghostExpiry } from '../domain/coach';
 import { uid } from '../domain/id';
 import { SNAPSHOT_KEY, backupJson, parseBackup, readSnapshot, saveSnapshot } from '../domain/backup';
@@ -30,6 +33,32 @@ function mergeRestoredSettings(current: AppSettings, incoming: AppSettings): App
     ...incoming,
     activeTabs: { ...current.activeTabs, ...(incoming.activeTabs ?? {}) },
   };
+}
+
+/** A manual log and the store's copy of the same session are one workout. */
+function sameSession(a: Workout, b: Workout): boolean {
+  const startGap = Math.abs(new Date(a.start).getTime() - new Date(b.start).getTime());
+  return startGap <= 5 * 60000 && Math.abs(a.durationMin - b.durationMin) <= 5;
+}
+
+/**
+ * Imported workouts were stored with zero zone buckets before the importer
+ * recovered them from heart rate. Repair those records on hydration so every
+ * consumer — not only Strain — sees the same training load.
+ */
+function recoverWorkoutZones(days: Record<string, DayRecord>, birthDate: string): Record<string, DayRecord> {
+  const out: Record<string, DayRecord> = {};
+  for (const [date, day] of Object.entries(days)) {
+    const maxHr = estimatedMaxHr(ageFromBirthDate(birthDate, date) ?? 30);
+    let changed = false;
+    const workouts = day.workouts.map((workout) => {
+      const next = enrichImportedWorkout(workout, day.metrics.hrSamples, maxHr);
+      if (next !== workout) changed = true;
+      return next;
+    });
+    out[date] = changed ? { ...day, workouts } : day;
+  }
+  return out;
 }
 
 /**
@@ -384,10 +413,38 @@ export const useAppStore = create<AppStore>()(
           const order = [...s.dayOrder];
           for (const incoming of records) {
             const existing = days[incoming.date];
+            const maxHr = estimatedMaxHr(ageFromBirthDate(s.profile.birthDate, incoming.date) ?? 30);
+            const hrSamples = incoming.metrics.hrSamples.length
+              ? incoming.metrics.hrSamples
+              : existing?.metrics.hrSamples ?? [];
+            const incomingWorkouts = incoming.workouts.map((workout) =>
+              enrichImportedWorkout(workout, hrSamples, maxHr),
+            );
+            const uniqueImported = incomingWorkouts.filter(
+              (workout) =>
+                !workout.imported ||
+                !existing?.workouts.some((manual) => !manual.imported && sameSession(manual, workout)),
+            );
+            const nextIncoming: DayRecord = { ...incoming, workouts: uniqueImported };
             days[incoming.date] = existing
               ? {
                   ...existing,
-                  sleep: incoming.sleep ?? existing.sleep,
+                  sleep: incoming.sleep
+                    ? {
+                        ...incoming.sleep,
+                        // A partial read can return the stages while the
+                        // HRV/RHR scopes fail. Do not erase the overnight
+                        // values that gave the score its baseline.
+                        hrvMs: incoming.sleep.hrvMs ?? existing.sleep?.hrvMs ?? null,
+                        rhrBpm: incoming.sleep.rhrBpm ?? existing.sleep?.rhrBpm ?? null,
+                        respiratoryRate: incoming.sleep.respiratoryRate ?? existing.sleep?.respiratoryRate ?? null,
+                        spo2: incoming.sleep.spo2 ?? existing.sleep?.spo2 ?? null,
+                        wristTempC: incoming.sleep.wristTempC ?? existing.sleep?.wristTempC ?? null,
+                        minHrBpm: incoming.sleep.minHrBpm ?? existing.sleep?.minHrBpm ?? null,
+                        timeToFallAsleepMin: incoming.sleep.timeToFallAsleepMin ?? existing.sleep?.timeToFallAsleepMin ?? null,
+                        alarm: incoming.sleep.alarm ?? existing.sleep?.alarm ?? null,
+                      }
+                    : existing.sleep,
                   metrics: {
                     ...existing.metrics,
                     // A partial native read represents a failed type as its
@@ -407,16 +464,17 @@ export const useAppStore = create<AppStore>()(
                     caffeineMg: existing.metrics.caffeineMg,
                     alcoholGrams: existing.metrics.alcoholGrams,
                   },
-                  workouts: incoming.workouts.length
+                  workouts: uniqueImported.length
                     ? [
                         ...existing.workouts.filter((w) => !w.imported),
-                        ...incoming.workouts,
+                        ...uniqueImported,
                       ]
                     : existing.workouts,
                   meals: existing.meals,
                   journal: existing.journal,
+                  naps: existing.naps ?? [],
                 }
-              : incoming;
+              : nextIncoming;
             if (!order.includes(incoming.date)) order.push(incoming.date);
           }
           order.sort();
@@ -507,18 +565,13 @@ export const useAppStore = create<AppStore>()(
           };
         }),
 
-      // A 20-minute nap as the Timeline sheet describes it. When the day
-      // already has a sleep session the overnight record covers the balance,
-      // so logging again is a no-op rather than a second, competing session.
+      // A nap is not the night. Keep it in its own list so an imported
+      // overnight session can never destroy it and the Sleep screen never
+      // presents a 20-minute nap as last night's sleep.
       logNap: (date) =>
         set((s) => {
-          const existing = s.days[date];
-          if (existing?.sleep) return s;
+          const existing = s.days[date] ?? emptyDay(date);
           const now = new Date();
-          // The nap belongs to the selected date: its end timestamp falls on
-          // that local day (SleepSession is filed under the date it ends on),
-          // at the current time of day — which is simply `now` when the
-          // selected date is today.
           const [y, mo, d] = date.split('-').map(Number);
           const end = new Date(y, mo - 1, d, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
           const session: SleepSession = {
@@ -537,10 +590,11 @@ export const useAppStore = create<AppStore>()(
             timeToFallAsleepMin: null,
             alarm: null,
             imported: false,
+            staged: true,
           };
           return {
-            days: { ...s.days, [date]: { ...(existing ?? emptyDay(date)), sleep: session } },
-            ...(existing ? null : { dayOrder: [...s.dayOrder.filter((d) => d !== date), date].sort() }),
+            days: { ...s.days, [date]: { ...existing, naps: [...(existing.naps ?? []), session] } },
+            ...(s.days[date] ? null : { dayOrder: [...s.dayOrder.filter((d) => d !== date), date].sort() }),
           };
         }),
 
@@ -634,6 +688,10 @@ export const useAppStore = create<AppStore>()(
       removeRecord: (id) => set((s) => ({ healthRecords: s.healthRecords.filter((r) => r.id !== id) })),
 
       backupNow: () => {
+        // While the stored blob is unreadable, this state is the seed placeholder,
+        // not the user's account. Snapshotting it would overwrite the only valid
+        // recovery copy on the next boot.
+        if (persistWritesBlocked) return { ok: false, at: null };
         const result = saveSnapshot(get());
         if (result.ok && result.at) {
           set((s) => ({ settings: { ...s.settings, lastBackupAt: result.at } }));
@@ -680,7 +738,7 @@ export const useAppStore = create<AppStore>()(
           settings: { ...initial.settings, onboarded: false, demoMode: false, lastBackupAt: null },
           days: {},
           dayOrder: [],
-          journalTags: [],
+          journalTags: defaultJournalTags.map((tag) => ({ ...tag })),
           journalEntries: [],
           biomarkers: [],
           healthRecords: [],
@@ -711,9 +769,11 @@ export const useAppStore = create<AppStore>()(
       // and switch treats as off — so fill defaults in rather than guess.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<typeof current>;
+        const profile = saved.profile ?? current.profile;
         return {
           ...current,
           ...saved,
+          days: saved.days ? recoverWorkoutZones(saved.days, profile.birthDate) : current.days,
           settings: {
             ...current.settings,
             ...saved.settings,

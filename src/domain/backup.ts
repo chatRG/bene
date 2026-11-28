@@ -67,7 +67,6 @@ const RETIRED_SETTING_KEYS = [
 const NUMERIC_METRIC_FIELDS = [
   'steps',
   'activeCalories',
-  'totalCalories',
   'exerciseMinutes',
   'daylightMinutes',
   'hydrationMl',
@@ -77,7 +76,7 @@ const NUMERIC_METRIC_FIELDS = [
 ] as const;
 
 /** Metric counters that are a number or null (never measured that day). */
-const NULLABLE_METRIC_FIELDS = ['daytimeHrvMs', 'tempDeviationC'] as const;
+const NULLABLE_METRIC_FIELDS = ['totalCalories', 'daytimeHrvMs', 'tempDeviationC'] as const;
 
 /** Meal fields screens read directly when they render a log. */
 const NUMERIC_MEAL_FIELDS = ['calories', 'proteinG', 'carbsG', 'fatG', 'fiberG'] as const;
@@ -188,6 +187,9 @@ function dayRecordError(date: string, value: unknown): string | null {
     return damaged(date, 'metrics');
   }
   if (!Array.isArray(value.workouts) || !value.workouts.every(isWorkoutEntry)) return damaged(date, 'workouts');
+  if (value.naps !== undefined && (!Array.isArray(value.naps) || !value.naps.every(isSleepSession))) {
+    return damaged(date, 'naps');
+  }
   if (!Array.isArray(value.meals) || !value.meals.every(isMealEntry)) return damaged(date, 'meals');
   if (!Array.isArray(value.journal) || !value.journal.every(isJournalEntry)) return damaged(date, 'journal');
   return null;

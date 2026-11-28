@@ -50,18 +50,21 @@ export function maxHrFor(config: ZoneConfig): number {
   return estimatedMaxHr(config.age);
 }
 
-/**
- * Published zone table (percent of HR max): 0–49, 50–59, 60–69, 70–79, 80–89, 90–100.
- */
-export function zoneIndex(bpm: number, config: ZoneConfig): number {
-  if (bpm <= 0) return 0;
-  const pct = (bpm / maxHrFor(config)) * 100;
+/** Zone index for a measured heart rate against an explicit maximum. */
+export function zoneIndexForMaxHr(bpm: number, maxHr: number): number {
+  if (bpm <= 0 || maxHr <= 0) return 0;
+  const pct = (bpm / maxHr) * 100;
   if (pct < 50) return 0;
   if (pct < 60) return 1;
   if (pct < 70) return 2;
   if (pct < 80) return 3;
   if (pct < 90) return 4;
   return 5;
+}
+
+/** Published zone table (percent of HR max): 0–49, 50–59, 60–69, 70–79, 80–89, 90–100. */
+export function zoneIndex(bpm: number, config: ZoneConfig): number {
+  return zoneIndexForMaxHr(bpm, maxHrFor(config));
 }
 
 /** Edwards zone weights on %HRR: Z1=1 … Z5=5; zone 0 (rest) contributes zero. */

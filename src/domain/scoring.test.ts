@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildSeed, dateKey } from './seed';
 import { mealsFor, sleepFor, stateWithWeekOfData } from './fixtures';
-import { deriveDay, recentStrains, recoveryBaselineFor, sleepNeedFor, coachInsight } from './derive';
+import { deriveDay, recentStrains, recoveryBaselineFor, sleepNeedFor } from './derive';
 import { nutritionFor } from './scoring/nutrition';
+import { stressSummary } from './scoring/load';
 import { maxHrFor, zoneIndex, type ZoneConfig } from './scoring/zones';
 import { biologicalAge, lifestyleYears, sumContributors, vo2MaxFromDays } from './scoring/biology';
 import { ageFromBirthDate, stageTotals } from './math';
@@ -52,7 +53,7 @@ describe('a logged week', () => {
     expect(totals.asleepMin).toBe(stageSum - totals.awakeMin);
   });
 
-  it('reports recovery, strain and target from the baseline', () => {
+  it('maps a flat week to the neutral recovery anchor', () => {
     const d = deriveDay(stateWithWeekOfData(NOW), TODAY, NOW);
     expect(d.recovery.status).toBe('scored');
     expect(d.recovery.score).toBe(58);
@@ -60,14 +61,49 @@ describe('a logged week', () => {
     expect(d.strain.target).toBe(62);
   });
 
-  it('keeps coaching language accurate when Home shows a historical day', () => {
+  it('does not use stage-less imported sleep to unlock Recovery', () => {
     const data = stateWithWeekOfData(NOW);
-    const historical = data.dayOrder[data.dayOrder.length - 2];
-    const d = deriveDay(data, historical, NOW);
-    d.recovery = { ...d.recovery, status: 'scored', score: 30 };
-    d.strain = { ...d.strain, unscored: true };
-    const insight = coachInsight(d);
-    expect(`${insight.title} ${insight.body}`).not.toMatch(/today|tonight/i);
+    for (const date of data.dayOrder) {
+      data.days[date] = { ...data.days[date], sleep: { ...data.days[date].sleep!, staged: false } };
+    }
+    const d = deriveDay(data, TODAY, NOW);
+    expect(d.recovery.status).toBe('insufficient');
+    expect(d.recovery.reason).toMatch(/two complete nights/i);
+  });
+
+  it('does not report a 0 stress reading when no stress samples exist', () => {
+    const result = stressSummary([], { daysOfBaseline: 60, sleepScore: 80 });
+    expect(result.status).toBe('calibrating');
+  });
+
+  it('takes the recovery baseline from the last four weeks, not the last seven rows', () => {
+    const data = stateWithWeekOfData(NOW);
+    const missing = data.dayOrder[2];
+    delete data.days[missing];
+    const ancient = '2025-01-01';
+    data.days[ancient] = { ...data.days[TODAY], sleep: { ...data.days[TODAY].sleep!, hrvMs: 99, rhrBpm: 40 } };
+    data.dayOrder.push(ancient);
+
+    const baseline = recoveryBaselineFor(data, TODAY);
+
+    expect(baseline.nights).toBe(5);
+    expect(baseline.hrvMs).toBeLessThan(80);
+    expect(baseline.rhrBpm).toBeGreaterThan(45);
+  });
+
+  it('moves Recovery when overnight HRV falls and resting HR rises', () => {
+    const data = stateWithWeekOfData(NOW);
+    data.days[TODAY] = {
+      ...data.days[TODAY],
+      sleep: { ...data.days[TODAY].sleep!, hrvMs: 30, rhrBpm: 62 },
+    };
+    const d = deriveDay(data, TODAY, NOW);
+    expect(d.recovery.status).toBe('scored');
+    expect(d.recovery.score).toBeLessThan(40);
+    const hrv = d.recovery.components.find((c) => c.key === 'hrv');
+    const rhr = d.recovery.components.find((c) => c.key === 'rhr');
+    expect(hrv?.score).toBeLessThan(35);
+    expect(rhr?.score).toBeLessThan(35);
   });
 
   it('uses the activity status that applied on a historical day', () => {
@@ -227,6 +263,7 @@ describe('audit regressions', () => {
       hasRhr: true,
     });
     expect(result.status).toBe('calibrating');
+    expect(result.reason).toContain('0 of 5 nights with HRV');
     expect(result.score).not.toBe(100);
   });
 
@@ -262,6 +299,29 @@ describe('audit regressions', () => {
     // Neutral sleep credit: (60 − 50) × 0.5 over an empty stress exposure.
     expect(shortDay.stress.energyBank).toBe(77);
     expect(shortDay.stress.energyBank).toBe(deriveDay(withNone, TODAY, NOW).stress.energyBank);
+  });
+
+  it('scores an imported workout from the heart rate recorded inside it', () => {
+    const data = stateWithWeekOfData(NOW);
+    const yesterday = data.dayOrder[data.dayOrder.length - 2];
+    const rec = data.days[yesterday];
+    // Health-store workouts arrive with no zone buckets and no average HR.
+    rec.workouts = [{ ...rec.workouts[0], imported: true, avgHr: null, maxHr: null, strain: 0, zoneMinutes: [0, 0, 0, 0, 0, 0] }];
+    const start = new Date(rec.workouts[0].start);
+    const startMin = start.getHours() * 60 + start.getMinutes();
+    rec.metrics.hrSamples = [
+      { minute: 100, bpm: 66 },
+      { minute: startMin + 5, bpm: 138 },
+      { minute: startMin + 20, bpm: 160 },
+      { minute: startMin + 40, bpm: 148 },
+      { minute: startMin + 50, bpm: 120 },
+    ];
+
+    const d = deriveDay(data, yesterday, NOW);
+
+    expect(d.strain.unscored).toBe(false);
+    expect(d.strain.score).toBeGreaterThan(0);
+    expect(d.strain.activeTrimp).toBeGreaterThan(0);
   });
 
   it('scores a day with workout windows the same as computeStrain', () => {
@@ -305,7 +365,7 @@ describe('audit regressions', () => {
     for (const d of data.dayOrder) {
       data.days[d] = { ...data.days[d], sleep: { ...data.days[d].sleep!, stages: [{ stage: 'core' as const, startMin: 0, endMin: 180 }] } };
     }
-    const future = '2026-11-21';
+    const future = '2027-01-01';
     const age = ageFromBirthDate(data.profile.birthDate, future) ?? 30;
     const noDebt = sleepNeedMinutes({
       age,

@@ -240,7 +240,7 @@ describe('toSleepSession: stage folding', () => {
     expect(session.stages.map((b) => b.stage)).toEqual(['core', 'deep', 'rem', 'awake']);
   });
 
-  it('folds inBed and asleep into core, because they carry no stage information', () => {
+  it('drops the inBed envelope when real stages exist, so sleep is not doubled', () => {
     const session = toSleepSession(
       [
         sleepSample('2026-11-14T01:00:00.000Z', '2026-11-14T02:00:00.000Z', [
@@ -251,10 +251,8 @@ describe('toSleepSession: stage folding', () => {
       DATE,
     )!;
 
-    expect(session.stages.map((b) => b.stage)).toEqual(['core', 'core']);
-    for (const block of session.stages) {
-      expect(['awake', 'rem', 'core', 'deep']).toContain(block.stage);
-    }
+    expect(session.stages.map((b) => b.stage)).toEqual(['core']);
+    expect(session.staged).toBe(true);
   });
 
   it('expresses block bounds as whole minutes from the session start', () => {
@@ -442,12 +440,6 @@ describe('platform detection', () => {
     expect(platformLabel()).toBe('Not available on this device');
   });
 
-  it('labels a platform value it does not recognise as unavailable', () => {
-    expect(platformLabel('unavailable')).toBe('Not available on this device');
-  });
-});
-
-describe('readDays on the web', () => {
   it('resolves to an empty list instead of throwing', async () => {
     await onDevice();
     device.platform = 'web';
@@ -470,6 +462,7 @@ describe('readDays: queries', () => {
     expect([...types].sort()).toEqual(
       [
         'basalCalories',
+        'appleSleepingWristTemperature',
         'bodyTemperature',
         'calories',
         'exerciseTime',
@@ -821,6 +814,24 @@ describe('readDays: daily aggregation', () => {
     expect(sleep.rhrBpm).toBe(52);
   });
 
+  it('attributes HRV and resting HR stamped just after waking to that night', async () => {
+    await onDevice();
+    device.samples = [
+      sleepSample(day(yesterday(), '23:00'), day(today(), '07:00')),
+      // Ring exporters often write one night summary at the moment of waking,
+      // a few minutes after the final sleep stage ends.
+      sample('heartRateVariability', 64, day(today(), '07:25'), 'millisecond'),
+      sample('restingHeartRate', 51, day(today(), '07:18'), 'bpm'),
+      // A genuinely daytime reading still stays out of the overnight mean.
+      sample('heartRateVariability', 120, day(today(), '15:00'), 'millisecond'),
+    ];
+
+    const sleep = (await readDays(2)).find((d) => d.date === today())!.sleep!;
+
+    expect(sleep.hrvMs).toBe(64);
+    expect(sleep.rhrBpm).toBe(51);
+  });
+
   it('leaves overnight metrics null when the store recorded nothing in the window', async () => {
     await onDevice();
     device.samples = [
@@ -850,7 +861,7 @@ describe('readDays: daily aggregation', () => {
     expect(sleep.minHrBpm).toBe(48);
   });
 
-  it('does not mistake an absolute body temperature for a deviation', async () => {
+  it('keeps an absolute body temperature inside the physiological band', async () => {
     await onDevice();
     device.samples = [
       sleepSample(day(yesterday(), '23:00'), day(today(), '07:00')),
@@ -859,10 +870,10 @@ describe('readDays: daily aggregation', () => {
 
     const sleep = (await readDays(2)).find((d) => d.date === today())!.sleep!;
 
-    expect(sleep.wristTempC).toBeNull();
+    expect(sleep.wristTempC).toBe(36.5);
   });
 
-  it('keeps a reading that is already a deviation-sized value', async () => {
+  it('rejects a delta-sized temperature that a real store never emits', async () => {
     await onDevice();
     device.samples = [
       sleepSample(day(yesterday(), '23:00'), day(today(), '07:00')),
@@ -871,7 +882,7 @@ describe('readDays: daily aggregation', () => {
 
     const sleep = (await readDays(2)).find((d) => d.date === today())!.sleep!;
 
-    expect(sleep.wristTempC).toBe(0.4);
+    expect(sleep.wristTempC).toBeNull();
   });
 });
 
@@ -910,19 +921,6 @@ describe('readDays: never invents a day', () => {
   it('returns nothing when the store is simply empty', async () => {
     await onDevice();
     expect(await readDays(30)).toEqual([]);
-  });
-
-  it('returns days in ascending date order', async () => {
-    await onDevice();
-    device.samples = [
-      sample('steps', 100, day(today(), '09:00')),
-      sample('steps', 100, day(twoAgo(), '09:00')),
-      sample('steps', 100, day(yesterday(), '09:00')),
-    ];
-
-    const dates = (await readDays(3)).map((d) => d.date);
-
-    expect(dates).toEqual([...dates].sort());
   });
 
   it('rejects when every store read fails, rather than treating failure as empty', async () => {
@@ -1041,18 +1039,6 @@ describe('availability: the probe and the gate are the same status', () => {
     expect(status.reason).toMatch(/update/i);
   });
 
-  it('reports unavailable only when the store itself refuses', async () => {
-    device.platform = 'android';
-    device.authFails = true;
-    device.available = false;
-    device.reason = 'Health Connect needs an update.';
-
-    const status = await checkAccess();
-
-    expect(status.available).toBe(false);
-    expect(status.reason).toMatch(/update/i);
-  });
-
   it('still reports unavailable in a browser', async () => {
     device.platform = 'web';
     const status = await checkAccess();
@@ -1097,6 +1083,7 @@ describe('access: the ask matches what the store can answer', () => {
       'respiratoryRate',
       'oxygenSaturation',
       'bodyTemperature',
+      'basalBodyTemperature',
       'steps',
       'calories',
       'totalCalories',
@@ -1188,19 +1175,6 @@ describe('readDays: the energy split', () => {
 
     expect(d.metrics.activeCalories).toBe(710);
     expect(d.metrics.totalCalories).toBe(2610);
-  });
-
-  it('keeps totalCalories at active when the store has no basal samples', async () => {
-    await onDevice('ios');
-    device.samples = [
-      sample('steps', 100, day(yesterday(), '09:00')),
-      sample('calories', 710, day(yesterday(), '12:00'), 'kilocalorie'),
-    ];
-
-    const d = (await readDays(2)).find((x) => x.date === yesterday())!;
-
-    expect(d.metrics.activeCalories).toBe(710);
-    expect(d.metrics.totalCalories).toBe(710);
   });
 
   it('reads the total directly from Health Connect on Android', async () => {

@@ -226,7 +226,7 @@ function RecoveryInfo({ onClose }: { onClose: () => void }) {
       <div className="list-card" style={{ boxShadow: 'none' }}>
         <div className="list-row">
           <div className="list-icon"><Waves size={16} /></div>
-          <div className="grow"><div className="list-title">Overnight HRV</div><div className="list-sub">Measured inside your sleep window, not during the day</div></div>
+          <div className="grow"><div className="list-title">Overnight HRV</div><div className="list-sub">Measured during sleep or at waking, not during the day</div></div>
         </div>
         <div className="list-row">
           <div className="list-icon"><Heart size={16} /></div>

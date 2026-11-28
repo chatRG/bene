@@ -4,6 +4,9 @@ import { format } from 'date-fns';
 import { Calendar, Check, ChevronLeft, ChevronRight, Clock, Dumbbell, Flame, Footprints, MoreHorizontal, Play, Snowflake, Timer, Watch, Zap } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
+import { ageFromBirthDate } from '../domain/math';
+import { estimatedMaxHr, workoutTrimp } from '../domain/scoring/zones';
+import { strainFromTrimp, workoutZoneMinutes } from '../domain/scoring/strain';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
 import { useGoBack } from '../native';
@@ -104,7 +107,7 @@ export function WorkoutDetailScreen() {
 
         <div className="device-bar mt-16">
           <span>Device</span>
-          <span className="row gap-6" style={{ color: 'var(--text)', fontWeight: 500 }}><Watch size={15} /> Apple Watch <ChevronRight size={14} className="chevron" /></span>
+          <span className="row gap-6" style={{ color: 'var(--text)', fontWeight: 500 }}><Watch size={15} /> {workout?.source ?? 'Bene'}</span>
         </div>
 
         {startedAt == null ? (
@@ -125,6 +128,9 @@ export function WorkoutDetailScreen() {
                 className="btn btn--block"
                 onClick={() => {
                   const duration = Math.max(1, Math.round(elapsed / 60));
+                  const shares = isRun ? [0.1, 0.25, 0.35, 0.2, 0.1, 0] : [0.2, 0.3, 0.25, 0.15, 0.1, 0];
+                  const zoneMinutes = shares.map((share) => Math.round(duration * share)) as [number, number, number, number, number, number];
+                  zoneMinutes[2] += duration - zoneMinutes.reduce((sum, minutes) => sum + minutes, 0);
                   const w: Workout = {
                     id: `workout-${Date.now()}`,
                     kind: routine.kind,
@@ -133,13 +139,13 @@ export function WorkoutDetailScreen() {
                     start: new Date(Date.now() - elapsed * 1000).toISOString(),
                     durationMin: duration,
                     distanceKm: isRun ? Math.round(duration * 0.16 * 10) / 10 : null,
-                    avgHr: isRun ? 148 : 118,
-                    maxHr: isRun ? 168 : 150,
-                    calories: Math.round(duration * (isRun ? 10.5 : 7)),
-                    strain: Math.round(duration * 0.85),
-                    source: 'Apple Watch',
+                    avgHr: null,
+                    maxHr: null,
+                    calories: null,
+                    strain: 0,
+                    source: 'Bene',
                     imported: false,
-                    zoneMinutes: isRun ? [3, 7, 10, 8, 2, 0] : [6, 10, 8, 3, 1, 0],
+                    zoneMinutes,
                     exercises: routine.exercises.length ? routine.exercises.map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, sets: e.sets.map((x) => ({ id: x.id, reps: x.reps, weightKg: x.weightKg, rpe: 7.5, type: x.type, completed: true })) })) : undefined,
                   };
                   state.logWorkout(w);
@@ -186,7 +192,17 @@ export function WorkoutDetailScreen() {
   const w = workout!;
   const zoneLabels = ['Rest', 'Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
   const zoneColors = ['#d8d8dc', '#9ac8ff', '#5f9df8', '#ffc83d', '#ff7a33', '#ff5a5f'];
-  const totalZone = w.zoneMinutes.reduce((a, b) => a + b, 0) || 1;
+  const hrSamples = state.days[w.date]?.metrics.hrSamples ?? [];
+  const maxHr = estimatedMaxHr(ageFromBirthDate(state.profile.birthDate, w.date) ?? 30);
+  const zones = w.zoneMinutes.some((minutes) => minutes > 0)
+    ? w.zoneMinutes
+    : workoutZoneMinutes(w, hrSamples, maxHr);
+  const totalZone = zones.reduce((a, b) => a + b, 0) || 1;
+  const workoutStrain = w.strain > 0 ? w.strain : Math.round(strainFromTrimp(workoutTrimp(zones)));
+  const startMinute = new Date(w.start).getHours() * 60 + new Date(w.start).getMinutes();
+  const inWorkout = hrSamples.filter((s) => s.minute >= startMinute && s.minute <= startMinute + w.durationMin);
+  const avgHr = w.avgHr ?? (inWorkout.length ? Math.round(inWorkout.reduce((sum, s) => sum + s.bpm, 0) / inWorkout.length) : null);
+  const peakHr = w.maxHr ?? (inWorkout.length ? Math.max(...inWorkout.map((s) => s.bpm)) : null);
   return (
     <div className="screen screen--detail">
       <div className="detail-head">
@@ -205,25 +221,27 @@ export function WorkoutDetailScreen() {
       <div className="metric-pair">
         <div className="metric-card"><div className="metric-card__label"><Clock size={13} /> Duration</div><div className="metric-card__value"><strong>{w.durationMin}</strong><span>min</span></div></div>
         <div className="metric-card"><div className="metric-card__label"><Flame size={13} /> Calories</div><div className="metric-card__value"><strong>{w.calories ?? '—'}</strong><span>kcal</span></div></div>
-        <div className="metric-card"><div className="metric-card__label"><Zap size={13} /> Strain</div><div className="metric-card__value"><strong>{Math.round(w.strain)}</strong><span>%</span></div></div>
+        <div className="metric-card"><div className="metric-card__label"><Zap size={13} /> Strain</div><div className="metric-card__value"><strong>{workoutStrain}</strong><span>%</span></div></div>
         <div className="metric-card"><div className="metric-card__label"><Footprints size={13} /> Distance</div><div className="metric-card__value"><strong>{w.distanceKm?.toFixed(1) ?? '—'}</strong><span>km</span></div></div>
       </div>
 
       <div className="chart-card mt-12">
-        <div className="chart-card__head"><span className="chart-card__title">Heart rate</span><span className="caption">Avg {w.avgHr ?? '—'} · Max {w.maxHr ?? '—'} bpm</span></div>
-        <div className="caption mt-8">No heart-rate samples stored for this workout.</div>
+        <div className="chart-card__head"><span className="chart-card__title">Heart rate</span><span className="caption">Avg {avgHr ?? '—'} · Max {peakHr ?? '—'} bpm</span></div>
+        <div className="caption mt-8">{inWorkout.length
+          ? `${inWorkout.length} heart-rate samples recorded during this workout.`
+          : 'No heart-rate samples stored for this workout.'}</div>
       </div>
 
       <div className="section">
         <div className="section-title" style={{ marginBottom: 12 }}>Time in zones</div>
         <div className="card">
           <div className="row gap-2" style={{ height: 12 }}>
-            {w.zoneMinutes.map((m, i) => (
+            {zones.map((m, i) => (
               <span key={i} style={{ width: `${(m / totalZone) * 100}%`, background: zoneColors[i], borderRadius: 4, height: '100%' }} />
             ))}
           </div>
           <div className="col gap-2 mt-12" style={{ gap: 6 }}>
-            {w.zoneMinutes.map((m, i) => (
+            {zones.map((m, i) => (
               <div className="row-between" key={i} style={{ fontSize: 11.5 }}>
                 <span className="row gap-6"><i style={{ width: 7, height: 7, borderRadius: 9, background: zoneColors[i], display: 'inline-block' }} />{zoneLabels[i]}</span>
                 <span className="mono-num">{m} min</span>

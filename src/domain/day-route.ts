@@ -7,9 +7,10 @@ export const DAY_QUERY = 'date';
  * query parameter so the destination shows the same day, while direct links
  * without one keep opening today.
  *
- * Only real, existing dates at or before today are accepted. A stale or
- * hand-edited link must not open a future day or an empty day outside the
- * user's timeline.
+ * Only real dates inside the user's timeline at or before today are accepted.
+ * The date does not need a DayRecord: Home lets the user select a day before
+ * anything was logged, and its detail screens must keep that same day rather
+ * than silently switching to today.
  */
 export function dayFromSearch(
   search: string,
@@ -20,7 +21,7 @@ export function dayFromSearch(
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value > today) return today;
   const parsed = new Date(`${value}T12:00:00`);
   if (Number.isNaN(parsed.getTime()) || dateKey(parsed) !== value) return today;
-  if (dayOrder.length > 0 && !dayOrder.includes(value)) return today;
+  if (dayOrder.length > 0 && value < dayOrder[0]) return today;
   return value;
 }
 

@@ -23,8 +23,8 @@ export function stressSummary(
   samples: { minute: number; score: number }[],
   opts: { daysOfBaseline: number; sleepScore: number | null },
 ): StressSummary {
-  const scored = opts.daysOfBaseline >= 30;
   const values = samples.map((s) => s.score);
+  const scored = opts.daysOfBaseline >= 30 && values.length > 0;
   const current = values.length ? values[values.length - 1] : 0;
   const high = values.length ? Math.max(...values) : 0;
   const low = values.length ? Math.min(...values) : 0;

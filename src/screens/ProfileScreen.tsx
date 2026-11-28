@@ -17,6 +17,7 @@ import { useAppStore } from '../store/useAppStore';
 import { DetailHeader, ListRow } from '../components/ui';
 import { HealthSourceRow } from '../components/health-source';
 import { showToast } from '../components/toast';
+import { APP_VERSION } from '../domain/version';
 
 const REPO = 'https://github.com/chatRG/bene';
 
@@ -25,7 +26,7 @@ const REPO = 'https://github.com/chatRG/bene';
  * shortcut cannot point at a file, so the tag is named explicitly — bump it
  * together with `versionName` in android/app/build.gradle.
  */
-const RELEASE_VERSION = '0.3.9';
+const RELEASE_VERSION = APP_VERSION;
 const DOWNLOAD_URL = `${REPO}/releases/download/v${RELEASE_VERSION}/bene-v${RELEASE_VERSION}-release.apk`;
 
 async function inviteAFriend() {

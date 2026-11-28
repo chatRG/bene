@@ -11,6 +11,7 @@ const bridge = vi.hoisted(() => ({
   requestAccess: vi.fn(),
   checkAccess: vi.fn(),
   readDays: vi.fn(),
+  failures: 0,
 }));
 
 vi.mock('./health', () => ({
@@ -20,6 +21,7 @@ vi.mock('./health', () => ({
   requestAccess: bridge.requestAccess,
   checkAccess: bridge.checkAccess,
   readDays: bridge.readDays,
+  lastHealthReadFailures: () => bridge.failures,
   openSettings: vi.fn(),
 }));
 
@@ -58,6 +60,7 @@ describe('health link flow', () => {
     bridge.requestAccess.mockReset();
     bridge.checkAccess.mockReset();
     bridge.readDays.mockReset();
+    bridge.failures = 0;
   });
   afterEach(() => vi.clearAllMocks());
 
@@ -96,6 +99,20 @@ describe('health link flow', () => {
     expect(sentence(link.days)).toBe('Connected — 2 days of history read on this device.');
     expect(link.detail).toBe('Connected — 2 days of history read on this device.');
     expect(link.syncedAt).not.toBeNull();
+  });
+
+  it('does not advance the cursor when only part of the store answered', async () => {
+    bridge.checkAccess.mockResolvedValue(ok(['sleep', 'steps']));
+    bridge.readDays.mockResolvedValue([day('2026-11-20')]);
+    bridge.failures = 1;
+    const importDays = vi.fn();
+
+    const link = await readAndImport(importDays, '2026-11-18T10:00:00.000Z');
+
+    expect(importDays).toHaveBeenCalledWith([day('2026-11-20')], undefined);
+    expect(link.syncedAt).toBe('2026-11-18T10:00:00.000Z');
+    expect(link.detail).toMatch(/could not be read/);
+    expect(link.detail).toMatch(/retried/);
   });
 
   it('says the store is empty rather than inventing a day', async () => {

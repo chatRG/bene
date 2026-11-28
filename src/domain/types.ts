@@ -46,6 +46,8 @@ export interface SleepSession {
   timeToFallAsleepMin: number | null;
   alarm: AlarmSettings | null;
   imported?: boolean;
+  /** False only for a session the importer synthesised because the store gave no stage detail. */
+  staged?: boolean;
 }
 
 export interface StageTotals {
@@ -218,6 +220,8 @@ export interface DayRecord {
   workouts: Workout[];
   meals: MealEntry[];
   journal: JournalEntry[];
+  /** Daytime naps, kept separate from the primary overnight session. */
+  naps?: SleepSession[];
 }
 
 export interface Biomarker {
@@ -311,6 +315,8 @@ export interface AppSettings {
   sleepGoalMin: number;
   calorieGoal: number;
   proteinGoalG: number;
+  carbGoalG?: number;
+  fatGoalG?: number;
   aiPersonality: 'supportive' | 'direct' | 'analytical' | 'playful';
   aiEnabled: boolean;
   ghostDefault: boolean;

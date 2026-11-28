@@ -9,7 +9,7 @@
 import { differenceInCalendarDays, isValid } from 'date-fns';
 import type { DayRecord } from '../domain/types';
 import type { HealthPlatform, HealthStatus } from './health';
-import { checkAccess, openSettings, platform, platformLabel, readDays, requestAccess } from './health';
+import { checkAccess, lastHealthReadFailures, openSettings, platform, platformLabel, readDays, requestAccess } from './health';
 import { storeGeneration } from '../store/useAppStore';
 
 /** What the UI knows before anything has been read this session. */
@@ -158,7 +158,7 @@ function withDeadline<T>(promise: Promise<T>, operation: string): Promise<T> {
 }
 
 export function readAndImport(
-  importDays: (records: DayRecord[], syncedAt: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string) => void,
   lastSyncedAt: string | null = null,
 ): Promise<HealthLink> {
   // Startup and pull-to-refresh can arrive together. They write to the same
@@ -176,7 +176,7 @@ export function readAndImport(
 }
 
 async function performReadAndImport(
-  importDays: (records: DayRecord[], syncedAt: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string) => void,
   lastSyncedAt: string | null,
 ): Promise<HealthLink> {
   let status: HealthStatus;
@@ -223,24 +223,27 @@ async function performReadAndImport(
     };
   }
 
-  importDays(records, syncedAt);
+  const failed = lastHealthReadFailures();
+  importDays(records, failed ? undefined : syncedAt);
   return {
     ...initialLink(),
     ...base,
     phase: 'connected',
     days: records.length,
-    syncedAt,
-    detail: records.length
-      ? describe(records.length)
-      : lastSyncedAt
-        ? 'Connected — no new health data since the last sync.'
-        : describe(0),
+    syncedAt: failed ? lastSyncedAt : syncedAt,
+    detail: failed
+      ? `${records.length} ${records.length === 1 ? 'day' : 'days'} imported, but some health types could not be read. That window will be retried.`
+      : records.length
+        ? describe(records.length)
+        : lastSyncedAt
+          ? 'Connected — no new health data since the last sync.'
+          : describe(0),
   };
 }
 
 /** Prompt for access, then read and merge. Used by "Connect". */
 export function connectAndImport(
-  importDays: (records: DayRecord[], syncedAt: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string) => void,
 ): Promise<HealthLink> {
   if (connectInFlight) return connectInFlight;
   const run = (async () => {
@@ -264,7 +267,7 @@ export function connectAndImport(
 }
 
 async function performConnectAndImport(
-  importDays: (records: DayRecord[], syncedAt: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string) => void,
 ): Promise<HealthLink> {
   let status: HealthStatus;
   try {
@@ -312,14 +315,16 @@ async function performConnectAndImport(
     };
   }
 
-  importDays(records, syncedAt);
+  importDays(records, lastHealthReadFailures() ? undefined : syncedAt);
   return {
     ...initialLink(),
     ...base,
     phase: 'connected',
     days: records.length,
-    syncedAt,
-    detail: describe(records.length),
+    syncedAt: lastHealthReadFailures() ? null : syncedAt,
+    detail: lastHealthReadFailures()
+      ? `${records.length} ${records.length === 1 ? 'day' : 'days'} imported, but some health types could not be read. That window will be retried.`
+      : describe(records.length),
   };
 }
 

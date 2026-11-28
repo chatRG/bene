@@ -142,14 +142,26 @@ export function recoveryScore(input: RecoveryInput): RecoveryResult {
         : 'Overnight resting heart rate is missing from the sleep window.',
     };
   }
-  if (input.sleepScore == null || Math.min(carriedNights(input, 'hrv'), carriedNights(input, 'rhr')) < 5) {
+  if (input.sleepScore == null) {
     return {
       ...base,
       status: 'calibrating',
       score: null,
       label: 'Calibrating',
       components: [],
-      reason: 'Building your personal baseline. This takes 2–6 weeks.',
+      reason: 'Last night was too short to score. Recovery needs a complete staged night.',
+    };
+  }
+  if (Math.min(carriedNights(input, 'hrv'), carriedNights(input, 'rhr')) < 5) {
+    const hrvNights = carriedNights(input, 'hrv');
+    const rhrNights = carriedNights(input, 'rhr');
+    return {
+      ...base,
+      status: 'calibrating',
+      score: null,
+      label: 'Calibrating',
+      components: [],
+      reason: `Building your personal baseline: ${hrvNights} of 5 nights with HRV and ${rhrNights} of 5 with resting HR.`,
     };
   }
 

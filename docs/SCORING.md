@@ -57,8 +57,8 @@ The Sleep Bank is a seven-day, recency-weighted sum of `(asleep − goal)` with 
 **Hard gates**, in order:
 
 1. At least **two complete nights** with stages. If not, the gate returns `insufficient`.
-2. Overnight HRV present **inside the sleep window**. If not, the gate returns `insufficient`.
-3. Overnight RHR present. If not, the gate returns `insufficient`.
+2. Overnight HRV present **inside the sleep window, or within two hours of waking**. Ring exporters often stamp one nightly summary at waking rather than during a stage. If no reading is present, the gate returns `insufficient`.
+3. Overnight RHR present **inside the sleep window, or within two hours of waking**. If no reading is present, the gate returns `insufficient`.
 4. At least five baseline nights that carried overnight HRV and RHR, and a scored sleep session. If not, the gate returns `calibrating`.
 
 **Components and weights** (ported from NOOP's transparent `RecoveryScorer`). Bene drops missing optional terms and renormalises the weights. A term is also dropped — and the weights renormalised — when the baseline contains no nights that measured it, and the calibration gate counts only the baseline nights that carried overnight HRV and RHR.
@@ -77,7 +77,7 @@ Display bands: `Primed ≥ 85`, `Ready ≥ 67`, `Steady ≥ 50`, `Low ≥ 34`, o
 
 ## Strain (0–100+, never clamped)
 
-`TRIMP_workout = Σ zoneMinutes × [0, 1, 2, 3, 4, 5]` (Edwards weights on %HRR)
+`TRIMP_workout = Σ zoneMinutes × [0, 1, 2, 3, 4, 5]` (Edwards weights on %HRR). A workout logged by hand carries its own zone minutes. A workout imported from the health store has none, so Bene fills them from the heart-rate samples recorded inside that workout's window, splitting the duration between neighbouring samples. A workout with no heart-rate samples contributes no measured load rather than an invented estimate.
 
 `TRIMP_passive = Σ zoneWeight(HR) × sampleMinutes`, excluding samples inside logged workout windows
 

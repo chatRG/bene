@@ -16,7 +16,12 @@ describe('day routes', () => {
     expect(dayFromSearch('?date=not-a-day', days, today)).toBe(today);
   });
 
-  it('does not open a day outside the timeline', () => {
+  it('keeps a selectable day that has no record yet', () => {
+    expect(dayFromSearch('?date=2026-11-24', days, today)).toBe('2026-11-24');
+    expect(dayFromSearch('?date=2026-11-23', ['2026-11-22', '2026-11-24', '2026-11-25'], today)).toBe('2026-11-23');
+  });
+
+  it('does not open a day before the timeline started', () => {
     expect(dayFromSearch('?date=2026-11-20', days, today)).toBe(today);
   });
 

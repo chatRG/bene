@@ -3,7 +3,7 @@ import type { AppSettings, AppStateData, DayRecord, JournalTag, UserProfile } fr
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-const defaultJournalTags: JournalTag[] = [
+export const defaultJournalTags: JournalTag[] = [
   { id: 'alcohol', label: 'Alcohol', kind: 'yesno', pinned: true, category: 'lifestyle', icon: '🍷' },
   { id: 'caffeine', label: 'Caffeine after 2pm', kind: 'yesno', pinned: true, category: 'lifestyle', icon: '☕' },
   { id: 'mood', label: 'Mood', kind: 'yesneutralno', pinned: true, category: 'mind', icon: '🙂' },
@@ -39,6 +39,8 @@ export function buildSeed(now = new Date()): AppStateData {
     sleepGoalMin: 552,
     calorieGoal: 2504,
     proteinGoalG: 180,
+    carbGoalG: 240,
+    fatGoalG: 70,
     aiPersonality: 'supportive',
     aiEnabled: true,
     ghostDefault: false,
@@ -90,7 +92,7 @@ export function emptyDay(date: string): DayRecord {
       date,
       steps: 0,
       activeCalories: 0,
-      totalCalories: 0,
+      totalCalories: null,
       exerciseMinutes: 0,
       daylightMinutes: 0,
       hydrationMl: 0,
@@ -105,5 +107,6 @@ export function emptyDay(date: string): DayRecord {
     workouts: [],
     meals: [],
     journal: [],
+    naps: [],
   };
 }
