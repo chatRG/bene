@@ -253,6 +253,9 @@ export function parseBackup(raw: string): ParseResult {
   const cursor = settings.lastHealthSyncAt;
   const cursorMs = typeof cursor === 'string' ? Date.parse(cursor) : Number.NaN;
   settings.lastHealthSyncAt = Number.isFinite(cursorMs) && cursorMs <= Date.now() + 5 * 60000 ? cursor : null;
+  const attempt = settings.lastHealthAttemptAt;
+  const attemptMs = typeof attempt === 'string' ? Date.parse(attempt) : Number.NaN;
+  settings.lastHealthAttemptAt = Number.isFinite(attemptMs) && attemptMs <= Date.now() + 5 * 60000 ? attempt : null;
   return { ok: true, data: { ...data, settings: settings as unknown as BackupPayload['settings'] }, exportedAt: obj.exportedAt ?? new Date().toISOString() };
 }
 

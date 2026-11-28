@@ -21,7 +21,7 @@ function resetToOnboardedAccount() {
   useAppStore.setState({
     days: {},
     dayOrder: [],
-    settings: { ...state.settings, onboarded: true, demoMode: false, lastHealthSyncAt: null },
+    settings: { ...state.settings, onboarded: true, demoMode: false, lastHealthSyncAt: null, lastHealthAttemptAt: null },
     profile: { ...state.profile, name: 'Test', birthDate: '1990-01-01' },
   });
 }
@@ -363,8 +363,18 @@ describe('health import merging', () => {
 
   it('advances the sync cursor even when a successful read has no samples', () => {
     const syncedAt = '2026-11-21T10:15:00.000Z';
-    useAppStore.getState().importHealthDays([], syncedAt);
+    useAppStore.getState().importHealthDays([], syncedAt, syncedAt);
     expect(useAppStore.getState().settings.lastHealthSyncAt).toBe(syncedAt);
+    expect(useAppStore.getState().settings.lastHealthAttemptAt).toBe(syncedAt);
+  });
+
+  it('records the attempt without moving the retry cursor when a type failed', () => {
+    const cursor = '2026-11-20T10:15:00.000Z';
+    const attempt = '2026-11-22T10:15:00.000Z';
+    useAppStore.getState().importHealthDays([], cursor, cursor);
+    useAppStore.getState().importHealthDays([], undefined, attempt);
+    expect(useAppStore.getState().settings.lastHealthSyncAt).toBe(cursor);
+    expect(useAppStore.getState().settings.lastHealthAttemptAt).toBe(attempt);
   });
 
   it('keeps hand-logged counters when a health read replaces the measured ones', () => {

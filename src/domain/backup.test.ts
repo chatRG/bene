@@ -52,9 +52,11 @@ describe('backup validation', () => {
     const file = validBackup();
     const future = new Date(Date.now() + 3 * 86400000).toISOString();
     file.data.settings.lastHealthSyncAt = future;
+    file.data.settings.lastHealthAttemptAt = future;
     const result = parseBackup(JSON.stringify(file));
     expect(result.ok).toBe(true);
     expect(result.ok && result.data.settings.lastHealthSyncAt).toBeNull();
+    expect(result.ok && result.data.settings.lastHealthAttemptAt).toBeNull();
   });
 
   it('reports a failed snapshot instead of a timestamp', () => {

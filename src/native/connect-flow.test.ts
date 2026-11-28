@@ -93,7 +93,7 @@ describe('health link flow', () => {
     bridge.readDays.mockResolvedValue([day('2026-11-20'), day('2026-11-21')]);
     const importDays = vi.fn();
     const link = await connectAndImport(importDays);
-    expect(importDays).toHaveBeenCalledWith([day('2026-11-20'), day('2026-11-21')], expect.any(String));
+    expect(importDays).toHaveBeenCalledWith([day('2026-11-20'), day('2026-11-21')], expect.any(String), expect.any(String));
     expect(link.phase).toBe('connected');
     expect(link.days).toBe(2);
     expect(sentence(link.days)).toBe('Connected — 2 days of history read on this device.');
@@ -109,7 +109,7 @@ describe('health link flow', () => {
 
     const link = await readAndImport(importDays, '2026-11-18T10:00:00.000Z');
 
-    expect(importDays).toHaveBeenCalledWith([day('2026-11-20')], undefined);
+    expect(importDays).toHaveBeenCalledWith([day('2026-11-20')], undefined, expect.any(String));
     expect(link.syncedAt).toBe('2026-11-18T10:00:00.000Z');
     expect(link.detail).toMatch(/could not be read/);
     expect(link.detail).toMatch(/retried/);
@@ -120,7 +120,7 @@ describe('health link flow', () => {
     bridge.readDays.mockResolvedValue([]);
     const importDays = vi.fn();
     const link = await connectAndImport(importDays);
-    expect(importDays).toHaveBeenCalledWith([], expect.any(String));
+    expect(importDays).toHaveBeenCalledWith([], expect.any(String), expect.any(String));
     expect(link.days).toBe(0);
     expect(link.detail).toMatch(/health store is empty/);
   });
@@ -155,7 +155,7 @@ describe('health link flow', () => {
     // first morning read. A zero-day window starts at midnight and would split
     // the night, so an incremental read never goes below one whole day.
     expect(bridge.readDays).toHaveBeenCalledWith(1);
-    expect(importDays).toHaveBeenCalledWith([], expect.any(String));
+    expect(importDays).toHaveBeenCalledWith([], expect.any(String), expect.any(String));
     expect(link.detail).toMatch(/no new health data/);
   });
 

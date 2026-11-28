@@ -56,6 +56,7 @@ export function buildSeed(now = new Date()): AppStateData {
     autoBackup: true,
     lastBackupAt: null,
     lastHealthSyncAt: null,
+    lastHealthAttemptAt: null,
   };
 
   const profile: UserProfile = {
