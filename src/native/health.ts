@@ -30,6 +30,8 @@ export const READ_TYPES: HealthDataType[] = [
   'respiratoryRate',
   'oxygenSaturation',
   'bodyTemperature',
+  'basalBodyTemperature',
+  'appleSleepingWristTemperature',
   'steps',
   'calories',
   'totalCalories',
@@ -51,6 +53,14 @@ export function platformLabel(p: HealthPlatform = platform()): string {
   if (p === 'health-connect') return 'Health Connect';
   return 'Not available on this device';
 }
+
+/**
+ * Number of per-type queries that failed in the most recent readDays call.
+ * The caller leaves the sync cursor untouched when this is non-zero, so the
+ * failed type is retried instead of being skipped forever.
+ */
+let lastReadFailures = 0;
+export const lastHealthReadFailures = () => lastReadFailures;
 
 /**
  * The types to ask the store about, trimmed to the current platform.
@@ -76,7 +86,9 @@ export function platformLabel(p: HealthPlatform = platform()): string {
  */
 export function readTypes(): HealthDataType[] {
   if (platform() !== 'health-connect') return READ_TYPES.filter((t) => t !== 'totalCalories');
-  return READ_TYPES.filter((t) => t !== 'exerciseTime' && t !== 'basalCalories').concat('distance');
+  return READ_TYPES.filter(
+    (t) => t !== 'exerciseTime' && t !== 'basalCalories' && t !== 'appleSleepingWristTemperature',
+  ).concat('distance');
 }
 
 export interface HealthStatus {
@@ -219,13 +231,40 @@ export function toSleepSession(samples: HealthSample[], date: ISODate): SleepSes
   const relevant = samples.filter((s) => s.dataType === 'sleep');
   if (!relevant.length) return null;
 
+  // HealthKit returns samples from every app that writes sleep. Choose one
+  // source for the night — the one with the most real stage segments — rather
+  // than summing a watch and a ring recording the same hours.
+  const groups = new Map<string, HealthSample[]>();
+  for (const sample of relevant) {
+    const key = sample.sourceName ?? '';
+    groups.set(key, [...(groups.get(key) ?? []), sample]);
+  }
+  // HealthKit normally stamps every segment with its source. If only one
+  // named source exists and some segments omit the name, treat them as that
+  // source rather than silently choosing only the named subset.
+  const named = [...groups.keys()].filter(Boolean);
+  if (named.length === 1 && groups.has('')) {
+    groups.set(named[0], [...groups.get(named[0])!, ...groups.get('')!]);
+    groups.delete('');
+  }
+  const nightScore = (group: HealthSample[]) => {
+    const staged = group.filter((s) => (s.stages ?? []).some((b) => b.stage !== 'inBed')).length;
+    const span = group.reduce((sum, s) => sum + Math.max(0, new Date(s.endDate).getTime() - new Date(s.startDate).getTime()), 0);
+    return [staged, span] as const;
+  };
+  const chosen = [...groups.values()].sort((a, b) => {
+    const [aStages, aSpan] = nightScore(a);
+    const [bStages, bSpan] = nightScore(b);
+    return bStages - aStages || bSpan - aSpan;
+  })[0];
+
   // One stage per sample, more than one sample: the iOS per-segment shape.
-  if (relevant.length > 1 && relevant.every((s) => (s.stages?.length ?? 0) === 1)) {
-    return mergeSleepSegments(relevant, date);
+  if (chosen.length > 1 && chosen.every((s) => (s.stages?.length ?? 0) === 1)) {
+    return mergeSleepSegments(chosen, date);
   }
 
   // Prefer the most complete block: the longest session that morning.
-  const primary = relevant.reduce((a, b) =>
+  const primary = chosen.reduce((a, b) =>
     new Date(b.endDate).getTime() - new Date(b.startDate).getTime() >
     new Date(a.endDate).getTime() - new Date(a.startDate).getTime()
       ? b
@@ -256,8 +295,9 @@ function finishSleepSession(
 ): SleepSession | null {
   if (!(end.getTime() > start.getTime())) return null;
 
-  const blocks: SleepStageBlock[] = rawStages
+  const mapped = rawStages
     .map((s) => ({
+      rawStage: s.stage,
       stage: STAGE_MAP[s.stage] ?? 'core',
       startMin: minutesFrom(s.startDate, start),
       endMin: minutesFrom(s.endDate, start),
@@ -265,8 +305,18 @@ function finishSleepSession(
     .filter((b) => b.endMin > b.startMin)
     .sort((a, b) => a.startMin - b.startMin);
 
+  // Apple Health writes an inBed span covering the whole night *and* the
+  // staged segments inside it. Summing both doubles every asleep minute, so
+  // drop the in-bed envelope whenever real sleep stages exist.
+  const hasRealStages = mapped.some((b) => b.rawStage !== 'inBed');
+  const blocks: SleepStageBlock[] = (hasRealStages ? mapped.filter((b) => b.rawStage !== 'inBed') : mapped).map(
+    ({ stage, startMin, endMin }) => ({ stage, startMin, endMin }),
+  );
+
+  let staged = hasRealStages;
   if (!blocks.length) {
     blocks.push({ stage: 'core', startMin: 0, endMin: Math.round((end.getTime() - start.getTime()) / 60000) });
+    staged = false;
   }
 
   return {
@@ -285,6 +335,7 @@ function finishSleepSession(
     timeToFallAsleepMin: null,
     alarm: null,
     imported: true,
+    staged,
   };
 }
 
@@ -609,7 +660,10 @@ function toAggregatedSample(bucket: AggregatedSample): HealthSample {
 
 export async function readDays(days = 30): Promise<DayRecord[]> {
   const p = platform();
-  if (p === 'unavailable') return [];
+  if (p === 'unavailable') {
+    lastReadFailures = 0;
+    return [];
+  }
 
   // The window is built from local calendar dates, not raw milliseconds: end
   // of today back to local midnight `days` ago. A `days * 86400000` offset
@@ -622,6 +676,9 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   // Where the store reports the non-active half of the day's energy (see
   // readTypes): Health Connect as a total, HealthKit as basal samples.
   const basalType: HealthDataType = p === 'health-connect' ? 'totalCalories' : 'basalCalories';
+  // Wrist-specific records carry the overnight temperature; generic body
+  // temperature is the fallback for stores that only expose that.
+  const wristTempType: HealthDataType = p === 'health-connect' ? 'basalBodyTemperature' : 'appleSleepingWristTemperature';
 
   // Steps on Health Connect are read through the aggregate API, not raw
   // samples: the store applies source priority to overlapping devices, so its
@@ -670,13 +727,14 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     }
   })();
 
-  const [sleep, hrv, rhr, resp, spo2, temp, steps, cals, basal, hr, exercise, workouts] = await Promise.all([
+  const [sleep, hrv, rhr, resp, spo2, temp, wristTemp, steps, cals, basal, hr, exercise, workouts] = await Promise.all([
     readSleep(sleepRange, days, stats),
     readRange('heartRateVariability', range, days, 2000, stats),
     readRange('restingHeartRate', range, days, 500, stats),
     readRange('respiratoryRate', range, days, 500, stats),
     readRange('oxygenSaturation', range, days, 500, stats),
     readRange('bodyTemperature', range, days, 500, stats),
+    readRange(wristTempType, range, days, 500, stats),
     stepsRead,
     readRange('calories', range, days, 2000, stats),
     readRange(basalType, range, days, 2000, stats),
@@ -696,7 +754,9 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
   // A totally failed store read used to look exactly like an empty store: every
   // query was swallowed into []. That advanced the sync cursor and permanently
   // skipped the whole window. Partial failures still import the types that did
-  // answer; a read where nothing answered is an error the caller can retry.
+  // answer, but the caller must leave the cursor alone so the failed type is
+  // read again on the next sync.
+  lastReadFailures = stats.failed;
   if (stats.attempted > 0 && stats.failed === stats.attempted) {
     throw new Error('Every health-store read failed.');
   }
@@ -751,16 +811,25 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     }
   }
   const sleepByDate = new Map<string, HealthSample[]>();
+  const isNightCluster = (cluster: HealthSample[]) => {
+    const start = new Date(cluster[0].startDate);
+    const hours = start.getHours();
+    const span = cluster.reduce((sum, s) => sum + Math.max(0, new Date(s.endDate).getTime() - new Date(s.startDate).getTime()), 0);
+    return hours >= 18 || (hours < 12 && span >= 2 * 60 * 60000);
+  };
   for (const night of nights) {
     const ended = Math.max(...night.map((s) => new Date(s.endDate ?? s.startDate).getTime()));
     const d = dateKey(new Date(ended));
     const current = sleepByDate.get(d);
-    // Two clusters can end on the same morning — an overnight night and a
-    // separate nap. They must stay separate: merging them would stretch the
-    // session and the overnight metric queries across the daytime gap. Bene
-    // keeps one session per day, so the longer cluster is the night and the
-    // shorter one is not scored as sleep that day.
-    if (!current || nightSpan(night) > nightSpan(current)) sleepByDate.set(d, night);
+    // Two clusters can end on the same morning: a split night (a long waking
+    // gap, a removed watch) or a daytime nap. Union two night-shaped clusters
+    // so a broken night is not silently truncated; a nap stays separate and
+    // the longer cluster wins.
+    if (current && isNightCluster(current) && isNightCluster(night)) {
+      sleepByDate.set(d, [...current, ...night]);
+    } else if (!current || nightSpan(night) > nightSpan(current)) {
+      sleepByDate.set(d, night);
+    }
   }
   for (const [date, samples] of sleepByDate) {
     // A night whose read window was still capped after splitting is missing an
@@ -772,15 +841,20 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     const day = dayFor(date);
     const from = session.start;
     const to = session.end;
-    session.hrvMs = meanIn(hrv.samples, 'heartRateVariability', from, to);
-    session.rhrBpm = meanIn(rhr.samples, 'restingHeartRate', from, to);
-    session.respiratoryRate = meanIn(resp.samples, 'respiratoryRate', from, to);
-    session.spo2 = meanIn(spo2.samples, 'oxygenSaturation', from, to);
-    const t = meanIn(temp.samples, 'bodyTemperature', from, to);
-    // Health stores report absolute temperature; Bene wants the deviation, which
-    // it computes against its own baseline, so keep the reading only if it is
-    // already a delta-sized value.
-    session.wristTempC = t != null && Math.abs(t) < 5 ? t : null;
+    // Ring exporters often write one overnight summary at waking, a little
+    // after the last stage ends. A short waking grace captures that reading
+    // without folding in a genuinely daytime sample.
+    const wakeTo = new Date(new Date(to).getTime() + 2 * 60 * 60000).toISOString();
+    session.hrvMs = meanIn(hrv.samples, 'heartRateVariability', from, wakeTo);
+    session.rhrBpm = meanIn(rhr.samples, 'restingHeartRate', from, wakeTo);
+    session.respiratoryRate = meanIn(resp.samples, 'respiratoryRate', from, wakeTo);
+    const spo2Value = meanIn(spo2.samples, 'oxygenSaturation', from, wakeTo);
+    // HealthKit reports SpO2 as a 0–1 fraction; Health Connect as 0–100.
+    session.spo2 = spo2Value == null ? null : spo2Value <= 1.5 ? spo2Value * 100 : spo2Value;
+    // Absolute Celsius, preferring the wrist-specific overnight record. The
+    // old |value| < 5 heuristic discarded every real 36.x °C reading.
+    const t = meanIn(wristTemp.samples, wristTempType, from, wakeTo) ?? meanIn(temp.samples, 'bodyTemperature', from, wakeTo);
+    session.wristTempC = t != null && t >= 25 && t <= 42 ? t : null;
     session.minHrBpm = (() => {
       const inSleep = hr.samples.filter((s) => s.dataType === 'heartRate' && s.startDate >= from && s.startDate <= to);
       return inSleep.length ? Math.round(Math.min(...inSleep.map((s) => s.value))) : null;
@@ -850,6 +924,12 @@ export async function readDays(days = 30): Promise<DayRecord[]> {
     day.workouts = workouts.workouts
       .filter((w) => dateKey(new Date(w.startDate)) === date)
       .map(toWorkout);
+    // Health Connect has no exerciseTime record (see readTypes). The imported
+    // sessions themselves are the only evidence of exercise minutes, so count
+    // their durations instead of leaving every Android day at 0.
+    if (p === 'health-connect' && exercise.samples.length === 0) {
+      day.metrics.exerciseMinutes = day.workouts.reduce((sum, w) => sum + w.durationMin, 0);
+    }
   }
 
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));

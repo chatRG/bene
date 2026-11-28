@@ -45,11 +45,23 @@ export function TimelineScreen() {
       const end = new Date(d.sleep.end);
       list.push({
         id: d.sleep.id,
-        time: clock(t),
-        sort: Number.isNaN(t.getTime()) ? 0 : t.getHours() * 60 + t.getMinutes(),
+        time: clock(end),
+        sort: Number.isNaN(end.getTime()) ? 0 : end.getHours() * 60 + end.getMinutes(),
         kind: 'sleep',
         title: 'Primary sleep',
-        sub: `${clock(end)} · ${hoursLabel(t, end)} in bed · ${d.sleep.source}`,
+        sub: `Bed ${clock(t)} · ${hoursLabel(t, end)} in bed · ${d.sleep.source}`,
+      });
+    }
+    for (const nap of d.record.naps ?? []) {
+      const t = new Date(nap.start);
+      const end = new Date(nap.end);
+      list.push({
+        id: nap.id,
+        time: clock(end),
+        sort: Number.isNaN(end.getTime()) ? 0 : end.getHours() * 60 + end.getMinutes(),
+        kind: 'sleep',
+        title: 'Nap',
+        sub: `${hoursLabel(t, end)} · ${nap.source}`,
       });
     }
     for (const w of d.record.workouts) {
@@ -85,7 +97,11 @@ export function TimelineScreen() {
     return list.sort((a, b) => a.sort - b.sort);
   }, [d, state.routines, selectedKey]);
 
-  const shift = (n: number) => setSelected((s) => (n > 0 ? addDays(s, 1) : subDays(s, 1)));
+  const selectDate = (date: Date) => {
+    setSelected(date);
+    navigate(dayPath('/timeline', dateKey(date), today), { replace: true });
+  };
+  const shift = (n: number) => selectDate(n > 0 ? addDays(selected, 1) : subDays(selected, 1));
 
   return (
     <div className="screen screen--detail">
@@ -103,7 +119,7 @@ export function TimelineScreen() {
       <div className="row-between mt-12">
         <button className="icon-btn icon-btn--soft" onClick={() => shift(-1)} aria-label="Previous day"><ChevronLeft size={18} /></button>
         <div className="row gap-8">
-          <button className="pill pill--flat" onClick={() => setSelected(new Date())} style={isToday ? { background: 'var(--text)', color: 'var(--bg)' } : undefined}>
+          <button className="pill pill--flat" onClick={() => selectDate(new Date())} style={isToday ? { background: 'var(--text)', color: 'var(--bg)' } : undefined}>
             Today
           </button>
           <button className="pill pill--flat" onClick={() => shift(1)}>Tomorrow</button>
@@ -118,7 +134,7 @@ export function TimelineScreen() {
           const active = key === selectedKey;
           const has = (state.days[key]?.workouts.length ?? 0) > 0;
           return (
-            <button key={key} className={`timeline-day__item ${active ? 'timeline-day__item--active' : ''}`} onClick={() => setSelected(date)}>
+            <button key={key} className={`timeline-day__item ${active ? 'timeline-day__item--active' : ''}`} onClick={() => selectDate(date)}>
               <span>{format(date, 'EEE')}</span>
               <strong>{format(date, 'd')}</strong>
               <span style={{ width: 5, height: 5, borderRadius: 9, background: has ? (active ? 'var(--bg)' : 'var(--green)') : 'transparent' }} />
@@ -196,7 +212,7 @@ export function TimelineScreen() {
                     id: `meal-${Date.now()}`,
                     name: 'Quick snack',
                     date: selectedKey,
-                    time: '15:30',
+                    time: format(new Date(), 'HH:mm'),
                     calories: 180,
                     proteinG: 8,
                     carbsG: 22,
@@ -285,7 +301,11 @@ function ActivityForm({ date, onDone }: { date: string; onDone: () => void }) {
         onClick={() => {
           const start = dateAtTime(date, format(new Date(), 'HH:mm')) ?? new Date();
           const isRun = kind === 'run' || kind === 'walk' || kind === 'cycle';
-          const zone: [number, number, number, number, number, number] = isRun ? [4, 8, 12, 6, 1, 0] : [6, 10, 8, 3, 1, 0];
+          // Duration gives a modelled zone profile, not measured heart rate.
+          // Never label invented HR as a sensor reading.
+          const shares = isRun ? [0.1, 0.25, 0.35, 0.2, 0.1, 0] : [0.2, 0.3, 0.25, 0.15, 0.1, 0];
+          const zone = shares.map((share) => Math.round(duration * share)) as [number, number, number, number, number, number];
+          zone[2] += duration - zone.reduce((sum, minutes) => sum + minutes, 0);
           state.logWorkout({
             id: `workout-${Date.now()}`,
             kind,
@@ -294,10 +314,10 @@ function ActivityForm({ date, onDone }: { date: string; onDone: () => void }) {
             start: start.toISOString(),
             durationMin: duration,
             distanceKm: isRun ? distance : null,
-            avgHr: isRun ? 148 : 118,
-            maxHr: isRun ? 168 : 150,
-            calories: Math.round(duration * (isRun ? 11 : 7)),
-            strain: Math.round(duration * 0.9),
+            avgHr: null,
+            maxHr: null,
+            calories: null,
+            strain: 0,
             source: 'Bene',
             imported: false,
             zoneMinutes: zone,

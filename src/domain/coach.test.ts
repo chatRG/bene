@@ -31,7 +31,8 @@ describe('offline coach', () => {
       rhrBpm: 62,
     };
     const reply = generateCoachReply(poorNight, 'Should I do intervals today?', NOW);
-    expect(reply.text).toMatch(/keep today genuinely easy|Today supports quality work/);
+    expect(reply.text).toMatch(/keep today genuinely easy/i);
+    expect(reply.text).not.toMatch(/Today supports quality work/i);
   });
 
   it('reports nutrition totals from the logged meals', () => {

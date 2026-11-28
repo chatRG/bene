@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { Activity, ChevronLeft, Flame, Heart, Info, Share2, Zap } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { activityStatusFor, deriveDay, zoneConfigFor } from '../domain/derive';
@@ -11,11 +10,12 @@ import { LineChart, Sparkline } from '../components/charts';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
 import { useDayParam } from '../components/use-day-param';
+import { useGoBack } from '../native';
 
 type Tab = 'strain' | 'exercise' | 'hr' | 'energy';
 
 export function StrainScreen() {
-  const navigate = useNavigate();
+  const back = useGoBack();
   const state = useAppStore();
   const day = useDayParam();
   const today = dateKey(new Date());
@@ -62,7 +62,7 @@ export function StrainScreen() {
   return (
     <div className="screen screen--detail">
       <div className="detail-head">
-        <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Close"><ChevronLeft size={20} /></button>
+        <button className="icon-btn icon-btn--soft" onClick={back} aria-label="Close"><ChevronLeft size={20} /></button>
         <div className="detail-head__title">Strain Score</div>
         <div className="detail-head__right">
           <div className="row gap-6">

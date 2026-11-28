@@ -229,6 +229,11 @@ const previousLongDate = previousDay.toLocaleDateString('en-US', { month: 'long'
 const previousNumericDate = previousDay.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
 const previousWeekday = previousDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 const previousCalories = fx.days[previousDate].meals.reduce((sum, meal) => sum + meal.calories, 0).toLocaleString('en-US');
+const previousMacros = fx.days[previousDate].meals.reduce(
+  (sum, meal) => ({ fat: sum.fat + meal.fatG, carbs: sum.carbs + meal.carbsG, protein: sum.protein + meal.proteinG }),
+  { fat: 0, carbs: 0, protein: 0 },
+);
+const previousFatPct = Math.round((previousMacros.fat * 9 / (previousMacros.fat * 9 + previousMacros.carbs * 4 + previousMacros.protein * 4)) * 100);
 await page.locator('.date-button').click();
 await page.waitForTimeout(250);
 const homeSheet = await page.locator('.sheet').boundingBox();
@@ -316,6 +321,14 @@ if (await homeDateInput.count()) {
   await page.locator('.nutrition-mini').click();
   await page.waitForTimeout(300);
   check('past Home nutrition card opens that day', (await page.locator('.detail-head__sub').innerText()).includes(previousLongDate));
+  if (previousMacros.fat > 0) {
+    await page.locator('.macro-card').first().click();
+    await page.waitForTimeout(200);
+    const detailFat = await page.locator('.macro-detail__value').first().innerText();
+    check('macro details use the selected past day', detailFat === `${previousFatPct}%`, `${detailFat} vs ${previousFatPct}%`);
+    await page.locator('.sheet').getByLabel('Close').click();
+    await page.waitForTimeout(150);
+  }
   await page.goBack();
   await page.waitForTimeout(250);
 

@@ -75,8 +75,9 @@ function Shell() {
   const lastBackupAt = useAppStore((s) => s.settings.lastBackupAt);
   const backupNow = useAppStore((s) => s.backupNow);
   const activeTabs = useAppStore((s) => s.settings.activeTabs);
-  const isTab = TAB_ROOTS.includes(location.pathname) || location.pathname.startsWith(CHAT);
-  const isOnboarding = location.pathname === '/onboarding';
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const isTab = TAB_ROOTS.includes(path) || path.startsWith(CHAT);
+  const isOnboarding = path === '/onboarding';
 
   useEffect(() => {
     ensureToday();
@@ -107,6 +108,29 @@ function Shell() {
   }, [onboarded, ensureToday, importHealthDays]);
 
   useEffect(() => {
+    if (!onboarded) return;
+    const sync = () => {
+      ensureToday();
+      const lastSyncedAt = useAppStore.getState().settings.lastHealthSyncAt;
+      const elapsed = lastSyncedAt ? Date.now() - Date.parse(lastSyncedAt) : Number.NaN;
+      if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < 60_000) return;
+      void readAndImport(importHealthDays, lastSyncedAt).catch(() => {
+        // Expected bridge failures become idle results in link.ts.
+      });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    // Keep the timeline current if the app stays open across midnight.
+    const ticker = window.setInterval(() => ensureToday(), 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(ticker);
+    };
+  }, [onboarded, ensureToday, importHealthDays]);
+
+  useEffect(() => {
     if (!onboarded || !autoBackup) return;
     const last = lastBackupAt ? new Date(lastBackupAt).getTime() : 0;
     if (Date.now() - last > 24 * 60 * 60 * 1000) backupNow();
@@ -119,10 +143,9 @@ function Shell() {
   // old link or a back press would still land on it and resume tracking. Its
   // sub-screens (a workout detail, a settings section) are covered too.
   //
-  // Compared against a normalised path: React Router matches `/journal/` to the
-  // `/journal` route, so an exact comparison here would let a trailing slash
+  // Compared against the normalised path above: React Router matches `/journal/`
+  // to the `/journal` route, so an exact comparison would let a trailing slash
   // through and the "disabled" screen would render and still write data.
-  const path = location.pathname.replace(/\/+$/, '') || '/';
   const off =
     (path.startsWith('/workout/') && !activeTabs.fitness) ||
     (path === '/fitness' && !activeTabs.fitness) ||

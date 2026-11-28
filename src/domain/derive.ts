@@ -4,7 +4,7 @@ import { ageFromBirthDate, mean, stageTotals, round } from './math';
 import { sleepBank, sleepNeedMinutes, sleepScore, type SleepScoreResult } from './scoring/sleep';
 import { baselineFromSessions, recoveryScore, recoveryNarrative, type RecoveryResult } from './scoring/recovery';
 import { computeStrain, type StrainResult } from './scoring/strain';
-import { stressSummary, type StressSummary } from './scoring/load';
+import { stressFromHr, stressSummary, type StressSummary } from './scoring/load';
 import { nutritionFor, type NutritionResult } from './scoring/nutrition';
 import { CALC_METHODS, estimatedMaxHr } from './scoring/zones';
 
@@ -52,22 +52,26 @@ export function zoneConfigFor(data: AppStateData, date: string) {
   };
 }
 
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return dateKey(d);
+}
+
 function priorSessions(data: AppStateData, date: string, daysBack: number): SleepSession[] {
-  const idx = data.dayOrder.indexOf(date);
-  // date missing (or the first day) means there is nothing prior to average;
-  // a negative idx would also index dayOrder[-1..] instead of a real date.
-  if (idx <= 0) return [];
-  const from = Math.max(0, idx - daysBack);
-  const out: SleepSession[] = [];
-  for (let i = from; i < idx; i++) {
-    const s = data.days[data.dayOrder[i]]?.sleep;
-    if (s) out.push(s);
-  }
-  return out;
+  // Calendar days, not array positions. A gap in tracking must not make an
+  // eleven-month-old "baseline" look like the previous four weeks.
+  const from = shiftDate(date, -daysBack);
+  return data.dayOrder
+    .filter((day) => day >= from && day < date)
+    .map((day) => data.days[day]?.sleep)
+    .filter((s): s is SleepSession => !!s);
 }
 
 export function recoveryBaselineFor(data: AppStateData, date: string) {
-  return baselineFromSessions(priorSessions(data, date, 28));
+  return baselineFromSessions(
+    priorSessions(data, date, 28).filter((s) => s.staged !== false && stageTotals(s).asleepMin > 60),
+  );
 }
 
 function strainOfRecord(data: AppStateData, date: string): number {
@@ -99,20 +103,19 @@ export function recentStrains(data: AppStateData, date: string, daysBack = 28): 
 }
 
 export function sleepNeedFor(data: AppStateData, date: string): number {
-  const idx = data.dayOrder.indexOf(date);
   const age = ageFromBirthDate(data.profile.birthDate, date) ?? 30;
-  // date missing (or the first day) means there is nothing prior to sum; a
-  // negative idx would slice dayOrder[-7..-1] and read the whole history as
-  // "the last seven nights".
-  const prior = idx <= 0 ? [] : data.dayOrder.slice(Math.max(0, idx - 7), idx);
+  // Previous seven calendar days. Array positions made a long tracking gap
+  // look like seven consecutive nights of debt.
+  const from = shiftDate(date, -7);
+  const prior = data.dayOrder.filter((day) => day >= from && day < date);
   let debt = 0;
   for (const d of prior) {
     const rec = data.days[d];
     if (!rec?.sleep) continue;
     debt += stageTotals(rec.sleep).asleepMin - data.settings.sleepGoalMin;
   }
-  const yesterday = data.dayOrder[idx - 1];
-  const yesterdayStrain = yesterday ? strainOfRecord(data, yesterday) : 0;
+  const yesterday = shiftDate(date, -1);
+  const yesterdayStrain = data.days[yesterday] ? strainOfRecord(data, yesterday) : 0;
   return sleepNeedMinutes({
     age,
     sex: data.profile.sex,
@@ -130,7 +133,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
       date,
       steps: 0,
       activeCalories: 0,
-      totalCalories: 0,
+      totalCalories: null,
       exerciseMinutes: 0,
       daylightMinutes: 0,
       hydrationMl: 0,
@@ -145,6 +148,7 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     workouts: [],
     meals: [],
     journal: [],
+    naps: [],
   };
   const idx = data.dayOrder.indexOf(date);
   const isToday = date === dateOf(now);
@@ -162,8 +166,8 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
 
   const baseline = recoveryBaselineFor(data, date);
   const stagedNights =
-    priorSessions(data, date, 3).filter((s) => stageTotals(s).asleepMin > 60).length +
-    (session && stageTotals(session).asleepMin > 60 ? 1 : 0);
+    priorSessions(data, date, 14).filter((s) => s.staged !== false && stageTotals(s).asleepMin > 60).length +
+    (session && session.staged !== false && stageTotals(session).asleepMin > 60 ? 1 : 0);
   const recovery = recoveryScore({
     sleep: session,
     sleepScore: score?.status === 'scored' ? score.score : null,
@@ -187,7 +191,30 @@ export function deriveDay(data: AppStateData, date: string, now = new Date()): D
     nowMinute: isToday && isOnTimeline ? nowMinute : 1440,
   });
 
-  const stress = stressSummary(record.metrics.stressSamples, {
+  const stressSamples = (() => {
+    if (record.metrics.stressSamples.length) return record.metrics.stressSamples;
+    const buckets = new Map<number, { sum: number; count: number }>();
+    for (const sample of record.metrics.hrSamples) {
+      const minute = Math.floor(sample.minute / 15) * 15;
+      const bucket = buckets.get(minute) ?? { sum: 0, count: 0 };
+      bucket.sum += sample.bpm;
+      bucket.count += 1;
+      buckets.set(minute, bucket);
+    }
+    const restingHr = Math.round(baseline.rhrBpm || 55);
+    return [...buckets.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([minute, bucket]) => ({
+        minute,
+        score: stressFromHr(
+          bucket.sum / bucket.count,
+          restingHr,
+          record.metrics.daytimeHrvMs,
+          baseline.hrvMs || 55,
+        ),
+      }));
+  })();
+  const stress = stressSummary(stressSamples, {
     daysOfBaseline: Math.min(60, Math.max(0, idx)),
     // Only a scored session counts. A too-short night returns
     // { status: 'insufficient', score: 0 } — feeding that 0 in would tax the

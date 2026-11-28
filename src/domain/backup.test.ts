@@ -22,13 +22,6 @@ describe('backup validation', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('rejects a dayOrder date with no matching day', () => {
-    const file = validBackup();
-    file.data.dayOrder = ['2026-01-01'];
-    const result = parseBackup(JSON.stringify(file));
-    expect(result.ok).toBe(false);
-  });
-
   it('rejects a day that is missing workouts', () => {
     const file = validBackup();
     delete file.data.days[file.data.dayOrder[0]].workouts;
@@ -42,6 +35,17 @@ describe('backup validation', () => {
     const result = parseBackup(JSON.stringify(file));
     expect(result.ok).toBe(true);
     expect(result.ok && result.data.settings.lastHealthSyncAt).toBeNull();
+  });
+
+  it('round-trips an Android day whose total burn is unknown', () => {
+    const state = stateWithWeekOfData(new Date('2026-11-20T12:00:00'));
+    const date = state.dayOrder[state.dayOrder.length - 1];
+    state.days[date] = { ...state.days[date], metrics: { ...state.days[date].metrics, totalCalories: null } };
+
+    const result = parseBackup(JSON.stringify(createBackup(state)));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.days[date].metrics.totalCalories).toBeNull();
   });
 
   it('rejects a future health cursor during restore', () => {

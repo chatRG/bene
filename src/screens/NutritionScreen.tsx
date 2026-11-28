@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Apple, Barcode, ChevronRight, Flame, Image as ImageIcon, Info, Plus, Search, Share2, Utensils } from 'lucide-react';
+import { Apple, Barcode, ChevronLeft, ChevronRight, Flame, Image as ImageIcon, Info, Plus, Search, Share2, Utensils } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { kcal } from '../domain/time';
@@ -10,6 +10,7 @@ import { SectionHead, Sheet, Segmented, Ring } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
 import { useDayParam } from '../components/use-day-param';
+import { useGoBack } from '../native';
 import type { MealEntry } from '../domain/types';
 
 interface FoodTemplate {
@@ -49,12 +50,14 @@ const FOODS: FoodTemplate[] = [
 
 export function NutritionScreen() {
   const state = useAppStore();
+  const back = useGoBack();
   const day = useDayParam();
   const today = dateKey(new Date());
   const dayDate = new Date(`${day}T12:00:00`);
   const isToday = day === today;
   const d = useMemo(() => deriveDay(state, day, new Date()), [state, day]);
   const n = d.nutrition;
+  const hasMeals = n.status !== 'empty';
   const [logOpen, setLogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [contribOpen, setContribOpen] = useState(false);
@@ -62,7 +65,7 @@ export function NutritionScreen() {
   const [query, setQuery] = useState('');
   const [units, setUnits] = useState<'g' | 'percent'>(state.settings.nutritionUnits === 'g' ? 'g' : 'percent');
 
-  const goals = { calories: state.settings.calorieGoal, protein: state.settings.proteinGoalG, carbs: 240, fat: 70 };
+  const goals = { calories: state.settings.calorieGoal, protein: state.settings.proteinGoalG, carbs: state.settings.carbGoalG ?? 240, fat: state.settings.fatGoalG ?? 70 };
   const left = goals.calories - n.totals.calories;
   const remaining = {
     protein: goals.protein - n.totals.proteinG,
@@ -129,7 +132,7 @@ export function NutritionScreen() {
   return (
     <div className="screen nutrition-page screen--enter">
       <div className="detail-head" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
-        <div />
+        <div><button className="icon-btn icon-btn--soft" onClick={back} aria-label="Back"><ChevronLeft size={20} /></button></div>
         <div>
           <div className="detail-head__title">Nutrition</div>
           <div className="detail-head__sub">{format(dayDate, 'MMMM d, yyyy')}</div>
@@ -145,20 +148,26 @@ export function NutritionScreen() {
       <div className="row-between mt-12">
         <div className="calorie-hero">
           <div className="caption">Calories</div>
-          <div className="calorie-hero__value">{n.totals.calories.toLocaleString()}</div>
-          <div className="calorie-hero__sub" style={{ color: left >= 0 ? 'var(--green-deep)' : 'var(--red)' }}>
-            {left >= 0 ? `${left} kcal under ${goals.calories.toLocaleString()} goal` : `${Math.abs(left)} kcal over ${goals.calories.toLocaleString()} goal`}
+          <div className="calorie-hero__value">{hasMeals ? n.totals.calories.toLocaleString() : '—'}</div>
+          <div className="calorie-hero__sub" style={{ color: hasMeals ? (left >= 0 ? 'var(--green-deep)' : 'var(--red)') : 'var(--muted)' }}>
+            {hasMeals
+              ? left >= 0
+                ? `${left} kcal under ${goals.calories.toLocaleString()} goal`
+                : `${Math.abs(left)} kcal over ${goals.calories.toLocaleString()} goal`
+              : 'No food logged for this day'}
           </div>
         </div>
-        <Ring value={n.score} size={84} stroke={6} color="var(--accent)">
+        <Ring value={hasMeals ? n.score : 0} size={84} stroke={6} color="var(--accent)">
           <div className="ring__center">
-            <span className="ring__value" style={{ fontSize: 18 }}>{n.score}</span>
-            <span className="ring__label">/ 100</span>
+            <span className="ring__value" style={{ fontSize: 18 }}>{hasMeals ? n.score : '—'}</span>
+            <span className="ring__label">{hasMeals ? '/ 100' : ''}</span>
           </div>
         </Ring>
       </div>
 
-      <div className="macro-cards mt-12">
+      {hasMeals ? (
+        <>
+          <div className="macro-cards mt-12">
         {([
           ['Fat', n.totals.fatG, remaining.fat, n.macroPercents.fat],
           ['Carbs', n.totals.carbsG, remaining.carbs, n.macroPercents.carbs],
@@ -177,6 +186,8 @@ export function NutritionScreen() {
       <p className="caption" style={{ margin: '8px 4px 0', lineHeight: 1.45 }}>
         Percent is each macro's share of {isToday ? "today's" : "that day's"} calories. Grams left or over compare with your macro goal.
       </p>
+        </>
+      ) : null}
 
       <div className="card net-card mt-12">
         <div className="row-between">
@@ -191,7 +202,7 @@ export function NutritionScreen() {
           <span><Apple size={14} color="var(--muted)" /> Intake {n.totals.calories.toLocaleString()}</span>
         </div>
         <div className="mt-12">
-          <RangeBar value={n.netEnergy ?? 0} min={-500} max={500} markerLabel={`${n.netEnergy ?? 0} kcal`} />
+          {n.netEnergy != null ? <RangeBar value={n.netEnergy} min={-500} max={500} markerLabel={`${n.netEnergy} kcal`} /> : null}
         </div>
       </div>
 
@@ -336,7 +347,7 @@ export function NutritionScreen() {
         >
           <div className="row-between" style={{ marginBottom: 16 }}>
             <span className="caption">Show values as</span>
-            <Segmented options={[{ value: 'g', label: 'g' }, { value: 'percent', label: '%' }]} value={units} onChange={setUnits} />
+            <Segmented options={[{ value: 'g', label: 'g' }, { value: 'percent', label: '%' }]} value={units} onChange={(value) => { setUnits(value); state.updateSettings({ nutritionUnits: value }); }} />
           </div>
           <div className="nutrition-detail-grid">
             {[

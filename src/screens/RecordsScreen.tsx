@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertCircle, Camera, ChevronLeft, FileText, Image, Info, Upload, X } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
+import { useGoBack } from '../native';
 import type { HealthRecord } from '../domain/types';
 
 export function RecordsScreen() {
-  const navigate = useNavigate();
+  const back = useGoBack();
   const state = useAppStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<HealthRecord | null>(null);
@@ -35,13 +35,13 @@ export function RecordsScreen() {
       state.uploadRecord(file.name, Math.round(file.size / 1024), file.type.startsWith('image') ? 'image' : 'document');
     }
     setUploadOpen(false);
-    showToast('Stored for reference — no analysis in this build');
+    showToast('Record metadata added — file contents are not stored');
   };
 
   return (
     <div className="screen screen--detail">
       <div className="detail-head">
-        <button className="icon-btn icon-btn--soft" onClick={() => navigate(-1)} aria-label="Back"><ChevronLeft size={20} /></button>
+        <button className="icon-btn icon-btn--soft" onClick={back} aria-label="Back"><ChevronLeft size={20} /></button>
         <div><div className="detail-head__title">Health records</div><div className="detail-head__sub">Documents, lab reports and biomarkers</div></div>
         <div className="detail-head__right">
           <button className="icon-btn icon-btn--soft" onClick={() => setUploadOpen(true)} aria-label="Upload"><Upload size={18} /></button>
@@ -53,7 +53,7 @@ export function RecordsScreen() {
           <span className="bio-contributor__icon"><FileText size={18} /></span>
           <div className="grow">
             <div className="card-title">Why upload records?</div>
-            <div className="card-sub">Files stay on this device. This build stores them for reference and does not read lab values.</div>
+            <div className="card-sub">Bene records the file name, size and type. File contents are not stored in this build, and lab values are not read.</div>
           </div>
         </div>
       </div>
@@ -68,7 +68,7 @@ export function RecordsScreen() {
                 <div className="list-title">{r.name}</div>
                 <div className="list-sub">{format(new Date(r.uploadedAt), 'MMM d, yyyy')} · {r.sizeKb} KB</div>
               </div>
-              <span className="pill pill--sm pill--flat">Stored</span>
+              <span className="pill pill--sm pill--flat">Metadata only</span>
             </button>
           ))}
           {state.healthRecords.length === 0 ? <div className="empty" style={{ padding: 22 }}>No records yet.</div> : null}
@@ -109,14 +109,14 @@ export function RecordsScreen() {
       </div>
 
       {selected ? (
-        <Sheet title={selected.name} subtitle={`Uploaded ${format(new Date(selected.uploadedAt), 'MMM d, yyyy')}`} onClose={() => setSelected(null)}>
+        <Sheet title={selected.name} subtitle={`Added ${format(new Date(selected.uploadedAt), 'MMM d, yyyy')}`} onClose={() => setSelected(null)}>
           <div className="row gap-10">
             <span className={`pill ${selected.status === 'ready' ? 'pill--green' : 'pill--orange'}`}>
-              Stored for reference — no analysis in this build
+              Metadata only — no file contents
             </span>
             <span className="caption">{selected.sizeKb} KB</span>
           </div>
-          <p className="caption mt-12">This build stores the file for reference. It does not read or extract biomarker values.</p>
+          <p className="caption mt-12">Only this record's name, size and type are kept. The file itself is not stored.</p>
           <button className="btn btn--block mt-16" onClick={() => setSelected(null)}>Done</button>
         </Sheet>
       ) : null}

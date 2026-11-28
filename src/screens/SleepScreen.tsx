@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { AlarmClock, BedDouble, ChevronRight, Clock, Moon, Share2, Watch, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { dateKey } from '../domain/seed';
 import { deriveDay, sleepNeedFor } from '../domain/derive';
@@ -11,6 +10,7 @@ import { Hypnogram, LineChart } from '../components/charts';
 import { EmptyState, Ring, Sheet } from '../components/ui';
 import { showToast } from '../components/toast';
 import { useDayParam } from '../components/use-day-param';
+import { useGoBack } from '../native';
 import type { AlarmType } from '../domain/types';
 
 const STAGE_INFO = [
@@ -21,7 +21,7 @@ const STAGE_INFO = [
 ] as const;
 
 export function SleepScreen() {
-  const navigate = useNavigate();
+  const back = useGoBack();
   const state = useAppStore();
   const day = useDayParam();
   const today = dateKey(new Date());
@@ -39,7 +39,7 @@ export function SleepScreen() {
       <div>
         <div className="screen screen--detail sleep-page">
           <div className="detail-head">
-            <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
+            <button className="icon-btn glass" onClick={back} aria-label="Close"><X size={19} /></button>
             <div><div className="detail-head__title">Sleep</div></div>
             <div />
           </div>
@@ -112,7 +112,7 @@ export function SleepScreen() {
     <div>
       <div className="screen screen--detail sleep-page">
         <div className="detail-head">
-          <button className="icon-btn glass" onClick={() => navigate(-1)} aria-label="Close"><X size={19} /></button>
+          <button className="icon-btn glass" onClick={back} aria-label="Close"><X size={19} /></button>
           <div>
             <div className="detail-head__title">Primary sleep</div>
             <div className="detail-head__sub">{format(new Date(`${sleep.date}T12:00:00`), 'M/d/yy')} at {startLabel}</div>
@@ -256,8 +256,25 @@ export function SleepScreen() {
         </button>
 
         <div className="row gap-8 mt-16">
-          <button className="btn btn--soft btn--block" onClick={() => showToast('Sleep share card copied')}><Share2 size={16} /> Share</button>
-          <button className="btn btn--block" onClick={() => setAlarmOpen(true)}><AlarmClock size={16} /> Set alarm</button>
+          <button
+            className="btn btn--soft btn--block"
+            onClick={async () => {
+              const total = stageTotals(sleep);
+              const text = `${isToday ? 'Last night' : format(dayDate, 'MMMM d')}: ${Math.floor(total.asleepMin / 60)}h ${total.asleepMin % 60}m asleep, sleep score ${d.sleepScore?.score ?? '—'}%.`;
+              try {
+                if (navigator.share) await navigator.share({ title: 'My sleep', text });
+                else {
+                  await navigator.clipboard.writeText(text);
+                  showToast('Sleep summary copied');
+                }
+              } catch {
+                showToast('Share cancelled');
+              }
+            }}
+          >
+            <Share2 size={16} /> Share
+          </button>
+          <button className="btn btn--block" onClick={() => setAlarmOpen(true)}><AlarmClock size={16} /> Wake plan</button>
         </div>
       </div>
 
@@ -273,7 +290,7 @@ export function SleepScreen() {
               });
             }
             setAlarmOpen(false);
-            showToast(alarm.type === 'none' ? 'Alarm removed' : 'Alarm saved to Apple Watch');
+            showToast(alarm.type === 'none' ? 'Wake plan cleared' : 'Wake plan saved with this night');
           }}
         />
       ) : null}
@@ -327,7 +344,7 @@ function AlarmSheet({
     { value: 'none', label: 'No alarm', desc: 'Track sleep without waking you' },
   ];
   return (
-    <Sheet title="Alarm" subtitle="Saved to your Apple Watch for haptics and Smart wake." onClose={onClose}>
+    <Sheet title="Wake plan" subtitle="Saved with this night. Bene does not ring a device alarm." onClose={onClose}>
       <div className="status-options">
         {options.map((o) => (
           <button key={o.value} className={`status-option ${type === o.value ? 'status-option--active' : ''}`} onClick={() => setType(o.value)}>
@@ -357,7 +374,7 @@ function AlarmSheet({
         Time to Fall Asleep is measured from when the Bene alarm is armed to your first detected sleep stage. Apple's Clock alarm does not count.
       </p>
       <button className="btn btn--block mt-20" onClick={() => onSave({ type, time, windowMin, enabled: type !== 'none' })}>
-        Save to Watch
+        Save plan
       </button>
     </Sheet>
   );

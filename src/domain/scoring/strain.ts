@@ -1,7 +1,7 @@
 import type { ActivityStatus, HeartRateSample, Workout } from '../types';
 import { clamp, mean } from '../math';
 import type { ZoneConfig } from './zones';
-import { estimatedMaxHr, workoutTrimp } from './zones';
+import { estimatedMaxHr, workoutTrimp, zoneIndexForMaxHr } from './zones';
 
 export interface StrainResult {
   score: number;
@@ -87,6 +87,67 @@ function isInsideWorkout(minute: number, workouts: Workout[]): boolean {
   });
 }
 
+/**
+ * Health-store workouts arrive without zone buckets. Recover them from the
+ * heart-rate samples inside the workout, splitting the workout at the midpoint
+ * between neighbouring samples so every minute is assigned exactly once.
+ */
+export function workoutZoneMinutes(
+  workout: Workout,
+  hrSamples: HeartRateSample[],
+  maxHr: number,
+): [number, number, number, number, number, number] {
+  const start = workoutStartMinute(workout);
+  const end = Math.min(1440, start + workout.durationMin);
+  const samples = hrSamples
+    .filter((s) => Number.isFinite(s.minute) && Number.isFinite(s.bpm) && s.minute >= start && s.minute <= end)
+    .sort((a, b) => a.minute - b.minute);
+  const zones: [number, number, number, number, number, number] = [0, 0, 0, 0, 0, 0];
+  if (!samples.length) return zones;
+
+  for (let i = 0; i < samples.length; i++) {
+    const sample = samples[i];
+    const previous = samples[i - 1];
+    const next = samples[i + 1];
+    // Attribute a five-minute reading window around the sample, splitting at
+    // the midpoint between neighbours. Do not stretch an eight-minute
+    // recording across a ninety-minute workout.
+    const from = previous ? Math.max(start, (previous.minute + sample.minute) / 2) : Math.max(start, sample.minute - 2.5);
+    const to = next ? Math.min(end, (sample.minute + next.minute) / 2) : Math.min(end, sample.minute + 2.5);
+    const minutes = Math.max(0, to - from);
+    if (minutes > 0) zones[zoneIndexForMaxHr(sample.bpm, maxHr)] += minutes;
+  }
+  return zones;
+}
+
+/** Fill a health-imported workout's derived readings from its real HR samples. */
+export function enrichImportedWorkout(
+  workout: Workout,
+  hrSamples: HeartRateSample[],
+  maxHr: number,
+): Workout {
+  if (!workout.imported || workout.zoneMinutes.some((minutes) => minutes > 0)) return workout;
+  const zones = workoutZoneMinutes(workout, hrSamples, maxHr);
+  if (!zones.some((minutes) => minutes > 0)) return workout;
+  const start = workoutStartMinute(workout);
+  const inside = hrSamples.filter((s) => s.minute >= start && s.minute <= start + workout.durationMin);
+  const average = inside.length ? Math.round(inside.reduce((sum, s) => sum + s.bpm, 0) / inside.length) : null;
+  return {
+    ...workout,
+    zoneMinutes: zones,
+    avgHr: workout.avgHr ?? average,
+    maxHr: workout.maxHr ?? (inside.length ? Math.max(...inside.map((s) => s.bpm)) : null),
+    strain: workout.strain > 0 ? workout.strain : Math.round(strainFromTrimp(workoutTrimp(zones))),
+  };
+}
+
+/** A workout's own zones, or the ones its recorded heart rate supports. */
+function loadZones(workout: Workout, hrSamples: HeartRateSample[], maxHr: number): number[] {
+  return workout.zoneMinutes.some((minutes) => minutes > 0)
+    ? workout.zoneMinutes
+    : workoutZoneMinutes(workout, hrSamples, maxHr);
+}
+
 export function computeStrain(input: {
   workouts: Workout[];
   hrSamples: HeartRateSample[];
@@ -103,7 +164,10 @@ export function computeStrain(input: {
   const maxHr = input.maxHr ?? estimatedMaxHr(input.age ?? 30);
   const upTo = input.nowMinute ?? 1440;
   const sampleMinutes = input.sampleMinutes ?? 10;
-  const active = input.workouts.reduce((acc, w) => acc + workoutTrimp(w.zoneMinutes), 0);
+  const active = input.workouts.reduce(
+    (acc, w) => acc + workoutTrimp(loadZones(w, input.hrSamples, maxHr)),
+    0,
+  );
   let passive = 0;
   for (const s of input.hrSamples) {
     if (s.minute > upTo) continue;
@@ -149,7 +213,7 @@ export function strainSeriesForDay(
   for (const w of workouts) {
     const start = workoutStartMinute(w);
     if (!added.has(w.id)) {
-      active += workoutTrimp(w.zoneMinutes);
+      active += workoutTrimp(loadZones(w, hrSamples, maxHr));
       added.add(w.id);
     }
     if (start === 0) continue;

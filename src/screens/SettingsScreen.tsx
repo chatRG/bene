@@ -25,6 +25,7 @@ import { useAppStore } from '../store/useAppStore';
 import { BeneMark, DetailHeader, ListRow, Sheet, Segmented } from '../components/ui';
 import { Glyph } from '../components/glyphs';
 import { showToast } from '../components/toast';
+import { APP_VERSION } from '../domain/version';
 import { snapshotInfo } from '../domain/backup';
 import { platform, platformLabel } from '../native/health';
 import { HealthSourceCard, HealthSourceRow } from '../components/health-source';
@@ -76,7 +77,7 @@ export function SettingsScreen() {
 
         <GroupLabel>App</GroupLabel>
         <div className="list-card">
-          <ListRow icon={<Info size={16} />} title="About" subtitle="Version 0.3.3 · Noncommercial" onClick={() => navigate('/settings/about')} />
+          <ListRow icon={<Info size={16} />} title="About" subtitle={`Version ${APP_VERSION} · Noncommercial`} onClick={() => navigate('/settings/about')} />
         </div>
 
         <div className="settings-footer">Bene is a local-first health app.<br />Health estimates are wellness only, not medical advice.</div>
@@ -316,6 +317,8 @@ function Goals() {
   const [sleepM, setSleepM] = useState(s.sleepGoalMin % 60);
   const [kcal, setKcal] = useState(s.calorieGoal);
   const [protein, setProtein] = useState(s.proteinGoalG);
+  const [carbs, setCarbs] = useState(s.carbGoalG ?? 240);
+  const [fat, setFat] = useState(s.fatGoalG ?? 70);
   const [units, setUnits] = useState(s.nutritionUnits);
   return (
     <>
@@ -343,11 +346,19 @@ function Goals() {
           <input className="text-input" style={{ width: 100, minHeight: 38 }} type="number" value={protein} onChange={(e) => setProtein(Number(e.target.value))} />
         </div>
         <div className="list-row">
+          <div className="grow"><div className="list-title">Carbs goal</div><div className="list-sub">Grams per day</div></div>
+          <input className="text-input" style={{ width: 100, minHeight: 38 }} type="number" value={carbs} onChange={(e) => setCarbs(Number(e.target.value))} />
+        </div>
+        <div className="list-row">
+          <div className="grow"><div className="list-title">Fat goal</div><div className="list-sub">Grams per day</div></div>
+          <input className="text-input" style={{ width: 100, minHeight: 38 }} type="number" value={fat} onChange={(e) => setFat(Number(e.target.value))} />
+        </div>
+        <div className="list-row">
           <div className="grow"><div className="list-title">Show macros as</div></div>
           <Segmented options={[{ value: 'g', label: 'Grams' }, { value: 'percent', label: 'Percent' }]} value={units} onChange={setUnits} />
         </div>
       </div>
-      <button className="btn btn--block mt-20" onClick={() => { state.updateSettings({ sleepGoalMin: Math.max(1, sleepH * 60 + sleepM), calorieGoal: Math.max(1, Math.round(kcal) || 1), proteinGoalG: Math.max(0, Math.round(protein) || 0), nutritionUnits: units }); showToast('Goals saved'); }}>Save goals</button>
+      <button className="btn btn--block mt-20" onClick={() => { state.updateSettings({ sleepGoalMin: Math.max(1, sleepH * 60 + sleepM), calorieGoal: Math.max(1, Math.round(kcal) || 1), proteinGoalG: Math.max(0, Math.round(protein) || 0), carbGoalG: Math.max(0, Math.round(carbs) || 0), fatGoalG: Math.max(0, Math.round(fat) || 0), nutritionUnits: units }); showToast('Goals saved'); }}>Save goals</button>
     </>
   );
 }
@@ -361,14 +372,6 @@ function CoachSettings() {
         <SwitchRow title="Local coach" subtitle="Turn the coach on or off" on={s.aiEnabled} onChange={(v) => state.updateSettings({ aiEnabled: v })} />
         <SwitchRow title="Ghost mode by default" subtitle="New chats disappear after the retention window" on={s.ghostDefault} onChange={(v) => state.updateSettings({ ghostDefault: v })} />
         <SwitchRow title="Follow-up suggestions" subtitle="Show suggested questions after each reply" on={s.suggestedFollowUps} onChange={(v) => state.updateSettings({ suggestedFollowUps: v })} />
-        <SwitchRow title="Show reasoning steps" subtitle="Adds a short method note to replies" on={s.expandedThinking} onChange={(v) => state.updateSettings({ expandedThinking: v })} />
-      </div>
-      <GroupLabel>Reply depth</GroupLabel>
-      <div className="card">
-        <div className="row-between">
-          <div><div className="card-title">Reply depth</div><div className="card-sub">Detailed replies use more of the weekly allowance</div></div>
-          <Segmented options={[{ value: 'standard', label: 'Standard' }, { value: 'upgraded', label: 'Detailed' }]} value={s.aiModel} onChange={(v) => state.updateSettings({ aiModel: v })} />
-        </div>
       </div>
       <GroupLabel>Ghost retention</GroupLabel>
       <div className="row gap-8">
@@ -376,12 +379,6 @@ function CoachSettings() {
           <button key={m} className={`pill ${s.ghostRetentionMin === m ? 'pill--dark' : 'pill--flat'}`} onClick={() => state.updateSettings({ ghostRetentionMin: m as 30 | 60 | 360 | 1440 })}>
             {m < 60 ? `${m}m` : `${m / 60}h`}
           </button>
-        ))}
-      </div>
-      <GroupLabel>Tone</GroupLabel>
-      <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
-        {(['supportive', 'direct', 'analytical', 'playful'] as const).map((p) => (
-          <button key={p} className={`pill ${s.aiPersonality === p ? 'pill--dark' : 'pill--flat'}`} onClick={() => state.updateSettings({ aiPersonality: p })}>{p}</button>
         ))}
       </div>
       <p className="caption mt-16" style={{ lineHeight: 1.5 }}>In this build the coach runs a rule-based responder on this device and answers from your metrics. No data leaves the device.</p>
@@ -546,7 +543,7 @@ function Privacy() {
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState(false);
   const exportData = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const blob = new Blob([state.exportBackupJson()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -615,7 +612,7 @@ function About() {
           <BeneMark size={28} />
         </div>
         <div className="h2">Bene</div>
-        <div className="caption mt-4">Version 0.3.3</div>
+        <div className="caption mt-4">Version {APP_VERSION}</div>
         <div className="row gap-6 mt-12" style={{ justifyContent: 'center' }}>
           <span className="pill pill--sm pill--flat"><Shield size={11} /> Local-first</span>
           <span className="pill pill--sm pill--flat">Noncommercial</span>
