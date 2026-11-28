@@ -65,10 +65,10 @@ export function generateCoachReply(data: AppStateData, text: string, now = new D
   }
 
   if (/whoop|oura|apple|garmin|data|source/.test(q)) {
-    const lastSync = data.settings.lastHealthSyncAt;
+    const lastSync = data.settings.lastHealthAttemptAt ?? data.settings.lastHealthSyncAt;
     return {
       text: lastSync
-        ? `Your health source completed its last successful sync on ${lastSync.slice(0, 10)}. Recovery, sleep, heart rate, workouts and the other imported readings come from that on-device store; nothing is uploaded.\n\nAnything you log manually is stored on this device too.`
+        ? `Your health source was last read on ${lastSync.slice(0, 10)}. Recovery, sleep, heart rate, workouts and the other imported readings come from that on-device store; nothing is uploaded.\n\nAnything you log manually is stored on this device too.`
         : 'No health source has completed a sync yet. Connect Apple Health on iOS or Health Connect on Android from Settings, then run a sync. Anything you log manually is stored on this device.',
       followUps: ['Open Data Sources', 'What data will be imported?', 'Why is my HRV missing?'],
     };

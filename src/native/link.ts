@@ -158,7 +158,7 @@ function withDeadline<T>(promise: Promise<T>, operation: string): Promise<T> {
 }
 
 export function readAndImport(
-  importDays: (records: DayRecord[], syncedAt?: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string, attemptedAt?: string) => void,
   lastSyncedAt: string | null = null,
 ): Promise<HealthLink> {
   // Startup and pull-to-refresh can arrive together. They write to the same
@@ -176,7 +176,7 @@ export function readAndImport(
 }
 
 async function performReadAndImport(
-  importDays: (records: DayRecord[], syncedAt?: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string, attemptedAt?: string) => void,
   lastSyncedAt: string | null,
 ): Promise<HealthLink> {
   let status: HealthStatus;
@@ -224,7 +224,7 @@ async function performReadAndImport(
   }
 
   const failed = lastHealthReadFailures();
-  importDays(records, failed ? undefined : syncedAt);
+  importDays(records, failed ? undefined : syncedAt, syncedAt);
   return {
     ...initialLink(),
     ...base,
@@ -243,7 +243,7 @@ async function performReadAndImport(
 
 /** Prompt for access, then read and merge. Used by "Connect". */
 export function connectAndImport(
-  importDays: (records: DayRecord[], syncedAt?: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string, attemptedAt?: string) => void,
 ): Promise<HealthLink> {
   if (connectInFlight) return connectInFlight;
   const run = (async () => {
@@ -267,7 +267,7 @@ export function connectAndImport(
 }
 
 async function performConnectAndImport(
-  importDays: (records: DayRecord[], syncedAt?: string) => void,
+  importDays: (records: DayRecord[], syncedAt?: string, attemptedAt?: string) => void,
 ): Promise<HealthLink> {
   let status: HealthStatus;
   try {
@@ -315,14 +315,15 @@ async function performConnectAndImport(
     };
   }
 
-  importDays(records, lastHealthReadFailures() ? undefined : syncedAt);
+  const failed = lastHealthReadFailures() > 0;
+  importDays(records, failed ? undefined : syncedAt, syncedAt);
   return {
     ...initialLink(),
     ...base,
     phase: 'connected',
     days: records.length,
-    syncedAt: lastHealthReadFailures() ? null : syncedAt,
-    detail: lastHealthReadFailures()
+    syncedAt: failed ? null : syncedAt,
+    detail: failed
       ? `${records.length} ${records.length === 1 ? 'day' : 'days'} imported, but some health types could not be read. That window will be retried.`
       : describe(records.length),
   };

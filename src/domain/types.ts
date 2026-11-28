@@ -333,6 +333,8 @@ export interface AppSettings {
   lastBackupAt: ISODateTime | null;
   /** Start of the last successful health read; null before the first connect. */
   lastHealthSyncAt: ISODateTime | null;
+  /** Last read that reached the app, even if one type failed and the retry cursor stayed put. */
+  lastHealthAttemptAt?: ISODateTime | null;
 }
 
 export interface ActivityStatusEvent {

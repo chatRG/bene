@@ -36,6 +36,7 @@ export function HealthSourceCard({
 }) {
   const importHealthDays = useAppStore((s) => s.importHealthDays);
   const lastHealthSyncAt = useAppStore((s) => s.settings.lastHealthSyncAt);
+  const lastHealthAttemptAt = useAppStore((s) => s.settings.lastHealthAttemptAt);
   const [link, setLink] = useState<HealthLink>(() => initialLink());
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
@@ -77,6 +78,10 @@ export function HealthSourceCard({
 
   const p: HealthPlatform = link.platform;
   const name = platformLabel(p);
+  const lastSyncAt = lastHealthAttemptAt ?? lastHealthSyncAt ?? link.syncedAt;
+  const lastSyncLabel = lastSyncAt
+    ? new Date(lastSyncAt).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
 
   const pillClass = useMemo(() => {
     if (link.phase === 'connected') return 'pill pill--sm pill--green';
@@ -171,9 +176,9 @@ export function HealthSourceCard({
               <Settings2 size={16} /> Open Health Connect settings
             </button>
           ) : null}
-          {variant === 'settings' && link.syncedAt ? (
+          {variant === 'settings' && lastSyncLabel ? (
             <p className="caption mt-12" style={{ textAlign: 'center' }}>
-              Last read {new Date(link.syncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              Last sync {lastSyncLabel}
             </p>
           ) : null}
         </div>

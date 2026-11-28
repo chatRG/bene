@@ -222,7 +222,7 @@ interface AppActions {
     },
   ) => void;
   ensureToday: () => void;
-  importHealthDays: (records: DayRecord[], syncedAt?: string) => void;
+  importHealthDays: (records: DayRecord[], syncedAt?: string, attemptedAt?: string) => void;
   setActivityStatus: (status: ActivityStatus, untilISO: string | null, note: string) => void;
   addMeal: (meal: MealEntry) => void;
   removeMeal: (date: string, id: string) => void;
@@ -405,10 +405,15 @@ export const useAppStore = create<AppStore>()(
       // value can simply win. The larger one does — an Android-shaped read
       // that says 0 (its store has no exercise-time record at all) while the
       // person logged 40 minutes by hand keeps the 40.
-      importHealthDays: (records, syncedAt) =>
+      importHealthDays: (records, syncedAt, attemptedAt) =>
         set((s) => {
-          const settings = syncedAt ? { ...s.settings, lastHealthSyncAt: syncedAt } : s.settings;
-          if (!records.length) return syncedAt ? { settings } : s;
+          const settings = {
+            ...s.settings,
+            ...(syncedAt ? { lastHealthSyncAt: syncedAt } : null),
+            ...(attemptedAt ? { lastHealthAttemptAt: attemptedAt } : null),
+          };
+          const touched = Boolean(syncedAt || attemptedAt);
+          if (!records.length) return touched ? { settings } : s;
           const days = { ...s.days };
           const order = [...s.dayOrder];
           for (const incoming of records) {
